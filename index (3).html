@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>工事写真台帳</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <style>
+    :root{
+      --brand:#0f766e; --brand2:#115e59; --accent:#f59e0b; --bg:#f3f4f6;
+      --card:#fff; --text:#172033; --muted:#64748b; --line:#d7dee7; --danger:#b42318;
+      --shadow:0 5px 18px rgba(15,23,42,.09);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app-shell{max-width:980px;margin:0 auto;min-height:100vh;padding-bottom:92px}
+    .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:14px 14px 12px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+    .topbar-row{display:flex;align-items:center;gap:10px}
+    .topbar h1{font-size:20px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .project-chip{font-size:12px;opacity:.93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw;margin-top:4px}
+    .install-btn{border:1px solid rgba(255,255,255,.75);background:transparent;color:#fff;border-radius:9px;padding:7px 10px;font-size:12px;display:none}
+    .content{padding:14px}
+    .tab-page{display:none}.tab-page.active{display:block}
+    .card{background:var(--card);border:1px solid #e5e9ef;border-radius:14px;box-shadow:var(--shadow);padding:14px;margin-bottom:13px}
+    .card h2{font-size:17px;margin:0 0 10px}.card h3{font-size:15px;margin:0 0 8px}
+    .hint{font-size:12px;color:var(--muted);line-height:1.6}.small{font-size:12px;color:var(--muted)}
+    .grid{display:grid;gap:10px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+    label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:4px}
+    input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#fff;color:var(--text)}
+    textarea{min-height:88px;resize:vertical}
+    .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#e2e8f0;color:#1e293b}
+    .btn.primary{background:var(--brand);color:#fff}.btn.accent{background:var(--accent);color:#fff}.btn.danger{background:#fee4e2;color:var(--danger)}.btn.outline{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+    .btn.full{width:100%}.btn-row{display:flex;gap:8px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:120px}
+    .empty{padding:28px 12px;text-align:center;color:var(--muted);border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa}
+    .project-item,.photo-item{background:#fff;border:1px solid #dfe5ec;border-radius:12px;padding:11px;margin-bottom:9px}
+    .project-item.active{border:2px solid var(--brand);background:#f0fdfa}
+    .item-head{display:flex;align-items:flex-start;gap:9px}.item-main{flex:1;min-width:0}.item-title{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+    .badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;background:#e6fffb;color:#115e59;font-weight:700}
+    .photo-item{display:grid;grid-template-columns:116px 1fr;gap:10px}
+    .thumb{width:116px;height:88px;border-radius:8px;object-fit:cover;background:#e2e8f0;border:1px solid #cbd5e1}
+    .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
+    .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid #cbd5e1;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:max(5px,env(safe-area-inset-bottom))}
+    .nav-btn{border:0;background:#fff;padding:9px 2px 6px;color:#64748b;font-size:11px}.nav-btn span{display:block;font-size:21px;line-height:1.1;margin-bottom:3px}.nav-btn.active{color:var(--brand);font-weight:800}
+    dialog{border:0;border-radius:15px;padding:0;width:min(94vw,620px);max-height:90vh;box-shadow:0 24px 70px rgba(0,0,0,.28)}dialog::backdrop{background:rgba(15,23,42,.55)}
+    .dialog-head{display:flex;align-items:center;padding:14px;border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff;z-index:1}.dialog-head h3{margin:0;flex:1}.dialog-body{padding:14px;overflow:auto}.dialog-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid #e5e7eb;background:#fff;position:sticky;bottom:0}.dialog-foot .btn{flex:1}
+    .preview-wrap{overflow:auto;background:#d1d5db;padding:10px;border-radius:10px}.preview-mini{width:210mm;min-height:297mm;background:#fff;transform-origin:top left;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+    .check-row{display:flex;align-items:center;gap:8px}.check-row input{width:auto}
+    .status{padding:9px 11px;border-radius:9px;font-size:13px;margin-bottom:10px;display:none}.status.ok{display:block;background:#ecfdf3;color:#067647}.status.err{display:block;background:#fef3f2;color:#b42318}
+    #printRoot{display:none}
+
+    /* A4 layout */
+    .sheet{width:210mm;height:297mm;background:#fff;color:#111;padding:9mm 10mm 8mm;box-sizing:border-box;position:relative;page-break-after:always;overflow:hidden;font-family:"Yu Gothic",Meiryo,sans-serif}
+    .sheet:last-child{page-break-after:auto}
+    .cover-sheet{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+    .cover-title{font-size:28pt;font-weight:700;letter-spacing:.35em;margin-bottom:30mm}
+    .cover-table{width:155mm;border-collapse:collapse;font-size:12pt}.cover-table th,.cover-table td{border:1px solid #333;padding:5mm 4mm;text-align:left}.cover-table th{width:40mm;background:#f5f5f5;font-weight:600}.cover-company{margin-top:25mm;font-size:15pt;font-weight:700}
+    .ledger-head{height:10mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:1px solid #777;margin-bottom:2mm;font-size:9pt}
+    .ledger-head .title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.12em}.ledger-head .page{text-align:right}
+    .photo-row-print{height:84.5mm;display:grid;grid-template-columns:118mm 1fr;column-gap:3mm;padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
+    .print-photo-box{width:118mm;height:80mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
+    .print-photo-box img{width:100%;height:100%;object-fit:contain;display:block}
+    .print-note{height:80mm;position:relative;padding:0 1.5mm;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 6.75mm,#b9bec5 6.85mm,#b9bec5 7mm);font-size:8.6pt;line-height:7mm;overflow:hidden}
+    .print-number{position:absolute;right:1mm;top:-.5mm;font-size:8.5pt;color:#555;background:#fff;padding-left:2mm;z-index:2}
+    .note-line{height:7mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.note-line strong{font-weight:700}
+    .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
+    .blank-photo{border:1px solid transparent}
+
+        .board-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:10px}
+    .board-stage-viewport{position:relative;max-width:100%;margin:0 auto;overflow:hidden;border-radius:8px;touch-action:none;background:#e5e9ef}
+    .board-stage{position:absolute;inset:0;width:100%;height:100%;transform-origin:0 0;user-select:none}
+    .board-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:8px;border:1px solid #cbd5e1;background:#fff}
+    .board-stage #boardDrawCanvas{background:transparent;z-index:2}
+    .board-note-guide{position:absolute;z-index:3;color:#fff;pointer-events:none;white-space:pre-wrap;word-break:break-all;overflow:hidden;font-family:monospace;font-weight:700}
+    .board-note-editor{max-width:760px;margin:0 auto}
+    .board-note-editor textarea{display:block;width:100%;aspect-ratio:2.75/1;min-height:0;height:auto;resize:none;font-family:monospace;font-size:1.8em;font-weight:700;line-height:1.22;white-space:pre-wrap;overflow:auto;background-attachment:local;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(1lh - 1px),#dbe3ee calc(1lh - 1px),#dbe3ee 1lh)}
+    .board-note-status{font-size:12px;color:var(--muted);margin-top:5px;font-weight:400}
+    .board-note-status.over{color:var(--danger);font-weight:800}
+    .zoom-controls{display:flex;gap:6px;justify-content:center;margin-top:8px}
+    .zoom-controls .btn{padding:7px 10px;font-size:12px}
+    .mode-toggle{display:flex;gap:6px;margin-bottom:8px}
+    .mode-toggle .btn{flex:1;padding:9px 6px;font-size:12.5px}
+    .mode-toggle .btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .board-hotspots{position:absolute;inset:0;z-index:4}
+    .board-hotspot{position:absolute;cursor:text;-webkit-tap-highlight-color:rgba(34,211,238,.25)}
+    .board-hotspot:active{background:rgba(255,255,255,.18)}
+    .board-inline-editor{position:absolute;z-index:6;box-sizing:border-box;border:2px solid #22d3ee;border-radius:4px;background:rgba(255,255,255,.97);color:#0b3d20;font-weight:700;font-family:inherit;padding:2px 5px;font-size:16px;line-height:1.25}
+    .board-inline-editor.note{resize:none;white-space:pre-wrap;overflow:auto}
+    .tmpl-picker{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 8px;-webkit-overflow-scrolling:touch}
+    .tmpl-thumb-btn{flex:0 0 auto;width:112px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;padding:5px;text-align:center;cursor:pointer;position:relative}
+    .tmpl-thumb-btn img{width:100%;height:70px;object-fit:cover;border-radius:6px;border:1px solid #cbd5e1;background:#0b6d27;display:block}
+    .tmpl-thumb-btn span{display:block;font-size:10.5px;margin-top:5px;color:#334155;line-height:1.3}
+    .tmpl-thumb-btn.active{border-color:var(--brand);border-width:3px;background:#d1fae5;box-shadow:0 0 0 2px rgba(16,185,129,.35)}
+    .tmpl-thumb-btn.active span{color:var(--brand);font-weight:800}
+    .tmpl-thumb-btn.active::after{content:'✓ 使用中';position:absolute;top:3px;right:3px;background:var(--brand);color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+    .tiny-btn{padding:7px 10px;font-size:12px}
+    .inline-note{font-size:11px;color:#64748b;margin-top:4px}
+    #boardDialog{width:min(96vw,900px)}
+    #boardDialog .board-stage-viewport{aspect-ratio:3/2}
+    @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
+    /* スマホを横向きにしたとき：黒板編集を2カラムにして黒板を大きく表示 */
+    @media(orientation:landscape) and (max-height:540px){
+      #boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
+      #boardDialog .dialog-body{display:flex;align-items:flex-start;gap:12px;padding:10px;padding-bottom:14px}
+      #boardDialog .board-wrap{flex:1 1 60%;max-width:60%;position:sticky;top:0}
+      #boardDialog .board-stage-viewport{max-width:100%}
+      #boardDialog #boardControlsCol{flex:1 1 40%;max-width:40%;max-height:calc(100dvh - 90px);overflow-y:auto;padding-right:3px}
+      #boardDialog #boardControlsCol .grid.two,#boardDialog #boardControlsCol .grid.three{grid-template-columns:1fr}
+      #boardDialog .dialog-head{padding:10px 12px}
+    }
+    @media(max-width:620px){
+      .grid.two,.grid.three{grid-template-columns:1fr}.photo-item{grid-template-columns:104px 1fr}.thumb{width:104px;height:82px}.content{padding:10px}.card{padding:12px}.btn-row .btn{min-width:100px}
+    }
+    @media print{
+      @page{size:A4 portrait;margin:0}
+      body{background:#fff}
+      .app-shell,.bottom-nav,dialog{display:none!important}
+      #printRoot{display:block!important}
+      .sheet{box-shadow:none;margin:0}
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="topbar-row">
+      <div style="flex:1;min-width:0">
+        <h1>工事写真台帳</h1>
+        <div class="project-chip" id="currentProjectLabel">現場を選択してください</div>
+      </div>
+      <button class="install-btn" id="installBtn">アプリをインストール</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <section id="page-projects" class="tab-page active">
+      <div class="card">
+        <h2>現場一覧</h2>
+        <div class="btn-row">
+          <button class="btn primary" id="newProjectBtn">＋ 新しい現場</button>
+          <button class="btn outline" id="editProjectBtn">現場情報を編集</button>
+        </div>
+      </div>
+      <div id="projectList"></div>
+    </section>
+
+    <section id="page-photos" class="tab-page">
+      <div class="card">
+        <h2>写真を登録</h2>
+        <p class="hint">写真を撮影・選択すると、そのまま自動保存されます。写真横の記入欄は空欄のままでよく、必要な写真だけ後から最大11行まで入力できます。</p>
+        <div class="btn-row">
+          <button class="btn primary" id="cameraBtn">📷 その場で撮影</button>
+          <button class="btn outline" id="galleryBtn">🖼 写真を選ぶ</button>
+        </div>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
+        <input type="file" id="galleryInput" accept="image/*" multiple hidden />
+        <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
+          <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
+          </div>
+          <div class="hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ「内部ストレージ → DCIM → Camera」を選んでください。</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="item-head"><h2 style="flex:1">登録写真</h2><span class="badge" id="photoCount">0枚</span></div>
+        <div id="photoList"></div>
+      </div>
+    </section>
+
+    <section id="page-output" class="tab-page">
+      <div class="card">
+        <h2>A4写真帳の出力</h2>
+        <div class="grid two">
+          <div>
+            <label>表紙</label>
+            <select id="coverSetting"><option value="yes">表紙あり</option><option value="no">表紙なし</option></select>
+          </div>
+          <div>
+            <label>写真配置</label>
+            <input value="A4縦・1ページ3枚・左写真／右内容" disabled />
+          </div>
+        </div>
+        <div class="grid two" style="margin-top:10px">
+          <label class="check-row"><input type="checkbox" id="showHeader" checked /> 工事名ヘッダーを表示</label>
+          <label class="check-row"><input type="checkbox" id="showCompany" checked /> フッターに施工者を表示</label>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn primary" id="previewBtn">A4プレビューを作成</button>
+          <button class="btn accent" id="printBtn">印刷・PDF保存</button>
+        </div>
+        <p class="hint" style="margin-bottom:0">スマホでは印刷画面で「PDF形式で保存」を選ぶと、役所提出用のA4 PDFとして保存できます。</p>
+      </div>
+      <div id="outputStatus" class="status"></div>
+      <div class="card" id="previewCard" style="display:none">
+        <h2>縮小プレビュー</h2>
+        <div class="preview-wrap"><div id="previewHost"></div></div>
+      </div>
+    </section>
+
+    <section id="page-settings" class="tab-page">
+      <div class="card">
+        <h2>会社・初期設定</h2>
+        <div class="grid two">
+          <div><label>既定の会社名・施工者（任意）</label><input id="settingCompany" placeholder="必要な場合だけ入力" /></div>
+          <div><label>既定の提出先</label><input id="settingSubmitTo" placeholder="例：和歌山市企業局" /></div>
+        </div>
+        <button class="btn primary full" id="saveSettingsBtn" style="margin-top:10px">設定を保存</button>
+      </div>
+      <div class="card">
+        <h2>データ管理</h2>
+        <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、共有メニューからGoogleドライブなどに直接保存できます（対応していない端末ではダウンロードフォルダに保存されます）。ファイル名には日付と時刻が入るので、同じ日に何度もバックアップしても別ファイルとして保存されます。復元するときは、保存したバックアップファイルの中で一番新しい時刻のものを「バックアップ復元」で選んでください（同じ名前のファイルが複数ある場合は、ファイルサイズが一番大きいものが最新のことが多いです）。</p>
+        <div class="btn-row">
+          <button class="btn outline" id="backupBtn">バックアップ保存</button>
+          <button class="btn outline" id="restoreBtn">バックアップ復元</button>
+          <input type="file" id="restoreInput" accept="application/json,.json" hidden />
+        </div>
+      </div>
+      <div class="card">
+        <h2>このアプリの出力形式</h2>
+        <div class="hint">A4縦／1ページ3枚／左側に写真／右側に罫線入りの任意記入欄／写真番号／表紙は工事名・工事場所・提出先・工事番号・工期・現場担当者に加え、会社名と作成年月日は入力した場合だけ表示／ページ番号付き。</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="projects"><span>🏗️</span>現場</button>
+  <button class="nav-btn" data-page="photos"><span>📷</span>写真</button>
+  <button class="nav-btn" data-page="output"><span>📄</span>A4出力</button>
+  <button class="nav-btn" data-page="settings"><span>⚙️</span>設定</button>
+</nav>
+
+<dialog id="projectDialog">
+  <form method="dialog" id="projectForm">
+    <div class="dialog-head"><h3 id="projectDialogTitle">現場情報</h3><button class="btn" value="cancel" type="button" onclick="document.getElementById('projectDialog').close()">閉じる</button></div>
+    <div class="dialog-body">
+      <input type="hidden" id="projectId" />
+      <div class="grid two">
+        <div><label>工事名 *</label><input id="projectName" required placeholder="例：○○邸 排水設備工事" /></div>
+        <div><label>工事場所</label><input id="projectAddress" placeholder="施工場所の住所" /></div>
+        <div><label>提出先</label><input id="projectSubmitTo" placeholder="例：和歌山市企業局" /></div>
+        <div><label>工事番号</label><input id="projectNumber" /></div>
+        <div><label>工期（開始）</label><input id="projectStart" type="date" /></div>
+        <div><label>工期（終了）</label><input id="projectEnd" type="date" /></div>
+        <div><label>会社名・施工者（任意）</label><input id="projectCompany" placeholder="必要な場合だけ入力" /></div>
+        <div><label>現場担当者</label><input id="projectManager" /></div>
+        <div><label>主任技術者</label><input id="projectEngineer" /></div>
+        <div><label>作成年月日（任意）</label><input id="projectCreatedDate" type="date" /></div>
+      </div>
+      <div style="margin-top:10px"><label>備考</label><textarea id="projectRemarks"></textarea></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="document.getElementById('projectDialog').close()">取消</button><button type="submit" class="btn primary">保存</button></div>
+  </form>
+</dialog>
+
+<dialog id="photoDialog">
+  <form method="dialog" id="photoForm">
+    <div class="dialog-head"><h3>写真情報・写真横記入の編集（すべて任意）</h3><button class="btn" type="button" onclick="document.getElementById('photoDialog').close()">閉じる</button></div>
+    <div class="dialog-body">
+      <input type="hidden" id="photoId" />
+      <div style="text-align:center;margin-bottom:10px"><img id="photoEditPreview" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid #cbd5e1" /></div>
+      <div class="grid two">
+        <div><label>写真区分</label><select id="photoCategory"><option>着工前</option><option>使用材料</option><option>施工状況</option><option>出来形管理</option><option>品質管理</option><option>安全管理</option><option>不可視部分</option><option>完成</option><option>その他</option></select></div>
+        <div><label>撮影日</label><input id="photoDate" type="date" /></div>
+        <div><label>工種</label><input id="photoWorkType" placeholder="例：排水設備工" /></div>
+        <div><label>測点・撮影場所</label><input id="photoLocation" placeholder="例：汚水桝 No.1" /></div>
+        <div><label>管種・管径</label><input id="photoPipe" placeholder="例：VU100" /></div>
+        <div><label>勾配</label><input id="photoSlope" placeholder="例：1/100" /></div>
+        <div><label>設計値</label><input id="photoDesign" placeholder="例：管底深さ 750mm" /></div>
+        <div><label>実測値</label><input id="photoActual" placeholder="例：管底深さ 755mm" /></div>
+      </div>
+      <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder="例：施工箇所や寸法などを、1行ずつ自由に記入"></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
+      <div style="margin-top:10px"><label>備考</label><textarea id="photoRemarks" placeholder="補足事項"></textarea></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="document.getElementById('photoDialog').close()">取消</button><button type="submit" class="btn primary">保存</button></div>
+  </form>
+</dialog>
+
+<dialog id="boardDialog">
+  <form method="dialog" id="boardForm">
+    <div class="dialog-head"><h3>黒板編集（黒板だけに手書き）</h3><button class="btn" type="button" onclick="document.getElementById('boardDialog').close()">閉じる</button></div>
+    <div class="dialog-body">
+      <input type="hidden" id="boardPhotoId" />
+      <div class="board-wrap">
+        <div class="mode-toggle" id="boardModeToggle">
+          <button type="button" class="btn tiny-btn active" data-mode="text">✎ 黒板に直接入力</button>
+          <button type="button" class="btn tiny-btn outline" data-mode="draw">🖊 手書き・消しゴム</button>
+        </div>
+        <div class="board-stage-viewport" id="boardStageViewport">
+          <div class="board-stage" id="boardStage">
+            <canvas id="boardBaseCanvas"></canvas>
+            <canvas id="boardDrawCanvas"></canvas>
+            <div id="boardNoteGuide" class="board-note-guide" aria-hidden="true"></div>
+            <div id="boardFieldHotspots" class="board-hotspots"></div>
+          </div>
+        </div>
+        <div class="zoom-controls">
+          <button type="button" class="btn tiny-btn outline" id="boardZoomOutBtn">－ 縮小</button>
+          <button type="button" class="btn tiny-btn outline" id="boardZoomResetBtn">等倍に戻す</button>
+          <button type="button" class="btn tiny-btn outline" id="boardZoomInBtn">＋ 拡大</button>
+        </div>
+        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き・消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。黒板の大きさを変えると、手書きも同じ比率で拡大・縮小されます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。指2本のピンチ操作、または上のボタンで黒板を拡大して細かく書き込めます。</div>
+      </div>
+      <div id="boardControlsCol">
+      <div style="margin-top:10px;padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa">
+        <div style="font-weight:800;color:#115e59">現場情報を自動入力</div>
+        <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
+        <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
+      </div>
+      <div class="grid two" style="margin-top:10px">
+        <label class="check-row"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
+        <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option></select></div>
+        <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
+      </div>
+      <div style="margin-top:10px">
+        <label>黒板テンプレート（タップで選択・見た目のプレビュー付き）</label>
+        <div class="tmpl-picker" id="boardTemplatePicker"></div>
+        <select id="boardTemplate" style="display:none">
+          <option value="tajima">工事件名・工事場所・施工者</option>
+          <option value="work">工事名・工種・測点</option>
+          <option value="muji">無地（文字なし）</option>
+          <option value="sunpou">寸法・略図確認</option>
+          <option value="kyusui_shinsei">給水装置 申請確認</option>
+          <option value="dekigata_keisoku">出来形計測</option>
+          <option value="joukyou_setsumei">状況説明・現場記録</option>
+          <option value="kenchiku_tou">棟別・撮影箇所確認</option>
+          <option value="ky_katsudo">危険予知活動表</option>
+          <option value="concrete_uchisetsu">コンクリート打設記録</option>
+          <option value="dekigata_hyou">出来形管理（設計・実測）</option>
+          <option value="kensa_kawa">検査確認（河川・道路）</option>
+          <option value="free">自由設定</option>
+        </select>
+      </div>
+      <div id="boardLegacyFields" class="grid two" style="margin-top:10px">
+        <div><label>上段1 ラベル</label><input id="boardLabel1" /></div><div><label>上段1 文字</label><input id="boardValue1" /></div>
+        <div><label>上段2 ラベル</label><input id="boardLabel2" /></div><div><label>上段2 文字</label><input id="boardValue2" /></div>
+        <div><label>上段3 ラベル</label><input id="boardLabel3" /></div><div><label>上段3 文字</label><input id="boardValue3" /></div>
+        <div><label>下段 ラベル</label><input id="boardBottomLabel" /></div><div><label>下段 文字</label><input id="boardBottomValue" /></div>
+      </div>
+      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（9行まで・改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder="例：VU100配管布設状況&#10;管底深さ 750mm&#10;勾配 1/100"></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。文字は見やすいように大きめにしています。縦は9行です。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
+      <div id="boardGenericFields" style="margin-top:10px"></div>
+      <div class="card" style="margin:12px 0 0;padding:10px">
+        <h3>黒板への手書き・図の追記</h3>
+        <div class="grid three">
+          <div><label>色</label><select id="drawColor"><option value="#ffffff">白</option><option value="#ff0000">赤</option><option value="#0000ff">青</option><option value="#ffff00">黄</option><option value="#000000">黒</option></select></div>
+          <div><label>太さ</label><select id="drawWidth"><option value="2">細い</option><option value="4" selected>普通</option><option value="7">太い</option><option value="12">特大</option></select></div>
+          <div><label>操作</label><select id="drawMode"><option value="draw">手書き</option><option value="erase">消しゴム</option></select></div>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button type="button" class="btn tiny-btn outline" id="undoDrawBtn">ひとつ戻す</button>
+          <button type="button" class="btn tiny-btn" id="clearDrawBtn">全部消す</button>
+        </div>
+      </div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn danger" id="resetOriginalBtn">元写真に戻す</button>
+      <button type="button" class="btn primary" id="saveBoardBtn">黒板付き写真を保存</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="printRoot"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const DB_NAME = 'nich_kouji_photo_ledger';
+  const DB_VERSION = 1;
+  let db;
+  let projects = [];
+  let photos = [];
+  let settings = { company:'', submitTo:'', saveCameraCopy:true };
+  let photoDirectoryHandle = null;
+  let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
+  let deferredPrompt = null;
+  const objectUrls = new Map();
+  const boardState = { photoId:'', image:null, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null };
+
+  const today = () => new Date().toISOString().slice(0,10);
+  const uid = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
+  const escapeHtml = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const fmtDate = v => {
+    if(!v) return '';
+    const d = new Date(v+'T00:00:00');
+    if(Number.isNaN(d.getTime())) return v;
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  };
+  const eraDate = v => {
+    if(!v) return '';
+    const d = new Date(v+'T00:00:00');
+    if(Number.isNaN(d.getTime())) return v;
+    const y=d.getFullYear();
+    let era='令和', ey=y-2018;
+    if(y<2019){era='平成';ey=y-1988;}
+    return `${era}${ey}年${d.getMonth()+1}月${d.getDate()}日`;
+  };
+
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=()=>{
+        const d=req.result;
+        if(!d.objectStoreNames.contains('projects')) d.createObjectStore('projects',{keyPath:'id'});
+        if(!d.objectStoreNames.contains('photos')){const s=d.createObjectStore('photos',{keyPath:'id'});s.createIndex('projectId','projectId',{unique:false});}
+        if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'key'});
+      };
+      req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+    });
+  }
+  function tx(store,mode='readonly'){return db.transaction(store,mode).objectStore(store)}
+  function idbGetAll(store){return new Promise((resolve,reject)=>{const r=tx(store).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
+  function idbPut(store,value){return new Promise((resolve,reject)=>{const r=tx(store,'readwrite').put(value);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+  function idbDelete(store,key){return new Promise((resolve,reject)=>{const r=tx(store,'readwrite').delete(key);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+  function idbClear(store){return new Promise((resolve,reject)=>{const r=tx(store,'readwrite').clear();r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+
+  async function loadAll(){
+    projects=(await idbGetAll('projects')).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    photos=await idbGetAll('photos');
+    const ss=await idbGetAll('settings');
+    const obj=ss.find(x=>x.key==='main'); if(obj) settings={...settings,...obj.value};
+    const dirObj=ss.find(x=>x.key==='photoDirectoryHandle'); photoDirectoryHandle=dirObj?.value||null;
+    if(currentProjectId && !projects.some(p=>p.id===currentProjectId)) currentProjectId='';
+    if(!currentProjectId && projects.length) currentProjectId=projects[0].id;
+    updateCurrentLabel(); renderProjects(); renderPhotos(); loadSettingsUI(); updatePhotoSaveUI();
+  }
+
+  function currentProject(){return projects.find(p=>p.id===currentProjectId) || null}
+  function currentPhotos(){return photos.filter(p=>p.projectId===currentProjectId).sort((a,b)=>(a.order||0)-(b.order||0))}
+  function updateCurrentLabel(){
+    const p=currentProject(); $('currentProjectLabel').textContent=p?`${p.name}${p.address?'｜'+p.address:''}`:'現場を選択してください';
+    localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');
+  }
+
+  function renderProjects(){
+    const host=$('projectList');
+    if(!projects.length){host.innerHTML='<div class="empty">まだ現場がありません。<br>「新しい現場」から作成してください。</div>';return}
+    host.innerHTML=projects.map(p=>{
+      const count=photos.filter(x=>x.projectId===p.id).length;
+      return `<div class="project-item ${p.id===currentProjectId?'active':''}">
+        <div class="item-head"><div class="item-main"><div class="item-title">${escapeHtml(p.name)}</div>
+        <div class="item-sub">${escapeHtml(p.address||'住所未入力')}<br>${count}枚｜${escapeHtml(p.company||'会社名未入力')}</div></div>
+        ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}</div>
+        <div class="photo-actions">
+          <button class="btn primary" data-action="select-project" data-id="${p.id}">この現場を開く</button>
+          <button class="btn" data-action="edit-project" data-id="${p.id}">編集</button>
+          <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
+          <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
+        </div></div>`;
+    }).join('');
+  }
+
+  function getDisplayBlob(ph){ return ph.editedBlob || ph.blob; }
+  function getPhotoUrl(ph){
+    const key = ph.id + ':' + (ph.editedBlob ? ('e' + (ph.editedUpdatedAt||ph.updatedAt||1)) : 'o');
+    if(objectUrls.has(key)) return objectUrls.get(key);
+    for(const [k,u] of [...objectUrls.entries()]){ if(k.startsWith(ph.id+':')){ URL.revokeObjectURL(u); objectUrls.delete(k);} }
+    const u = URL.createObjectURL(getDisplayBlob(ph)); objectUrls.set(key,u); return u;
+  }
+  function revokePhotoUrl(id){ for(const [k,u] of [...objectUrls.entries()]){ if(k.startsWith(id+':')){ URL.revokeObjectURL(u); objectUrls.delete(k);} } }
+
+  function renderPhotos(){
+    const host=$('photoList'); const arr=currentPhotos(); $('photoCount').textContent=`${arr.length}枚`;
+    if(!currentProjectId){host.innerHTML='<div class="empty">先に現場を選択してください。</div>';return}
+    if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
+    host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
+      <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
+      <div><div class="item-title">No.${i+1}　${escapeHtml(p.content||'内容未入力')}</div>
+      <div class="photo-meta"><strong>${escapeHtml(p.category||'施工状況')}</strong>｜${escapeHtml(p.workType||'工種未入力')}<br>${escapeHtml(p.location||'撮影場所未入力')}｜${fmtDate(p.date)}</div>
+      <div class="photo-actions">
+        <button class="btn primary" data-action="edit-photo" data-id="${p.id}">内容編集</button>
+        <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
+        <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
+        <button class="btn outline" data-action="save-device" data-id="${p.id}">スマホに保存</button>
+        <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
+        <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
+        <button class="btn danger" data-action="delete-photo" data-id="${p.id}">削除</button>
+      </div></div></div>`).join('');
+  }
+
+  function openProjectDialog(p=null){
+    $('projectDialogTitle').textContent=p?'現場情報を編集':'新しい現場';
+    $('projectId').value=p?.id||''; $('projectName').value=p?.name||''; $('projectAddress').value=p?.address||'';
+    $('projectSubmitTo').value=p?.submitTo||settings.submitTo||''; $('projectNumber').value=p?.number||'';
+    $('projectStart').value=p?.start||''; $('projectEnd').value=p?.end||''; $('projectCompany').value=p?.company||'';
+    $('projectManager').value=p?.manager||''; $('projectEngineer').value=p?.engineer||''; $('projectCreatedDate').value=p?.createdDate||''; $('projectRemarks').value=p?.remarks||'';
+    $('projectDialog').showModal(); setTimeout(()=>$('projectName').focus(),50);
+  }
+
+  async function saveProject(e){
+    e.preventDefault(); const id=$('projectId').value||uid('project'); const old=projects.find(p=>p.id===id);
+    const p={id,name:$('projectName').value.trim(),address:$('projectAddress').value.trim(),submitTo:$('projectSubmitTo').value.trim(),number:$('projectNumber').value.trim(),start:$('projectStart').value,end:$('projectEnd').value,company:$('projectCompany').value.trim(),manager:$('projectManager').value.trim(),engineer:$('projectEngineer').value.trim(),createdDate:$('projectCreatedDate').value,remarks:$('projectRemarks').value.trim(),createdAt:old?.createdAt||Date.now(),updatedAt:Date.now()};
+    if(!p.name){alert('工事名を入力してください。');return}
+    await idbPut('projects',p); currentProjectId=id; $('projectDialog').close(); await loadAll();
+  }
+
+  function exifBufToStr(dv,offset,length){let s='';for(let i=0;i<length;i++)s+=String.fromCharCode(dv.getUint8(offset+i));return s;}
+  async function readExifDateTaken(file){
+    try{
+      if(!file||!file.slice)return null;
+      const buf=await file.slice(0,131072).arrayBuffer();
+      const dv=new DataView(buf);
+      if(dv.byteLength<4||dv.getUint16(0,false)!==0xFFD8)return null;
+      let offset=2;
+      while(offset<dv.byteLength-4){
+        if(dv.getUint8(offset)!==0xFF)break;
+        const marker=dv.getUint8(offset+1);
+        if(marker===0xD8||marker===0x01||(marker>=0xD0&&marker<=0xD7)){offset+=2;continue}
+        if(offset+4>dv.byteLength)break;
+        const size=dv.getUint16(offset+2,false);
+        if(marker===0xE1&&exifBufToStr(dv,offset+4,4)==='Exif'){
+          const tiffOffset=offset+10;
+          if(tiffOffset+8<=dv.byteLength){
+            const little=dv.getUint16(tiffOffset,false)===0x4949;
+            const get16=o=>dv.getUint16(o,little),get32=o=>dv.getUint32(o,little);
+            const ifd0=tiffOffset+get32(tiffOffset+4);
+            if(ifd0+2<=dv.byteLength){
+              const numEntries=get16(ifd0);
+              let exifIFDOffset=null;
+              for(let i=0;i<numEntries;i++){
+                const entryOffset=ifd0+2+i*12; if(entryOffset+12>dv.byteLength)break;
+                if(get16(entryOffset)===0x8769)exifIFDOffset=tiffOffset+get32(entryOffset+8);
+              }
+              if(exifIFDOffset&&exifIFDOffset+2<=dv.byteLength){
+                const numExif=get16(exifIFDOffset);
+                for(let i=0;i<numExif;i++){
+                  const entryOffset=exifIFDOffset+2+i*12; if(entryOffset+12>dv.byteLength)break;
+                  const tag=get16(entryOffset);
+                  if(tag===0x9003||tag===0x9004){
+                    const valueOffset=tiffOffset+get32(entryOffset+8);
+                    if(valueOffset+19<=dv.byteLength){
+                      const str=exifBufToStr(dv,valueOffset,19);
+                      const m=str.match(/^(\d{4}):(\d{2}):(\d{2})/);
+                      if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        if(marker===0xDA)break;
+        offset+=2+size;
+      }
+    }catch(e){ console.warn('EXIF読み取りに失敗',e); }
+    return null;
+  }
+  async function handleFiles(fileList,{saveDeviceCopy=false}={}){
+    if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
+    const files=[...fileList]; if(!files.length)return;
+    const arr=currentPhotos(); let order=arr.length;
+    const statusMsg=document.createElement('div'); statusMsg.className='status ok'; statusMsg.style.display='block'; statusMsg.textContent=`${files.length}枚を読み込み中です…`; $('page-photos').prepend(statusMsg);
+    try{
+      let deviceSaved=0; let deviceSaveFailed=false;
+      for(const file of files){
+        if(saveDeviceCopy && settings.saveCameraCopy){
+          try{
+            await saveOriginalToPhone(file);
+            deviceSaved++;
+          }catch(err){
+            console.warn('スマホ写真フォルダへの保存に失敗',err);
+            deviceSaveFailed=true;
+          }
+        }
+        const blob=await compressImage(file,1800,1400,.86);
+        let shotDate=today();
+        try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
+        const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
+        await idbPut('photos',ph); photos.push(ph);
+      }
+      const pr=currentProject(); if(pr){pr.updatedAt=Date.now();await idbPut('projects',pr)}
+      renderPhotos(); renderProjects();
+      let msg=`${files.length}枚の写真を台帳へ保存しました。写真内容は後から入力できます。`;
+      if(saveDeviceCopy && settings.saveCameraCopy){
+        if(deviceSaved) msg+=`\nスマホの写真フォルダにも${deviceSaved}枚保存しました。`;
+        if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
+      }
+      alert(msg);
+    }catch(err){console.error(err);alert('写真の読み込みに失敗しました。容量不足の可能性があります。')}
+    finally{statusMsg.remove();$('cameraInput').value='';$('galleryInput').value='';}
+  }
+
+  function updatePhotoSaveUI(){
+    const checkbox=$('saveCameraCopy');
+    if(checkbox) checkbox.checked=settings.saveCameraCopy!==false;
+    const status=$('photoFolderStatus');
+    const btn=$('choosePhotoFolderBtn');
+    if(!status||!btn)return;
+    if(!('showDirectoryPicker' in window)){
+      status.textContent='この端末では保存先フォルダの指定に対応していません。写真ごとの「スマホに保存」を利用してください。';
+      btn.disabled=true;
+      return;
+    }
+    btn.disabled=false;
+    status.textContent=photoDirectoryHandle
+      ? `保存先：${photoDirectoryHandle.name}（撮影写真は元画質で保存）`
+      : '初回だけ「内部ストレージ → DCIM → Camera」を選んでください。';
+  }
+
+  async function choosePhotoDirectory(){
+    if(!('showDirectoryPicker' in window)){
+      alert('この端末では保存先フォルダの指定に対応していません。');
+      return false;
+    }
+    try{
+      const handle=await window.showDirectoryPicker({mode:'readwrite',id:'kouji-photo-camera'});
+      const permission=await handle.requestPermission({mode:'readwrite'});
+      if(permission!=='granted') throw new Error('書き込みが許可されませんでした。');
+      photoDirectoryHandle=handle;
+      await idbPut('settings',{key:'photoDirectoryHandle',value:handle});
+      updatePhotoSaveUI();
+      alert(`保存先を「${handle.name}」に設定しました。次に「その場で撮影」を押してください。`);
+      return true;
+    }catch(err){
+      if(err?.name!=='AbortError') alert(`保存先を設定できませんでした。${err?.message||''}`);
+      return false;
+    }
+  }
+
+  async function ensurePhotoDirectoryPermission(){
+    if(!photoDirectoryHandle) return false;
+    const opts={mode:'readwrite'};
+    if((await photoDirectoryHandle.queryPermission(opts))==='granted') return true;
+    return (await photoDirectoryHandle.requestPermission(opts))==='granted';
+  }
+
+  function safeFilenamePart(value){
+    return String(value||'工事写真').replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,'_').slice(0,40)||'工事写真';
+  }
+  function photoFileName(file){
+    const d=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${String(d.getMilliseconds()).padStart(3,'0')}`;
+    const ext=(file?.name?.match(/\.[A-Za-z0-9]+$/)?.[0] || (file?.type==='image/png'?'.png':'.jpg')).toLowerCase();
+    return `${safeFilenamePart(currentProject()?.name)}_${stamp}${ext}`;
+  }
+
+  async function saveBlobToDirectory(blob,filename){
+    if(!photoDirectoryHandle) throw new Error('保存先フォルダが未設定です。');
+    if(!await ensurePhotoDirectoryPermission()) throw new Error('保存先への書き込みが許可されていません。');
+    const fileHandle=await photoDirectoryHandle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  async function saveOriginalToPhone(file){
+    if(!photoDirectoryHandle) throw new Error('保存先フォルダが未設定です。');
+    await saveBlobToDirectory(file,photoFileName(file));
+  }
+
+  async function saveRegisteredPhotoToPhone(ph){
+    const blob = getDisplayBlob(ph);
+    const filename=photoFileName(new File([blob],ph.filename||'photo.jpg',{type:blob.type||'image/jpeg'}));
+    if(photoDirectoryHandle){
+      await saveBlobToDirectory(blob,filename);
+      alert('スマホの写真フォルダへ保存しました。');
+      return;
+    }
+    downloadBlob(blob,filename);
+    alert('保存先が未設定のため、ダウンロードフォルダへ保存しました。');
+  }
+
+  async function compressImage(file,maxW,maxH,quality){
+    let bitmap;
+    try{bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});}catch(_){bitmap=await createImageBitmap(file)}
+    const ratio=Math.min(1,maxW/bitmap.width,maxH/bitmap.height); const w=Math.max(1,Math.round(bitmap.width*ratio)); const h=Math.max(1,Math.round(bitmap.height*ratio));
+    const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(bitmap,0,0,w,h);bitmap.close?.();
+    return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('画像変換失敗')),'image/jpeg',quality));
+  }
+
+  function limitToElevenLines(value){
+    const normalized=String(value||'').replace(/\r\n?/g,'\n');
+    return normalized.split('\n').slice(0,11).join('\n');
+  }
+
+  function openPhotoDialog(ph){
+    $('photoId').value=ph.id; $('photoEditPreview').src=getPhotoUrl(ph); $('photoCategory').value=ph.category||'施工状況'; $('photoDate').value=ph.date||today();
+    $('photoWorkType').value=ph.workType||''; $('photoLocation').value=ph.location||''; $('photoPipe').value=ph.pipe||''; $('photoSlope').value=ph.slope||''; $('photoDesign').value=ph.design||''; $('photoActual').value=ph.actual||''; $('photoContent').value=ph.content||''; $('photoRemarks').value=ph.remarks||'';
+    $('photoDialog').showModal();
+  }
+  async function savePhoto(e){
+    e.preventDefault(); const ph=photos.find(x=>x.id===$('photoId').value); if(!ph)return;
+    ph.category=$('photoCategory').value;ph.date=$('photoDate').value;ph.workType=$('photoWorkType').value.trim();ph.location=$('photoLocation').value.trim();ph.pipe=$('photoPipe').value.trim();ph.slope=$('photoSlope').value.trim();ph.design=$('photoDesign').value.trim();ph.actual=$('photoActual').value.trim();ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
+    await idbPut('photos',ph);$('photoDialog').close();renderPhotos();
+  }
+
+  async function movePhoto(id,dir){
+    const arr=currentPhotos(); const i=arr.findIndex(x=>x.id===id); const j=i+dir; if(i<0||j<0||j>=arr.length)return;
+    [arr[i].order,arr[j].order]=[arr[j].order,arr[i].order]; await idbPut('photos',arr[i]);await idbPut('photos',arr[j]);renderPhotos();
+  }
+
+  async function blobToDataURL(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
+
+  function noteLines(ph){
+    const lines=[];
+    // 自由記入欄は、入力した改行どおり最大11行をラベルなしで表示する。
+    const freeLines=limitToElevenLines(ph.content||'').split('\n');
+    for(const text of freeLines){
+      if(text.trim()) lines.push(`<div class="note-line">${escapeHtml(text.trim())}</div>`);
+    }
+    const add=(label,val)=>{if(val)lines.push(`<div class="note-line"><strong>${escapeHtml(label)}：</strong>${escapeHtml(val)}</div>`)};
+    // 区分と撮影日は印刷しない。その他の項目は入力した場合だけ表示する。
+    add('工種',ph.workType); add('測点',ph.location); add('管種',ph.pipe); add('勾配',ph.slope); add('設計値',ph.design); add('実測値',ph.actual); add('備考',ph.remarks);
+    while(lines.length<11) lines.push('<div class="note-line">&nbsp;</div>');
+    return lines.slice(0,11).join('');
+  }
+
+  async function buildPrint(){
+    const p=currentProject(); const arr=currentPhotos(); if(!p){throw new Error('現場を選択してください。')} if(!arr.length){throw new Error('写真を1枚以上登録してください。')}
+    const data=[]; for(const ph of arr)data.push({...ph,dataUrl:await blobToDataURL(getDisplayBlob(ph))});
+    let html='';
+    if($('coverSetting').value==='yes'){
+      const period=[p.start?eraDate(p.start):'',p.end?eraDate(p.end):''].filter(Boolean).join(' ～ ');
+      const optionalCreated = p.createdDate ? `<tr><th>作成年月日</th><td>${escapeHtml(eraDate(p.createdDate))}</td></tr>` : '';
+      const optionalCompany = p.company ? `<div class="cover-company">${escapeHtml(p.company)}</div>` : '';
+      html+=`<section class="sheet cover-sheet"><div class="cover-title">工 事 写 真 帳</div><table class="cover-table">
+      <tr><th>工事名</th><td>${escapeHtml(p.name)}</td></tr><tr><th>工事場所</th><td>${escapeHtml(p.address||'')}</td></tr><tr><th>提出先</th><td>${escapeHtml(p.submitTo||'')}</td></tr><tr><th>工事番号</th><td>${escapeHtml(p.number||'')}</td></tr><tr><th>工期</th><td>${escapeHtml(period)}</td></tr><tr><th>現場担当者</th><td>${escapeHtml(p.manager||'')}</td></tr>${optionalCreated}</table>${optionalCompany}</section>`;
+    }
+    const chunks=[];for(let i=0;i<data.length;i+=3)chunks.push(data.slice(i,i+3));
+    chunks.forEach((chunk,pi)=>{
+      html+=`<section class="sheet"><div class="ledger-head">${$('showHeader').checked?`<div>${escapeHtml(p.name)}</div><div class="title">工事写真帳</div><div class="page">${pi+1} / ${chunks.length}</div>`:'<div></div><div></div><div class="page">'+(pi+1)+' / '+chunks.length+'</div>'}</div>`;
+      for(let r=0;r<3;r++){
+        const ph=chunk[r];
+        if(ph){const globalNo=pi*3+r+1;html+=`<div class="photo-row-print"><div class="print-photo-box"><img src="${ph.dataUrl}"></div><div class="print-note"><div class="print-number">${globalNo}</div>${noteLines(ph)}</div></div>`}
+        else html+=`<div class="photo-row-print"><div class="print-photo-box blank-photo"></div><div class="print-note"></div></div>`;
+      }
+      html+=`<div class="ledger-footer"><span>${$('showCompany').checked?escapeHtml(p.company||''):''}</span><span>${escapeHtml(p.number||'')}</span></div></section>`;
+    });
+    $('printRoot').innerHTML=html; return html;
+  }
+
+  async function previewPrint(){
+    setOutputStatus('作成中です…','ok');
+    try{const html=await buildPrint();$('previewHost').innerHTML=html;$('previewCard').style.display='block';
+      requestAnimationFrame(()=>{const wrap=$('previewHost').parentElement;const sheets=$('previewHost').querySelectorAll('.sheet');sheets.forEach(s=>{s.style.transform='scale(.42)';s.style.transformOrigin='top left';s.style.marginBottom='-170mm';});$('previewHost').style.width='88.2mm';});
+      setOutputStatus('A4プレビューを作成しました。','ok');
+    }catch(e){setOutputStatus(e.message,'err')}
+  }
+  function setOutputStatus(msg,type){const el=$('outputStatus');el.textContent=msg;el.className='status '+type;}
+  async function waitForPrintImages(){
+    const imgs=[...$('printRoot').querySelectorAll('img')];
+    await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;})));
+  }
+  async function printLedger(){
+    try{await buildPrint();await waitForPrintImages();setTimeout(()=>window.print(),120)}catch(e){setOutputStatus(e.message,'err');showPage('output')}
+  }
+
+  async function backup(){
+    const allPhotos=await idbGetAll('photos'); const ph=[]; const failed=[];
+    for(const p of allPhotos){
+      try{
+        ph.push({...p,blob:undefined,editedBlob:undefined,dataUrl:await blobToDataURL(p.blob),editedDataUrl:p.editedBlob?await blobToDataURL(p.editedBlob):''});
+      }catch(e){
+        console.warn('バックアップ変換に失敗した写真をスキップしました',p.id,e);
+        failed.push(p.filename||p.id);
+      }
+    }
+    const payload={app:'工事写真台帳',version:1,exportedAt:new Date().toISOString(),projects:await idbGetAll('projects'),photos:ph,settings};
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+    const now=new Date();const hh=String(now.getHours()).padStart(2,'0');const mm=String(now.getMinutes()).padStart(2,'0');
+    const filename=`工事写真台帳バックアップ_${today()}_${hh}${mm}.json`;
+    if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
+    let shared=false;
+    try{
+      const file=new File([blob],filename,{type:'text/plain'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'工事写真台帳バックアップ'});
+        shared=true;
+      }
+    }catch(e){ /* 共有がキャンセル・失敗した場合は通常のダウンロードに切り替え */ }
+    if(shared){
+      alert(`共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。\nファイル名: ${filename}`);
+    }else{
+      downloadBlob(blob,filename);
+      alert(`共有機能が使えなかったため、スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダからこのファイルを共有してください。`);
+    }
+  }
+  function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
+  async function restore(file){
+    if(!confirm('現在のデータをすべて置き換えて復元します。よろしいですか？'))return;
+    const obj=JSON.parse(await file.text()); if(!Array.isArray(obj.projects)||!Array.isArray(obj.photos))throw new Error('バックアップ形式が正しくありません。');
+    await idbClear('projects');await idbClear('photos');
+    let failedProjects=0,failedPhotos=0;
+    for(const p of obj.projects){ try{ await idbPut('projects',p); }catch(e){ console.warn('現場データの復元に失敗',p&&p.id,e); failedProjects++; } }
+    for(const p of obj.photos){
+      try{
+        const q={...p,blob:dataURLtoBlob(p.dataUrl),editedBlob:p.editedDataUrl?dataURLtoBlob(p.editedDataUrl):null};
+        delete q.dataUrl;delete q.editedDataUrl;
+        await idbPut('photos',q);
+      }catch(e){
+        console.warn('写真データの復元に失敗',p&&p.id,e);
+        failedPhotos++;
+      }
+    }
+    settings={...settings,...obj.settings};await idbPut('settings',{key:'main',value:settings});objectUrls.forEach(URL.revokeObjectURL);objectUrls.clear();currentProjectId='';await loadAll();
+    if(failedProjects||failedPhotos)alert(`復元が完了しましたが、一部復元できなかったデータがあります（現場${failedProjects}件、写真${failedPhotos}枚）。バックアップファイルが壊れている可能性があります。\n復元できたのは、現場${obj.projects.length-failedProjects}件・写真${obj.photos.length-failedPhotos}枚です。`);
+    else alert(`復元が完了しました。（現場${obj.projects.length}件・写真${obj.photos.length}枚）`);
+  }
+  function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false}
+  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
+
+  function boardContext(ph){
+    const project=projects.find(p=>p.id===(ph&&ph.projectId))||currentProject()||{};
+    return {
+      projectName:project.name||'',
+      projectAddress:project.address||'',
+      company:project.company||settings.company||'',
+      workType:(ph&&ph.workType)||'',
+      location:(ph&&ph.location)||'',
+      shotDate:fmtDate(ph&&ph.date)
+    };
+  }
+  const BOARD_TEMPLATES={
+    tajima:{top:[{label:'工事件名',field:'projectName'},{label:'工事場所',field:'projectAddress'},{label:'',field:null}],bottom:{label:'施工者',field:'company'}},
+    work:{top:[{label:'工事名',field:'projectName'},{label:'工種',field:'workType'},{label:'測点',field:'location'}],bottom:{label:'施工者',field:'company'}},
+    free:{top:[{label:'項目1',field:null},{label:'項目2',field:null},{label:'項目3',field:null}],bottom:{label:'',field:null}}
+  };
+  const GENERIC_TEMPLATES={
+    muji:{label:'無地（文字なし）',rows:[
+      {weight:1,parts:[]}
+    ]},
+    sunpou:{label:'寸法・略図確認',sketch:{fromRow:1,toRow:6,colPct:0.55,label:'略図'},rows:[
+      {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'工種',ctxField:'workType'}]},
+      {weight:1,parts:[{label:'撮影月日',ctxField:'shotDate'}]},
+      {weight:1,parts:[{label:'位置',ctxField:'location'}]},
+      {weight:1,parts:[{label:'設計寸法',ctxField:null}]},
+      {weight:1,parts:[{label:'実測寸法',ctxField:null}]},
+      {weight:1,parts:[{label:'立会者',ctxField:null}]}
+    ]},
+    kyusui_shinsei:{label:'給水装置 申請確認',rows:[
+      {weight:1,parts:[{label:'承認番号',ctxField:null}]},
+      {weight:1.6,parts:[{label:'給水装置の場所',ctxField:'projectAddress'}]},
+      {weight:1,parts:[{label:'申請者（申込者）',ctxField:null}]},
+      {weight:1,parts:[{label:'撮影部分',ctxField:null}]},
+      {weight:1,parts:[{label:'撮影年月日',ctxField:'shotDate'}]},
+      {weight:1,parts:[{label:'公認業者',ctxField:'company'}]}
+    ]},
+    dekigata_keisoku:{label:'出来形計測',sketch:{fromRow:0,toRow:2,colPct:0.55,label:'略図'},rows:[
+      {weight:1,parts:[{label:'工種',ctxField:'workType'}]},
+      {weight:1,parts:[{label:'位置',ctxField:'location'}]},
+      {weight:1,parts:[{label:'実測寸法（設計）',ctxField:null}]},
+      {weight:4,note:{key:'note',label:'',maxLines:5}}
+    ]},
+    joukyou_setsumei:{label:'状況説明・現場記録',rows:[
+      {weight:1,parts:[{label:'撮影日',ctxField:'shotDate'}]},
+      {weight:1,parts:[{label:'工事件名',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'対象箇所',ctxField:'location'}]},
+      {weight:5,note:{key:'note',label:'状況説明',maxLines:6}},
+      {weight:1,parts:[{label:'請負者',ctxField:'company'}]}
+    ]},
+    kenchiku_tou:{label:'棟別・撮影箇所確認',sketch:{fromRow:2,toRow:2,colPct:0.42,label:'説明図'},rows:[
+      {weight:1,parts:[{label:'工事名称',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'年月日',ctxField:'shotDate'},{label:'棟番号',ctxField:null}]},
+      {weight:2.5,parts:[{label:'撮影箇所（測点等）',ctxField:'location'}]},
+      {weight:1,parts:[{label:'立会者',ctxField:null}]}
+    ]},
+    ky_katsudo:{label:'危険予知活動表',rows:[
+      {weight:1,parts:[{label:'',ctxField:null,placeholder:'例：8月10日　危険予知活動表'}]},
+      {weight:1,parts:[{label:'グループの作業内容',ctxField:null}]},
+      {weight:3,note:{key:'note',label:'危険のポイント',maxLines:4}},
+      {weight:3,note:{key:'note2',label:'私達はこうする',maxLines:4}},
+      {weight:1,parts:[{label:'会社名',ctxField:'company'},{label:'リーダー名',ctxField:null},{label:'作業員名',ctxField:null}]}
+    ]},
+    concrete_uchisetsu:{label:'コンクリート打設記録',rows:[
+      {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'打設年月日',ctxField:'shotDate'},{label:'立会者',ctxField:null}]},
+      {weight:1,parts:[{label:'コンクリート打設箇所',ctxField:'location'}]},
+      {weight:1,parts:[{label:'スランプ(cm)',ctxField:null},{label:'空気量(%)',ctxField:null}]},
+      {weight:1,parts:[{label:'コンクリート温度(℃)',ctxField:null},{label:'外気温度(℃)',ctxField:null}]},
+      {weight:1,parts:[{label:'フロー値(cm×cm)',ctxField:null}]},
+      {weight:1,parts:[{label:'塩化物量(kg/m³)',ctxField:null}]},
+      {weight:1,parts:[{label:'備考',ctxField:null}]},
+      {weight:1,parts:[{label:'施工者',ctxField:'company'}]}
+    ]},
+    dekigata_hyou:{label:'出来形管理（設計・実測）',rows:[
+      {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'工種',ctxField:'workType'},{label:'測点',ctxField:'location'}]},
+      {weight:6,note:{key:'note',label:'設計値・実測値',maxLines:7}}
+    ]},
+    kensa_kawa:{label:'検査確認（河川・道路）',rows:[
+      {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
+      {weight:1,parts:[{label:'河川名・路線名',ctxField:null},{label:'地名',ctxField:null}]},
+      {weight:1,parts:[{label:'検査年月日',ctxField:'shotDate'},{label:'天候',ctxField:null},{label:'位置No.',ctxField:null}]},
+      {weight:4,note:{key:'note',label:'工種',maxLines:5}},
+      {weight:1,parts:[{label:'施工者',ctxField:'company'}]}
+    ]}
+  };
+  function genericTemplateFieldList(key){
+    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    const list=[];
+    t.rows.forEach((row,ri)=>{ if(row.parts)row.parts.forEach((p,pi)=>list.push({id:`r${ri}_${pi}`,label:p.label,ctxField:p.ctxField,placeholder:p.placeholder})); });
+    return list;
+  }
+  function genericTemplateNoteKeys(key){
+    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    return t.rows.filter(r=>r.note).map(r=>r.note);
+  }
+  function escapeAttr(s){return escapeHtml(s);}
+  function boardPreset(name,ph){
+    const c=boardContext(ph);
+    if(GENERIC_TEMPLATES[name]){
+      const fields={}; genericTemplateFieldList(name).forEach(f=>{fields[f.id]=f.ctxField?c[f.ctxField]:''});
+      const extra={}; genericTemplateNoteKeys(name).forEach(n=>{extra[n.key]=''});
+      return Object.assign({template:name,position:'rb',size:'s',fields},extra);
+    }
+    const key=BOARD_TEMPLATES[name]?name:'tajima';
+    const def=BOARD_TEMPLATES[key];
+    return {template:key,position:'rb',size:'s',
+      top:def.top.map(t=>({label:t.label,value:t.field?c[t.field]:''})),
+      bottom:{label:def.bottom.label,value:def.bottom.field?c[def.bottom.field]:''},
+      note:''};
+  }
+  function applyProjectDefaultsToBoard(board,ph,force=false){
+    const c=boardContext(ph);
+    if(board&&GENERIC_TEMPLATES[board.template]){
+      const b=cloneBoardData(board); b.fields=b.fields||{};
+      genericTemplateFieldList(b.template).forEach(f=>{ if(f.ctxField&&(force||!b.fields[f.id]))b.fields[f.id]=c[f.ctxField]; });
+      return b;
+    }
+    const b=cloneBoardData(board||boardPreset('tajima',ph));
+    b.top=Array.isArray(b.top)?b.top:[]; while(b.top.length<3)b.top.push({label:'',value:''});
+    b.bottom=b.bottom||{label:'',value:''};
+    const def=BOARD_TEMPLATES[b.template||'tajima'];
+    if(def){
+      def.top.forEach((t,i)=>{
+        if(force||!b.top[i].label)b.top[i].label=t.label;
+        if(t.field&&(force||!b.top[i].value))b.top[i].value=c[t.field];
+      });
+      if(force||!b.bottom.label)b.bottom.label=def.bottom.label;
+      if(def.bottom.field&&(force||!b.bottom.value))b.bottom.value=c[def.bottom.field];
+    }
+    return b;
+  }
+  function setLegacyFieldsVisible(v){
+    const grid=$('boardLegacyFields'); if(grid)grid.style.display=v?'':'none';
+    const note=$('boardLegacyNote'); if(note)note.style.display=v?'':'none';
+  }
+  function clearGenericFieldsUI(){ const c=$('boardGenericFields'); if(c)c.innerHTML=''; }
+  function renderGenericFieldsUI(key,data){
+    const container=$('boardGenericFields'); if(!container)return;
+    const list=genericTemplateFieldList(key);
+    const notes=genericTemplateNoteKeys(key);
+    let html='<div class="grid two">';
+    list.forEach(f=>{
+      const val=(data.fields&&data.fields[f.id])||'';
+      html+=`<div><label>${escapeHtml(f.label||'項目')}</label><input id="gf_${f.id}" value="${escapeAttr(val)}" placeholder="${escapeAttr(f.placeholder||'')}" /></div>`;
+    });
+    html+='</div>';
+    notes.forEach(n=>{
+      const val=data[n.key]||'';
+      html+=`<div style="margin-top:10px"><label>${escapeHtml(n.label||'自由記入')}（${n.maxLines||9}行まで）</label><textarea id="gn_${n.key}" rows="${Math.min(9,n.maxLines||9)}" style="font-family:monospace;font-weight:700">${escapeHtml(val)}</textarea></div>`;
+    });
+    container.innerHTML=html;
+    container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>renderBoardEditor()));
+  }
+  function boardTemplateList(){
+    return [
+      {key:'tajima',label:'工事件名・工事場所・施工者'},
+      {key:'work',label:'工事名・工種・測点'},
+      {key:'muji',label:GENERIC_TEMPLATES.muji.label},
+      {key:'sunpou',label:GENERIC_TEMPLATES.sunpou.label},
+      {key:'kyusui_shinsei',label:GENERIC_TEMPLATES.kyusui_shinsei.label},
+      {key:'dekigata_keisoku',label:GENERIC_TEMPLATES.dekigata_keisoku.label},
+      {key:'joukyou_setsumei',label:GENERIC_TEMPLATES.joukyou_setsumei.label},
+      {key:'kenchiku_tou',label:GENERIC_TEMPLATES.kenchiku_tou.label},
+      {key:'ky_katsudo',label:GENERIC_TEMPLATES.ky_katsudo.label},
+      {key:'concrete_uchisetsu',label:GENERIC_TEMPLATES.concrete_uchisetsu.label},
+      {key:'dekigata_hyou',label:GENERIC_TEMPLATES.dekigata_hyou.label},
+      {key:'kensa_kawa',label:GENERIC_TEMPLATES.kensa_kawa.label},
+      {key:'free',label:'自由設定'}
+    ];
+  }
+  const _templateThumbCache={};
+  function templateThumbDataUrl(key){
+    if(_templateThumbCache[key])return _templateThumbCache[key];
+    const c=document.createElement('canvas');c.width=240;c.height=160;
+    const ctx=c.getContext('2d');
+    let sampleData;
+    if(GENERIC_TEMPLATES[key]) sampleData={template:key,fields:{},note:'',note2:''};
+    else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:''}; }
+    drawBoardFace(ctx,240,160,sampleData);
+    const url=c.toDataURL('image/png');
+    _templateThumbCache[key]=url;
+    return url;
+  }
+  function buildTemplatePickerOnce(){
+    const wrap=$('boardTemplatePicker'); if(!wrap||wrap.dataset.built==='1')return;
+    wrap.innerHTML=boardTemplateList().map(t=>`<button type="button" class="tmpl-thumb-btn" data-tmpl="${t.key}"><img src="${templateThumbDataUrl(t.key)}" alt="" /><span>${escapeHtml(t.label)}</span></button>`).join('');
+    wrap.dataset.built='1';
+    wrap.querySelectorAll('button[data-tmpl]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        $('boardTemplate').value=btn.dataset.tmpl;
+        $('boardTemplate').dispatchEvent(new Event('change'));
+      });
+    });
+  }
+  function updateTemplatePickerActive(selectedKey){
+    const wrap=$('boardTemplatePicker'); if(!wrap)return;
+    wrap.querySelectorAll('button[data-tmpl]').forEach(b=>b.classList.toggle('active',b.dataset.tmpl===selectedKey));
+  }
+  function renderTemplatePicker(selectedKey){
+    buildTemplatePickerOnce();
+    updateTemplatePickerActive(selectedKey);
+  }
+  function cloneBoardData(data){ return JSON.parse(JSON.stringify(data)); }
+  function fillBoardControls(data){
+    $('boardEnabled').checked = data.enabled!==false;
+    $('boardTemplate').value = data.template||'tajima';
+    $('boardPosition').value = data.position||'rb';
+    $('boardSize').value = data.size||'s';
+    if(GENERIC_TEMPLATES[data.template]){
+      setLegacyFieldsVisible(false);
+      renderGenericFieldsUI(data.template,data);
+    }else{
+      setLegacyFieldsVisible(true);
+      clearGenericFieldsUI();
+      const top=data.top||[];
+      $('boardLabel1').value=top[0]&&top[0].label||''; $('boardValue1').value=top[0]&&top[0].value||'';
+      $('boardLabel2').value=top[1]&&top[1].label||''; $('boardValue2').value=top[1]&&top[1].value||'';
+      $('boardLabel3').value=top[2]&&top[2].label||''; $('boardValue3').value=top[2]&&top[2].value||'';
+      $('boardBottomLabel').value=data.bottom&&data.bottom.label||''; $('boardBottomValue').value=data.bottom&&data.bottom.value||'';
+      $('boardNote').value=data.note||'';
+    }
+    renderTemplatePicker(data.template||'tajima');
+  }
+  function readBoardControls(){
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value};
+    if(GENERIC_TEMPLATES[base.template]){
+      const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
+      const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
+      return Object.assign(base,{fields},extra);
+    }
+    return Object.assign(base,{
+      top:[{label:$('boardLabel1').value,value:$('boardValue1').value},{label:$('boardLabel2').value,value:$('boardValue2').value},{label:$('boardLabel3').value,value:$('boardValue3').value}],
+      bottom:{label:$('boardBottomLabel').value,value:$('boardBottomValue').value},note:limitBoardNoteLines($('boardNote').value,9)
+    });
+  }
+  async function loadImageElement(blob){
+    const url=URL.createObjectURL(blob);
+    try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; }); return img; }
+    finally{ setTimeout(()=>URL.revokeObjectURL(url),1000); }
+  }
+  function computeBoardRect(w,h,position,size){
+    const ratio=size==='s'?0.38:size==='l'?0.68:0.53;
+    const margin=Math.max(12,Math.round(Math.min(w,h)*0.018));
+    let bw=Math.min(w*ratio,w-margin*2);
+    let bh=bw*(2/3);
+    if(bh>h-margin*2){bh=h-margin*2;bw=bh*(3/2)}
+    let x=margin,y=h-bh-margin;
+    if(position==='rb'){x=w-bw-margin;y=h-bh-margin}
+    if(position==='lt'){x=margin;y=margin}
+    if(position==='rt'){x=w-bw-margin;y=margin}
+    return{x,y,w:bw,h:bh};
+  }
+  function getBoardLayout(w,h){
+    const pad=Math.max(8,Math.round(w*0.025));
+    const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
+    const rowH=Math.round(innerH*0.088),labelW=Math.round(innerW*0.20),bottomH=rowH;
+    const count=3;
+    const bodyY=innerY+count*rowH,bodyH=innerH-count*rowH-bottomH;
+    const noteMaxLines=9;
+    const notePadX=Math.max(8,Math.round(innerW*0.008));
+    const notePadY=Math.max(6,Math.round(bodyH*0.012));
+    const noteX=innerX+notePadX;
+    const noteY=bodyY+notePadY;
+    const noteW=innerW-notePadX*2;
+    const noteLineH=(bodyH-notePadY*2)/noteMaxLines;
+    const noteFontSize=Math.max(16,Math.floor(noteLineH*0.82));
+    const by=innerY+innerH-bottomH;
+    return {pad,innerX,innerY,innerW,innerH,rowH,labelW,bottomH,count,bodyY,bodyH,noteX,noteY,noteW,noteLineH,noteFontSize,noteMaxLines,by};
+  }
+  function wrapTextLines(ctx,text,maxW){
+    const rawLines=String(text||'').replace(/\r\n?/g,'\n').split('\n');
+    const out=[];
+    for(const raw of rawLines){
+      const chars=raw.split('');let line='';
+      for(const ch of chars){const test=line+ch;if(ctx.measureText(test).width>maxW&&line){out.push(line);line=ch}else line=test}
+      out.push(line);
+    }
+    return out;
+  }
+  function fitNoteFont(ctx,text,maxW,maxLines,baseSize,minSize){
+    let size=Math.max(minSize,Math.round(baseSize));
+    let lines=[];
+    while(size>=minSize){
+      ctx.font='700 '+size+'px monospace';
+      lines=wrapTextLines(ctx,text,maxW);
+      if(lines.length<=maxLines)return{size,lines};
+      size--;
+    }
+    ctx.font='700 '+minSize+'px monospace';
+    lines=wrapTextLines(ctx,text,maxW);
+    return{size:minSize,lines};
+  }
+  function limitBoardNoteLines(text,maxLines){
+    return String(text||'').replace(/\r\n?/g,'\n').split('\n').slice(0,maxLines).join('\n');
+  }
+  let _noteMeasureCtx=null;
+  function noteMeasureCtx(){
+    if(!_noteMeasureCtx)_noteMeasureCtx=document.createElement('canvas').getContext('2d');
+    return _noteMeasureCtx;
+  }
+  function updateBoardNoteStatusText(fit,baseSize,max){
+    const el=$('boardNoteStatus'); if(!el)return;
+    const total=fit.lines.length,over=total>max,shrunk=fit.size<baseSize;
+    el.textContent = total<=0 ? `行数の目安: 0 / ${max} 行`
+      : over ? `行数の目安: ${total} / ${max} 行（あふれた${total-max}行は黒板に表示されません）`
+      : shrunk ? `行数の目安: ${total} / ${max} 行（文字を少し小さくして収めています）`
+      : `行数の目安: ${total} / ${max} 行`;
+    el.classList.toggle('over',over);
+  }
+  function renderBoardNoteGuide(data,w,h){
+    const el=$('boardNoteGuide'); if(!el)return;
+    const m=getBoardLayout(w,h);
+    el.style.left=m.noteX+'px';
+    el.style.top=m.noteY+'px';
+    el.style.width=m.noteW+'px';
+    el.style.height=(m.noteLineH*m.noteMaxLines)+'px';
+    el.style.backgroundImage=`repeating-linear-gradient(to bottom, transparent 0, transparent ${m.noteLineH-1}px, rgba(255,255,255,.4) ${m.noteLineH-1}px, rgba(255,255,255,.4) ${m.noteLineH}px)`;
+    el.textContent='';
+    el.style.display=data&&data.enabled!==false?'block':'none';
+    const rm=getBoardLayout(BOARD_RENDER_W,BOARD_RENDER_H);
+    const mctx=noteMeasureCtx();
+    const fit=fitNoteFont(mctx,data&&data.note||'',rm.noteW,rm.noteMaxLines,rm.noteFontSize,10);
+    updateBoardNoteStatusText(fit,rm.noteFontSize,rm.noteMaxLines);
+    const ta=$('boardNote');
+    if(ta){
+      const taW=ta.clientWidth||ta.getBoundingClientRect().width;
+      if(taW>0){
+        const scale=taW/rm.noteW;
+        const px=Math.max(12,Math.round(fit.size*scale));
+        ta.style.fontSize=px+'px';
+        ta.style.lineHeight=Math.max(px+2,Math.round(rm.noteLineH*scale))+'px';
+      }
+    }
+  }
+  function fitFontSizePx(ctx,text,maxW,baseSize,minSize){
+    let size=Math.max(minSize,Math.round(baseSize));
+    ctx.font=size+'px sans-serif';
+    while(size>minSize && ctx.measureText(String(text||'')).width>maxW){
+      size--; ctx.font=size+'px sans-serif';
+    }
+    return size;
+  }
+  function drawLegacyBoardFace(ctx,w,h,data){
+    const m=getBoardLayout(w,h);
+    ctx.save();ctx.fillStyle='#0b6d27';ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
+    const rows=data.top||[];ctx.fillStyle='#fff';
+    const baseRowFont=m.noteFontSize;
+    const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
+    const labelMaxW=Math.max(10,m.labelW-14);
+    const valueMaxW=Math.max(10,m.innerW-m.labelW-16);
+    for(let i=0;i<m.count;i++){
+      const yy=m.innerY+i*m.rowH;ctx.strokeRect(m.innerX,yy,m.innerW,m.rowH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,yy);ctx.lineTo(m.innerX+m.labelW,yy+m.rowH);ctx.stroke();
+      const row=rows[i]||{label:'',value:''};ctx.textBaseline='middle';
+      const labelSize=fitFontSizePx(ctx,row.label,labelMaxW,baseRowFont,minRowFont);
+      ctx.font=labelSize+'px sans-serif';ctx.fillText(row.label||'',m.innerX+10,yy+m.rowH/2);
+      const valueSize=fitFontSizePx(ctx,row.value,valueMaxW,baseRowFont,minRowFont);
+      ctx.font=valueSize+'px sans-serif';ctx.fillText(row.value||'',m.innerX+m.labelW+10,yy+m.rowH/2);
+    }
+    ctx.strokeRect(m.innerX,m.bodyY,m.innerW,m.bodyH);
+    ctx.textBaseline='top';
+    const noteFit=fitNoteFont(ctx,data.note||'',m.noteW,m.noteMaxLines,m.noteFontSize,10);
+    ctx.font='700 '+noteFit.size+'px monospace';
+    for(let i=0;i<noteFit.lines.length&&i<m.noteMaxLines;i++)ctx.fillText(noteFit.lines[i],m.noteX,m.noteY+i*m.noteLineH);
+    ctx.strokeRect(m.innerX,m.by,m.innerW,m.bottomH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,m.by);ctx.lineTo(m.innerX+m.labelW,m.by+m.bottomH);ctx.stroke();ctx.textBaseline='middle';
+    const bLabelSize=fitFontSizePx(ctx,data.bottom&&data.bottom.label,labelMaxW,baseRowFont,minRowFont);
+    ctx.font=bLabelSize+'px sans-serif';ctx.fillText(data.bottom&&data.bottom.label||'',m.innerX+10,m.by+m.bottomH/2);
+    const bValueSize=fitFontSizePx(ctx,data.bottom&&data.bottom.value,valueMaxW,baseRowFont,minRowFont);
+    ctx.font=bValueSize+'px sans-serif';ctx.fillText(data.bottom&&data.bottom.value||'',m.innerX+m.labelW+10,m.by+m.bottomH/2);ctx.restore();
+  }
+  function drawGenericBoardFace(ctx,w,h,data){
+    const t=GENERIC_TEMPLATES[data.template]; if(!t)return;
+    const pad=Math.max(8,Math.round(w*0.025));
+    const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
+    ctx.save();ctx.fillStyle='#0b6d27';ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(pad,pad,w-pad*2,h-pad*2);
+    const totalWeight=t.rows.reduce((s,r)=>s+(r.weight||1),0);
+    let y=innerY;
+    const rowsGeom=t.rows.map(r=>{const rh=innerH*((r.weight||1)/totalWeight);const g={row:r,y,h:rh};y+=rh;return g;});
+    const sketch=t.sketch;
+    const sketchColX=sketch?innerX+innerW*sketch.colPct:null;
+    const unitH=innerH/totalWeight;
+    const baseFont=Math.max(18,Math.round(unitH*0.42));
+    const minFont=Math.max(11,Math.round(unitH*0.16));
+    rowsGeom.forEach((g,ri)=>{
+      const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
+      const rowRightX=inSketchRange?sketchColX:innerX+innerW;
+      ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(innerX,g.y,rowRightX-innerX,g.h);
+      ctx.fillStyle='#fff';
+      if(g.row.note){
+        const key=g.row.note.key;
+        const text=data[key]||'';
+        const padX=8,padY=6;
+        const lblSize=Math.max(11,Math.round(baseFont*0.85));
+        ctx.font='700 '+lblSize+'px sans-serif';ctx.textBaseline='top';
+        if(g.row.note.label)ctx.fillText(g.row.note.label,innerX+padX,g.y+padY);
+        const maxLines=g.row.note.maxLines||4;
+        const textTop=g.y+padY+(g.row.note.label?lblSize+4:0);
+        const textH=Math.max(10,g.y+g.h-textTop-padY);
+        const lineH=textH/maxLines;
+        const noteW=rowRightX-innerX-padX*2;
+        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(14,Math.round(lineH*0.85)),10);
+        ctx.font='700 '+fit.size+'px monospace';
+        for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],innerX+padX,textTop+i*lineH);
+      }else if(g.row.parts){
+        const parts=g.row.parts;
+        const partW=(rowRightX-innerX)/parts.length;
+        let x=innerX;
+        parts.forEach((p,pi)=>{
+          if(pi>0){ctx.beginPath();ctx.moveTo(x,g.y);ctx.lineTo(x,g.y+g.h);ctx.stroke();}
+          const val=(data.fields&&data.fields[`r${ri}_${pi}`])||'';
+          ctx.textBaseline='middle';
+          let valX=x+8;
+          if(p.label){
+            const labelSize=fitFontSizePx(ctx,p.label,partW*0.4,baseFont,minFont);
+            ctx.font=labelSize+'px sans-serif';
+            ctx.fillText(p.label,x+8,g.y+g.h/2);
+            valX=x+partW*0.42;
+          }
+          if(val){
+            const valMaxW=Math.max(10,x+partW-valX-8);
+            const valSize=fitFontSizePx(ctx,val,valMaxW,baseFont,minFont);
+            ctx.font=valSize+'px sans-serif';
+            ctx.fillText(val,valX,g.y+g.h/2);
+          }
+          x+=partW;
+        });
+      }
+    });
+    if(sketch){
+      const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
+      ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
+      ctx.font='700 '+Math.max(12,Math.round(innerH*0.035))+'px sans-serif';ctx.textBaseline='top';ctx.fillStyle='#fff';
+      ctx.fillText(sketch.label||'略図',sketchColX+10,sy+6);
+    }
+    ctx.restore();
+  }
+  function drawBoardFace(ctx,w,h,data){
+    if(data&&GENERIC_TEMPLATES[data.template]) return drawGenericBoardFace(ctx,w,h,data);
+    return drawLegacyBoardFace(ctx,w,h,data);
+  }
+  function drawStrokesOnCtx(ctx,w,h,strokes){
+    (strokes||[]).forEach(st=>{const pts=st.points||[];if(!pts.length)return;ctx.save();const isErase=st.mode==='erase';ctx.globalCompositeOperation=isErase?'destination-out':'source-over';ctx.strokeStyle=st.color||'#fff';const eraseMul=isErase?2.6:1;ctx.lineWidth=(st.width||4)*eraseMul*(Math.min(w,h)/600);ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();pts.forEach((p,i)=>{const x=p.x*w,y=p.y*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();ctx.restore()});
+  }
+  function makeBoardCanvas(board,strokes,width=1200,height=800){
+    const base=document.createElement('canvas');base.width=width;base.height=height;const bctx=base.getContext('2d');drawBoardFace(bctx,width,height,board);
+    const ink=document.createElement('canvas');ink.width=width;ink.height=height;drawStrokesOnCtx(ink.getContext('2d'),width,height,strokes);bctx.drawImage(ink,0,0);return base;
+  }
+  const BOARD_RENDER_W=1200,BOARD_RENDER_H=800;
+  const boardZoom={scale:1,tx:0,ty:0};
+  function applyBoardZoomTransform(){
+    const stage=$('boardStage'); if(!stage)return;
+    stage.style.transform=`translate(${boardZoom.tx}px,${boardZoom.ty}px) scale(${boardZoom.scale})`;
+  }
+  function clampBoardZoom(){
+    const vp=$('boardStageViewport'); if(!vp)return;
+    const r=vp.getBoundingClientRect();
+    boardZoom.scale=Math.min(4,Math.max(1,boardZoom.scale));
+    const minTx=r.width-r.width*boardZoom.scale,maxTx=0;
+    const minTy=r.height-r.height*boardZoom.scale,maxTy=0;
+    boardZoom.tx=Math.min(maxTx,Math.max(minTx,boardZoom.tx));
+    boardZoom.ty=Math.min(maxTy,Math.max(minTy,boardZoom.ty));
+  }
+  function setBoardZoom(scale,anchorClientX,anchorClientY){
+    const vp=$('boardStageViewport'); if(!vp)return;
+    const r=vp.getBoundingClientRect();
+    const cx=anchorClientX-r.left,cy=anchorClientY-r.top;
+    const oldScale=boardZoom.scale,newScale=Math.min(4,Math.max(1,scale));
+    boardZoom.tx=cx-(cx-boardZoom.tx)*(newScale/oldScale);
+    boardZoom.ty=cy-(cy-boardZoom.ty)*(newScale/oldScale);
+    boardZoom.scale=newScale;
+    clampBoardZoom();
+    applyBoardZoomTransform();
+  }
+  function resetBoardZoom(){boardZoom.scale=1;boardZoom.tx=0;boardZoom.ty=0;applyBoardZoomTransform();}
+  function renderBoardEditor(){
+    const vp=$('boardStageViewport');const w=Math.max(280,Math.min(vp.clientWidth||window.innerWidth-40,900));boardState.displayW=w;boardState.displayH=Math.round(w*(2/3));
+    const base=$('boardBaseCanvas'),draw=$('boardDrawCanvas');
+    base.width=BOARD_RENDER_W;base.height=BOARD_RENDER_H;draw.width=BOARD_RENDER_W;draw.height=BOARD_RENDER_H;
+    const board=readBoardControls();
+    const bctx=base.getContext('2d');bctx.clearRect(0,0,BOARD_RENDER_W,BOARD_RENDER_H);drawBoardFace(bctx,BOARD_RENDER_W,BOARD_RENDER_H,board);
+    const dctx=draw.getContext('2d');dctx.clearRect(0,0,BOARD_RENDER_W,BOARD_RENDER_H);drawStrokesOnCtx(dctx,BOARD_RENDER_W,BOARD_RENDER_H,boardState.strokes);
+    if(GENERIC_TEMPLATES[board.template]){
+      const el=$('boardNoteGuide'); if(el)el.style.display='none';
+    }else{
+      renderBoardNoteGuide(board,w,boardState.displayH);
+    }
+    renderBoardFieldHotspots();
+  }
+  async function openBoardDialog(ph){
+    $('boardPhotoId').value=ph.id;boardState.photoId=ph.id;boardState.image=await loadImageElement(ph.blob);
+    boardState.strokes=ph.boardData&&ph.boardData.scope==='board'?cloneBoardData(ph.boardData.strokes||[]):[];
+    const savedBoard=ph.boardData&&ph.boardData.board?ph.boardData.board:boardPreset('tajima',ph);const board=applyProjectDefaultsToBoard(savedBoard,ph,false);fillBoardControls(Object.assign({enabled:!(ph.boardData&&ph.boardData.enabled===false)},board));
+    resetBoardZoom();
+    boardState.interactionMode='text';
+    const modeWrap=$('boardModeToggle'); if(modeWrap)modeWrap.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode==='text'));
+    $('boardDialog').showModal();requestAnimationFrame(renderBoardEditor);
+  }
+  async function saveBoardEdits(){
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
+    const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
+    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m');ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+    const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
+    ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
+    await idbPut('photos',ph);$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。手書きは黒板と一緒に拡大・縮小されます。');
+  }
+  async function resetEditedPhoto(){
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph)return;if(!confirm('黒板付き写真と手書きを消して、元写真に戻しますか？'))return;
+    ph.editedBlob=null;ph.boardData=null;ph.editedUpdatedAt=0;ph.updatedAt=Date.now();await idbPut('photos',ph);boardState.strokes=[];$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('元写真に戻しました。');
+  }
+  function pointerPos(ev,canvas){const rect=canvas.getBoundingClientRect();return{x:(ev.clientX-rect.left)/rect.width,y:(ev.clientY-rect.top)/rect.height}}
+  function startDraw(ev){if(!$('boardDialog').open)return;const stroke={mode:$('drawMode').value,color:$('drawColor').value,width:Number($('drawWidth').value),points:[pointerPos(ev,$('boardDrawCanvas'))]};boardState.currentStroke=stroke;boardState.drawing=true;boardState.strokes.push(stroke);renderBoardEditor()}
+  function moveDraw(ev){if(!boardState.drawing||!boardState.currentStroke)return;boardState.currentStroke.points.push(pointerPos(ev,$('boardDrawCanvas')));renderBoardEditor()}
+  function endDraw(){boardState.drawing=false;boardState.currentStroke=null}
+
+  function legacyFieldRects(w,h){
+    const m=getBoardLayout(w,h);
+    const rects=[];
+    for(let i=0;i<3;i++){
+      const yy=m.innerY+i*m.rowH;
+      rects.push({kind:'text',targetId:'boardLabel'+(i+1),x:m.innerX,y:yy,w:m.labelW,h:m.rowH});
+      rects.push({kind:'text',targetId:'boardValue'+(i+1),x:m.innerX+m.labelW,y:yy,w:m.innerW-m.labelW,h:m.rowH});
+    }
+    rects.push({kind:'note',targetId:'boardNote',x:m.noteX,y:m.noteY,w:m.noteW,h:m.noteLineH*m.noteMaxLines});
+    rects.push({kind:'text',targetId:'boardBottomLabel',x:m.innerX,y:m.by,w:m.labelW,h:m.bottomH});
+    rects.push({kind:'text',targetId:'boardBottomValue',x:m.innerX+m.labelW,y:m.by,w:m.innerW-m.labelW,h:m.bottomH});
+    return rects;
+  }
+  function genericFieldRects(w,h,key){
+    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    const pad=Math.max(8,Math.round(w*0.025));
+    const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
+    const totalWeight=t.rows.reduce((s,r)=>s+(r.weight||1),0);
+    let y=innerY;
+    const rowsGeom=t.rows.map(r=>{const rh=innerH*((r.weight||1)/totalWeight);const g={row:r,y,h:rh};y+=rh;return g;});
+    const sketch=t.sketch;
+    const sketchColX=sketch?innerX+innerW*sketch.colPct:null;
+    const rects=[];
+    rowsGeom.forEach((g,ri)=>{
+      const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
+      const rowRightX=inSketchRange?sketchColX:innerX+innerW;
+      if(g.row.note){
+        rects.push({kind:'note',targetId:'gn_'+g.row.note.key,x:innerX,y:g.y,w:rowRightX-innerX,h:g.h});
+      }else if(g.row.parts&&g.row.parts.length){
+        const partW=(rowRightX-innerX)/g.row.parts.length;
+        g.row.parts.forEach((p,pi)=>{ rects.push({kind:'text',targetId:'gf_r'+ri+'_'+pi,x:innerX+pi*partW,y:g.y,w:partW,h:g.h}); });
+      }
+    });
+    return rects;
+  }
+  function currentBoardFieldRects(){
+    const board=readBoardControls();
+    const w=boardState.displayW||760,h=boardState.displayH||Math.round(w*2/3);
+    if(GENERIC_TEMPLATES[board.template])return genericFieldRects(w,h,board.template);
+    return legacyFieldRects(w,h);
+  }
+  function closeBoardInlineEditor(){ const el=$('boardInlineEditor'); if(el)el.remove(); }
+  function openBoardInlineEditor(r){
+    const prev=$('boardInlineEditor'); if(prev)prev.blur();
+    const stage=$('boardStage'); const srcEl=$(r.targetId); if(!stage||!srcEl)return;
+    const editor=document.createElement(r.kind==='note'?'textarea':'input');
+    editor.id='boardInlineEditor';
+    editor.value=srcEl.value;
+    editor.className='board-inline-editor'+(r.kind==='note'?' note':'');
+    editor.style.left=r.x+'px';editor.style.top=r.y+'px';editor.style.width=r.w+'px';editor.style.height=r.h+'px';
+    let committed=false;
+    const commit=()=>{
+      if(committed)return; committed=true;
+      srcEl.value=editor.value;
+      srcEl.dispatchEvent(new Event('input',{bubbles:true}));
+      if(editor.parentNode)editor.remove();
+    };
+    editor.addEventListener('blur',commit);
+    editor.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&r.kind!=='note'){e.preventDefault();editor.blur();}
+      if(e.key==='Escape'){committed=true;editor.remove();}
+    });
+    stage.appendChild(editor);
+    editor.focus();
+    if(editor.select)editor.select();
+  }
+  function renderBoardFieldHotspots(){
+    const layer=$('boardFieldHotspots'); if(!layer)return;
+    layer.innerHTML='';
+    if(boardState.interactionMode!=='text'){ layer.style.pointerEvents='none'; return; }
+    layer.style.pointerEvents='auto';
+    currentBoardFieldRects().forEach(r=>{
+      const div=document.createElement('div');
+      div.className='board-hotspot';
+      div.style.left=r.x+'px';div.style.top=r.y+'px';div.style.width=r.w+'px';div.style.height=r.h+'px';
+      div.addEventListener('click',()=>openBoardInlineEditor(r));
+      layer.appendChild(div);
+    });
+  }
+
+  const boardPointers=new Map();
+  let boardPinchPrevDist=null,boardSuppressDraw=false;
+  function pointerDist(p1,p2){return Math.hypot(p1.x-p2.x,p1.y-p2.y)}
+  function pointerMid(p1,p2){return{x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2}}
+  function onBoardPointerDown(ev){
+    if(!$('boardDialog').open)return;
+    ev.preventDefault();
+    boardPointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(boardPointers.size===1&&!boardSuppressDraw&&boardState.interactionMode==='draw'){
+      boardState.activeDrawPointerId=ev.pointerId;
+      startDraw(ev);
+    }else if(boardPointers.size===2){
+      if(boardState.drawing){boardState.strokes.pop();boardState.drawing=false;boardState.currentStroke=null;renderBoardEditor()}
+      boardState.activeDrawPointerId=null;boardSuppressDraw=true;
+      const pts=[...boardPointers.values()];boardPinchPrevDist=pointerDist(pts[0],pts[1]);
+    }
+  }
+  function onBoardPointerMove(ev){
+    if(!boardPointers.has(ev.pointerId))return;
+    boardPointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(boardPointers.size>=2){
+      ev.preventDefault();
+      const pts=[...boardPointers.values()];
+      const d=pointerDist(pts[0],pts[1]),mid=pointerMid(pts[0],pts[1]);
+      if(boardPinchPrevDist){
+        const factor=d/boardPinchPrevDist;
+        setBoardZoom(boardZoom.scale*factor,mid.x,mid.y);
+      }
+      boardPinchPrevDist=d;
+    }else if(ev.pointerId===boardState.activeDrawPointerId){
+      moveDraw(ev);
+    }
+  }
+  function onBoardPointerUp(ev){
+    boardPointers.delete(ev.pointerId);
+    if(ev.pointerId===boardState.activeDrawPointerId){endDraw();boardState.activeDrawPointerId=null}
+    if(boardPointers.size<2)boardPinchPrevDist=null;
+    if(boardPointers.size===0)boardSuppressDraw=false;
+  }
+
+  function showPage(name){document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();}
+
+  document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+  $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
+  $('editProjectBtn').addEventListener('click',()=>{const p=currentProject();if(!p)return alert('現場を選択してください。');openProjectDialog(p)});
+  $('projectForm').addEventListener('submit',saveProject);
+  $('photoContent').addEventListener('input',e=>{
+    const limited=limitToElevenLines(e.target.value);
+    if(e.target.value!==limited)e.target.value=limited;
+  });
+  $('photoForm').addEventListener('submit',savePhoto);
+  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
+  $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; renderBoardEditor(); });
+  $('boardTemplate').addEventListener('change',()=>{
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);
+    const newKey=$('boardTemplate').value;
+    const current=readBoardControls();
+    const preset=boardPreset(newKey,ph);
+    preset.position=current.position;preset.size=current.size;preset.enabled=current.enabled;
+    if(!GENERIC_TEMPLATES[newKey]&&!GENERIC_TEMPLATES[current.template]&&current.note)preset.note=current.note;
+    fillBoardControls(preset);
+    renderBoardEditor();
+  });
+  $('applyProjectToBoardBtn').addEventListener('click',()=>{ const ph=photos.find(x=>x.id===$('boardPhotoId').value); const updated=applyProjectDefaultsToBoard(readBoardControls(),ph,true); fillBoardControls(updated); renderBoardEditor(); });
+  $('undoDrawBtn').addEventListener('click',()=>{ boardState.strokes.pop(); renderBoardEditor(); });
+  $('clearDrawBtn').addEventListener('click',()=>{ boardState.strokes=[]; renderBoardEditor(); });
+  $('saveBoardBtn').addEventListener('click',saveBoardEdits);
+  $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
+  const drawCanvas=$('boardDrawCanvas'); drawCanvas.addEventListener('pointerdown',onBoardPointerDown); drawCanvas.addEventListener('pointermove',onBoardPointerMove); ['pointerup','pointerleave','pointercancel'].forEach(ev=>drawCanvas.addEventListener(ev,onBoardPointerUp));
+  $('boardZoomInBtn').addEventListener('click',()=>{const vp=$('boardStageViewport');const r=vp.getBoundingClientRect();setBoardZoom(boardZoom.scale+0.6,r.left+r.width/2,r.top+r.height/2)});
+  $('boardZoomOutBtn').addEventListener('click',()=>{const vp=$('boardStageViewport');const r=vp.getBoundingClientRect();setBoardZoom(boardZoom.scale-0.6,r.left+r.width/2,r.top+r.height/2)});
+  $('boardZoomResetBtn').addEventListener('click',resetBoardZoom);
+  $('boardModeToggle').addEventListener('click',(e)=>{
+    const btn=e.target.closest('button[data-mode]'); if(!btn)return;
+    closeBoardInlineEditor();
+    boardState.interactionMode=btn.dataset.mode;
+    $('boardModeToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
+    renderBoardFieldHotspots();
+  });
+  window.addEventListener('resize',()=>{ if($('boardDialog').open) renderBoardEditor(); });
+  window.addEventListener('orientationchange',()=>{ if($('boardDialog').open) setTimeout(renderBoardEditor,80); });
+  $('cameraBtn').addEventListener('click',async()=>{
+    settings.saveCameraCopy=$('saveCameraCopy').checked;
+    await idbPut('settings',{key:'main',value:settings});
+    if(settings.saveCameraCopy && !photoDirectoryHandle){
+      await choosePhotoDirectory();
+      return;
+    }else if(settings.saveCameraCopy && photoDirectoryHandle && !await ensurePhotoDirectoryPermission()){
+      alert('保存先フォルダへの書き込みを許可してください。');return;
+    }
+    $('cameraInput').click();
+  });
+  $('galleryBtn').addEventListener('click',()=>$('galleryInput').click());
+  $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
+  $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
+  $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
+  $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
+  $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);
+  $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
+
+  $('projectList').addEventListener('click',async e=>{
+    const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const p=projects.find(x=>x.id===id);if(!p)return;
+    if(b.dataset.action==='select-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('photos')}
+    if(b.dataset.action==='edit-project')openProjectDialog(p);
+    if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
+    if(b.dataset.action==='delete-project'){
+      const cnt=photos.filter(x=>x.projectId===id).length;if(!confirm(`「${p.name}」と登録写真${cnt}枚を削除します。元に戻せません。`))return;
+      for(const ph of photos.filter(x=>x.projectId===id)){revokePhotoUrl(ph.id);await idbDelete('photos',ph.id)}await idbDelete('projects',id);if(currentProjectId===id)currentProjectId='';await loadAll();
+    }
+  });
+  $('photoList').addEventListener('click',async e=>{
+    const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
+    if(b.dataset.action==='edit-photo')openPhotoDialog(ph);
+    if(b.dataset.action==='edit-board')await openBoardDialog(ph);
+    if(b.dataset.action==='edit-content'){
+      openPhotoDialog(ph);
+      requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
+    }
+    if(b.dataset.action==='save-device'){try{await saveRegisteredPhotoToPhone(ph)}catch(err){alert(err.message||'スマホへの保存に失敗しました。')}}
+    if(b.dataset.action==='up-photo')await movePhoto(id,-1);
+    if(b.dataset.action==='down-photo')await movePhoto(id,1);
+    if(b.dataset.action==='delete-photo'){if(!confirm('この写真を削除しますか？'))return;revokePhotoUrl(id);await idbDelete('photos',id);photos=photos.filter(x=>x.id!==id);const arr=currentPhotos();for(let i=0;i<arr.length;i++){arr[i].order=i;await idbPut('photos',arr[i])}renderPhotos();renderProjects()}
+  });
+
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').style.display='block'});
+  $('installBtn').addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').style.display='none'});
+  window.addEventListener('appinstalled',()=>{$('installBtn').style.display='none'});
+
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(console.warn));
+  openDB().then(d=>{db=d;return loadAll()}).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
+})();
+</script>
+</body>
+</html>

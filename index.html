@@ -216,6 +216,8 @@
       <div class="card">
         <h2>データ管理</h2>
         <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、スマホの「ダウンロード」フォルダに保存されます。ファイル名には日付と時刻が入るので、何度バックアップしても別ファイルとして残ります。Googleドライブなどに預けておきたい場合は、「ファイル」アプリのダウンロードフォルダを開き、そのファイルを共有メニューからドライブへ送ってください。復元するときは、「バックアップ復元」で一番新しい時刻のファイルを選んでください。</p>
+        <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="backupAskLocation" /> バックアップ保存時に、保存先を毎回選ぶ</label>
+        <div class="hint" style="margin-bottom:8px">チェックを入れると、保存のたびに保存先を選ぶ画面が出ます（Googleドライブなどを直接指定できます）。チェックを外すと、これまで通りダウンロードフォルダに保存されます。※お使いの端末やブラウザによっては、この機能に対応しておらず、ダウンロードフォルダに保存されることがあります。</div>
         <div class="btn-row">
           <button class="btn outline" id="backupBtn">バックアップ保存</button>
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
@@ -773,6 +775,19 @@
   async function backup(){
     const {blob,filename,failed}=await buildBackupPayload();
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
+    if(settings.backupAskLocation&&window.showSaveFilePicker){
+      try{
+        const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'バックアップファイル',accept:{'application/json':['.json']}}]});
+        const writable=await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        alert('選んだ場所に保存しました。\nファイル名: '+filename);
+        return;
+      }catch(e){
+        if(e&&e.name==='AbortError')return; // 保存をキャンセルした場合は何もしない
+        console.warn('保存先の指定に失敗',e);
+      }
+    }
     downloadBlob(blob,filename);
     alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダから、このファイルを共有してください。`);
   }
@@ -799,8 +814,8 @@
   }
   function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false}
-  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;if($('backupAskLocation'))$('backupAskLocation').checked=!!settings.backupAskLocation}
+  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;settings.backupAskLocation=$('backupAskLocation')?$('backupAskLocation').checked:!!settings.backupAskLocation;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
     const project=projects.find(p=>p.id===(ph&&ph.projectId))||currentProject()||{};

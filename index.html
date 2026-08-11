@@ -754,7 +754,7 @@
     try{await buildPrint();await waitForPrintImages();setTimeout(()=>window.print(),120)}catch(e){setOutputStatus(e.message,'err');showPage('output')}
   }
 
-  async function backup(){
+  async function buildBackupPayload(){
     const allPhotos=await idbGetAll('photos'); const ph=[]; const failed=[];
     for(const p of allPhotos){
       try{
@@ -768,37 +768,32 @@
     const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
     const now=new Date();const hh=String(now.getHours()).padStart(2,'0');const mm=String(now.getMinutes()).padStart(2,'0');
     const filename=`工事写真台帳バックアップ_${today()}_${hh}${mm}.json`;
-    if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
-    let shared=false;
-    const fileJson=new File([blob],filename,{type:'application/json'});
-    const fileText=new File([blob],filename,{type:'text/plain'});
-    let shareFile=null;
+    return {blob,filename,failed};
+  }
+  async function backup(){
+    // 「共有」はボタンを押した直後にしか呼び出せないため、データの準備を待たずに先に予約する
     if(navigator.share&&navigator.canShare){
-      if(navigator.canShare({files:[fileJson]}))shareFile=fileJson;
-      else if(navigator.canShare({files:[fileText]}))shareFile=fileText;
-    }
-    if(!navigator.share){
-      alert('この端末のブラウザには、そもそも「共有」の機能自体がありません。ダウンロードフォルダに保存します。');
-    }else if(!shareFile){
-      alert('この端末では、ファイルを共有する機能に対応していないようです。ダウンロードフォルダに保存します。');
-    }else{
-      try{
-        await navigator.share({files:[shareFile],title:'工事写真台帳バックアップ'});
-        shared=true;
-      }catch(e){
-        if(e&&e.name==='AbortError'){
-          alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
-        }else{
-          alert('共有を試みましたが、エラーが発生しました：\n'+(e&&e.message?e.message:e)+'\nダウンロードフォルダに保存します。');
+      const probe=new File([new Blob(['{}'],{type:'application/json'})],'probe.json',{type:'application/json'});
+      if(navigator.canShare({files:[probe]})){
+        const filesPromise=buildBackupPayload().then(r=>[new File([r.blob],r.filename,{type:'application/json'})]);
+        try{
+          await navigator.share({files:filesPromise,title:'工事写真台帳バックアップ'});
+          alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
+          return;
+        }catch(e){
+          if(e&&e.name==='AbortError'){
+            alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
+          }else{
+            console.warn('共有に失敗',e);
+          }
         }
       }
     }
-    if(shared){
-      alert(`共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。\nファイル名: ${filename}`);
-    }else{
-      downloadBlob(blob,filename);
-      alert(`共有機能が使えなかったため、スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダからこのファイルを共有してください。`);
-    }
+    // 共有できなかった場合はダウンロードフォルダに保存
+    const {blob,filename,failed}=await buildBackupPayload();
+    if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
+    downloadBlob(blob,filename);
+    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダからこのファイルを共有してください。`);
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
   async function restore(file){

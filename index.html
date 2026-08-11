@@ -770,13 +770,29 @@
     const filename=`工事写真台帳バックアップ_${today()}_${hh}${mm}.json`;
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
     let shared=false;
-    try{
-      const file=new File([blob],filename,{type:'text/plain'});
-      if(navigator.canShare&&navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'工事写真台帳バックアップ'});
+    const fileJson=new File([blob],filename,{type:'application/json'});
+    const fileText=new File([blob],filename,{type:'text/plain'});
+    let shareFile=null;
+    if(navigator.share&&navigator.canShare){
+      if(navigator.canShare({files:[fileJson]}))shareFile=fileJson;
+      else if(navigator.canShare({files:[fileText]}))shareFile=fileText;
+    }
+    if(!navigator.share){
+      alert('この端末のブラウザには、そもそも「共有」の機能自体がありません。ダウンロードフォルダに保存します。');
+    }else if(!shareFile){
+      alert('この端末では、ファイルを共有する機能に対応していないようです。ダウンロードフォルダに保存します。');
+    }else{
+      try{
+        await navigator.share({files:[shareFile],title:'工事写真台帳バックアップ'});
         shared=true;
+      }catch(e){
+        if(e&&e.name==='AbortError'){
+          alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
+        }else{
+          alert('共有を試みましたが、エラーが発生しました：\n'+(e&&e.message?e.message:e)+'\nダウンロードフォルダに保存します。');
+        }
       }
-    }catch(e){ /* 共有がキャンセル・失敗した場合は通常のダウンロードに切り替え */ }
+    }
     if(shared){
       alert(`共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。\nファイル名: ${filename}`);
     }else{

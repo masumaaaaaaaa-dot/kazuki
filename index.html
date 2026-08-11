@@ -771,7 +771,7 @@
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
     let shared=false;
     try{
-      const file=new File([blob],filename,{type:'application/json'});
+      const file=new File([blob],filename,{type:'text/plain'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
         await navigator.share({files:[file],title:'工事写真台帳バックアップ'});
         shared=true;

@@ -772,20 +772,32 @@
   }
   async function backup(){
     // 「共有」はボタンを押した直後にしか呼び出せないため、データの準備を待たずに先に予約する
-    if(navigator.share&&navigator.canShare){
-      const probe=new File([new Blob(['{}'],{type:'application/json'})],'probe.json',{type:'application/json'});
-      if(navigator.canShare({files:[probe]})){
-        const filesPromise=buildBackupPayload().then(r=>[new File([r.blob],r.filename,{type:'application/json'})]);
-        try{
-          await navigator.share({files:filesPromise,title:'工事写真台帳バックアップ'});
-          alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
+    if(navigator.share){
+      const filesPromise=buildBackupPayload().then(r=>[new File([r.blob],r.filename,{type:'application/json'})]);
+      try{
+        await navigator.share({files:filesPromise,title:'工事写真台帳バックアップ'});
+        alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
+        return;
+      }catch(e){
+        if(e&&e.name==='AbortError'){
+          alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
+          const r0=await buildBackupPayload();
+          downloadBlob(r0.blob,r0.filename);
           return;
-        }catch(e){
-          if(e&&e.name==='AbortError'){
-            alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
-          }else{
-            console.warn('共有に失敗',e);
+        }
+        console.warn('予約方式の共有に失敗',e);
+        // 予約方式に対応していない端末向けに、通常の方式でも試す
+        try{
+          const r1=await buildBackupPayload();
+          const f1=new File([r1.blob],r1.filename,{type:'application/json'});
+          if(!navigator.canShare||navigator.canShare({files:[f1]})){
+            await navigator.share({files:[f1],title:'工事写真台帳バックアップ'});
+            alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
+            return;
           }
+        }catch(e2){
+          console.warn('通常方式の共有にも失敗',e2);
+          alert('共有を試みましたが、うまくいきませんでした：\n'+(e2&&e2.message?e2.message:e2)+'\nダウンロードフォルダに保存します。');
         }
       }
     }

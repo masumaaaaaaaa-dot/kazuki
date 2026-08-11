@@ -216,8 +216,11 @@
       <div class="card">
         <h2>データ管理</h2>
         <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、スマホの「ダウンロード」フォルダに保存されます。ファイル名には日付と時刻が入るので、何度バックアップしても別ファイルとして残ります。Googleドライブなどに預けておきたい場合は、「ファイル」アプリのダウンロードフォルダを開き、そのファイルを共有メニューからドライブへ送ってください。復元するときは、「バックアップ復元」で一番新しい時刻のファイルを選んでください。</p>
-        <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="backupAskLocation" /> バックアップ保存時に、保存先を毎回選ぶ</label>
-        <div class="hint" style="margin-bottom:8px">チェックを入れると、保存のたびに保存先を選ぶ画面が出ます（Googleドライブなどを直接指定できます）。チェックを外すと、これまで通りダウンロードフォルダに保存されます。※お使いの端末やブラウザによっては、この機能に対応しておらず、ダウンロードフォルダに保存されることがあります。</div>
+        <div style="margin-bottom:10px;padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa">
+          <div id="backupFolderStatus" class="hint" style="margin-bottom:6px"></div>
+          <button class="btn outline full" id="chooseBackupFolderBtn" type="button">バックアップの保存先フォルダを設定</button>
+          <div class="hint" style="margin-top:6px">写真の保存先と同じように、Googleドライブのフォルダなどを指定できます。設定しておくと、以後は「バックアップ保存」を押すだけでそのフォルダに保存されます。</div>
+        </div>
         <div class="btn-row">
           <button class="btn outline" id="backupBtn">バックアップ保存</button>
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
@@ -382,6 +385,7 @@
   let photos = [];
   let settings = { company:'', submitTo:'', saveCameraCopy:true };
   let photoDirectoryHandle = null;
+  let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
   let deferredPrompt = null;
   const objectUrls = new Map();
@@ -430,9 +434,10 @@
     const ss=await idbGetAll('settings');
     const obj=ss.find(x=>x.key==='main'); if(obj) settings={...settings,...obj.value};
     const dirObj=ss.find(x=>x.key==='photoDirectoryHandle'); photoDirectoryHandle=dirObj?.value||null;
+    const bkDirObj=ss.find(x=>x.key==='backupDirectoryHandle'); backupDirectoryHandle=bkDirObj?.value||null;
     if(currentProjectId && !projects.some(p=>p.id===currentProjectId)) currentProjectId='';
     if(!currentProjectId && projects.length) currentProjectId=projects[0].id;
-    updateCurrentLabel(); renderProjects(); renderPhotos(); loadSettingsUI(); updatePhotoSaveUI();
+    updateCurrentLabel(); renderProjects(); renderPhotos(); loadSettingsUI(); updatePhotoSaveUI(); updateBackupFolderUI();
   }
 
   function currentProject(){return projects.find(p=>p.id===currentProjectId) || null}
@@ -772,24 +777,64 @@
     const filename=`工事写真台帳バックアップ_${today()}_${hh}${mm}.json`;
     return {blob,filename,failed};
   }
+  function updateBackupFolderUI(){
+    const status=$('backupFolderStatus');
+    const btn=$('chooseBackupFolderBtn');
+    if(!status||!btn)return;
+    if(!('showDirectoryPicker' in window)){
+      status.textContent='この端末では保存先フォルダの指定に対応していません。バックアップはダウンロードフォルダに保存されます。';
+      btn.disabled=true;
+      return;
+    }
+    btn.disabled=false;
+    status.textContent=backupDirectoryHandle
+      ? `現在の保存先：${backupDirectoryHandle.name}`
+      : '保存先は未設定です（今はダウンロードフォルダに保存されます）。';
+  }
+  async function chooseBackupDirectory(){
+    if(!('showDirectoryPicker' in window)){
+      alert('この端末では保存先フォルダの指定に対応していません。');
+      return false;
+    }
+    try{
+      const handle=await window.showDirectoryPicker({mode:'readwrite',id:'kouji-photo-backup'});
+      const permission=await handle.requestPermission({mode:'readwrite'});
+      if(permission!=='granted') throw new Error('書き込みが許可されませんでした。');
+      backupDirectoryHandle=handle;
+      await idbPut('settings',{key:'backupDirectoryHandle',value:handle});
+      updateBackupFolderUI();
+      alert(`バックアップの保存先を「${handle.name}」に設定しました。`);
+      return true;
+    }catch(err){
+      if(err?.name!=='AbortError') alert(`保存先を設定できませんでした。${err?.message||''}`);
+      return false;
+    }
+  }
+  async function ensureBackupDirectoryPermission(){
+    if(!backupDirectoryHandle) return false;
+    const opts={mode:'readwrite'};
+    if((await backupDirectoryHandle.queryPermission(opts))==='granted') return true;
+    return (await backupDirectoryHandle.requestPermission(opts))==='granted';
+  }
   async function backup(){
     const {blob,filename,failed}=await buildBackupPayload();
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
-    if(settings.backupAskLocation&&window.showSaveFilePicker){
+    if(backupDirectoryHandle){
       try{
-        const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'バックアップファイル',accept:{'application/json':['.json']}}]});
-        const writable=await handle.createWritable();
+        if(!await ensureBackupDirectoryPermission()) throw new Error('保存先への書き込みが許可されていません。');
+        const fileHandle=await backupDirectoryHandle.getFileHandle(filename,{create:true});
+        const writable=await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
-        alert('選んだ場所に保存しました。\nファイル名: '+filename);
+        alert(`「${backupDirectoryHandle.name}」に保存しました。\nファイル名: ${filename}`);
         return;
       }catch(e){
-        if(e&&e.name==='AbortError')return; // 保存をキャンセルした場合は何もしない
-        console.warn('保存先の指定に失敗',e);
+        console.warn('保存先フォルダへの保存に失敗',e);
+        alert(`保存先フォルダに保存できませんでした。${e?.message||''}\nダウンロードフォルダに保存します。`);
       }
     }
     downloadBlob(blob,filename);
-    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダから、このファイルを共有してください。`);
+    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}`);
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
   async function restore(file){
@@ -814,8 +859,8 @@
   }
   function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;if($('backupAskLocation'))$('backupAskLocation').checked=!!settings.backupAskLocation}
-  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;settings.backupAskLocation=$('backupAskLocation')?$('backupAskLocation').checked:!!settings.backupAskLocation;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false}
+  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
     const project=projects.find(p=>p.id===(ph&&ph.projectId))||currentProject()||{};
@@ -1508,6 +1553,7 @@
   });
   $('galleryBtn').addEventListener('click',()=>$('galleryInput').click());
   $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
+  $('chooseBackupFolderBtn').addEventListener('click',chooseBackupDirectory);
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));

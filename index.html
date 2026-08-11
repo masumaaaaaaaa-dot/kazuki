@@ -215,7 +215,7 @@
       </div>
       <div class="card">
         <h2>データ管理</h2>
-        <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、共有メニューからGoogleドライブなどに直接保存できます（対応していない端末ではダウンロードフォルダに保存されます）。ファイル名には日付と時刻が入るので、同じ日に何度もバックアップしても別ファイルとして保存されます。復元するときは、保存したバックアップファイルの中で一番新しい時刻のものを「バックアップ復元」で選んでください（同じ名前のファイルが複数ある場合は、ファイルサイズが一番大きいものが最新のことが多いです）。</p>
+        <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、スマホの「ダウンロード」フォルダに保存されます。ファイル名には日付と時刻が入るので、何度バックアップしても別ファイルとして残ります。Googleドライブなどに預けておきたい場合は、「ファイル」アプリのダウンロードフォルダを開き、そのファイルを共有メニューからドライブへ送ってください。復元するときは、「バックアップ復元」で一番新しい時刻のファイルを選んでください。</p>
         <div class="btn-row">
           <button class="btn outline" id="backupBtn">バックアップ保存</button>
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
@@ -771,41 +771,10 @@
     return {blob,filename,failed};
   }
   async function backup(){
-    // 「共有」はボタンを押した直後にしか呼び出せないため、データの準備を待たずに先に予約する
-    if(navigator.share){
-      const filesPromise=buildBackupPayload().then(r=>[new File([r.blob],r.filename,{type:'application/json'})]);
-      try{
-        await navigator.share({files:filesPromise,title:'工事写真台帳バックアップ'});
-        alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
-        return;
-      }catch(e){
-        if(e&&e.name==='AbortError'){
-          alert('共有をキャンセルしました。ダウンロードフォルダに保存します。');
-          const r0=await buildBackupPayload();
-          downloadBlob(r0.blob,r0.filename);
-          return;
-        }
-        console.warn('予約方式の共有に失敗',e);
-        // 予約方式に対応していない端末向けに、通常の方式でも試す
-        try{
-          const r1=await buildBackupPayload();
-          const f1=new File([r1.blob],r1.filename,{type:'application/json'});
-          if(!navigator.canShare||navigator.canShare({files:[f1]})){
-            await navigator.share({files:[f1],title:'工事写真台帳バックアップ'});
-            alert('共有メニューでの保存操作を行いました。\n保存先（Googleドライブなど）で、アップロードが最後まで完了しているか必ず確認してください。');
-            return;
-          }
-        }catch(e2){
-          console.warn('通常方式の共有にも失敗',e2);
-          alert('共有を試みましたが、うまくいきませんでした：\n'+(e2&&e2.message?e2.message:e2)+'\nダウンロードフォルダに保存します。');
-        }
-      }
-    }
-    // 共有できなかった場合はダウンロードフォルダに保存
     const {blob,filename,failed}=await buildBackupPayload();
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
     downloadBlob(blob,filename);
-    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダからこのファイルを共有してください。`);
+    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}\nGoogleドライブなどに移す場合は、「ファイル」アプリのダウンロードフォルダから、このファイルを共有してください。`);
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
   async function restore(file){

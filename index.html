@@ -483,7 +483,8 @@
         <div><label>上段3 ラベル</label><input id="boardLabel3" /></div><div><label>上段3 文字</label><input id="boardValue3" /></div>
         <div><label>下段 ラベル</label><input id="boardBottomLabel" /></div><div><label>下段 文字</label><input id="boardBottomValue" /></div>
       </div>
-      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（改行できます）</label><div style="margin-bottom:6px"><label style="font-weight:400">文字の大きさ</label><select id="boardNoteSize"><option value="s">小さめ（12行まで）</option><option value="m" selected>標準（9行まで）</option><option value="l">大きめ（6行まで）</option></select></div><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。「文字の大きさ」を大きめにすると、そのぶん書ける行数が減ります。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
+      <div id="boardNoteSizeRow" style="margin-top:10px"><label>記入欄の文字の大きさ</label><select id="boardNoteSize"><option value="s">小さめ（行数は多め）</option><option value="m" selected>標準</option><option value="l">大きめ（行数は少なめ）</option></select></div>
+      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。「文字の大きさ」を大きめにすると、そのぶん書ける行数が減ります。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
       <div id="boardGenericFields" style="margin-top:10px"></div>
       </div>
     </div>
@@ -1467,7 +1468,8 @@
     html+='</div>';
     notes.forEach(n=>{
       const val=data[n.key]||'';
-      html+=`<div style="margin-top:10px"><label>${escapeHtml(n.label||'自由記入')}（${n.maxLines||9}行まで）</label><textarea id="gn_${n.key}" rows="${Math.min(9,n.maxLines||9)}" style="font-family:monospace;font-weight:700">${escapeHtml(val)}</textarea></div>`;
+      const lines=noteLinesScaled(n.maxLines||9,data.noteSize);
+      html+=`<div style="margin-top:10px"><label>${escapeHtml(n.label||'自由記入')}（${lines}行まで）</label><textarea id="gn_${n.key}" rows="${Math.min(9,lines)}" style="font-family:monospace;font-weight:700">${escapeHtml(val)}</textarea></div>`;
     });
     container.innerHTML=html;
     container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>renderBoardEditor()));
@@ -1598,6 +1600,14 @@
     $('boardSize').value = data.size||'s';
     $('boardOrient').value = data.orient||'land';
     $('boardNoteSize').value = data.noteSize||'m';
+    // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
+    const sizeRow=$('boardNoteSizeRow');
+    if(sizeRow){
+      const hasNote=GENERIC_TEMPLATES[data.template]
+        ? genericTemplateNoteKeys(data.template).length>0
+        : true;
+      sizeRow.style.display=hasNote?'':'none';
+    }
     if(GENERIC_TEMPLATES[data.template]){
       setLegacyFieldsVisible(false);
       renderGenericFieldsUI(data.template,data);
@@ -1984,7 +1994,7 @@
       ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
       if(sketch.noteKey){
         const text=data[sketch.noteKey]||'';
-        const maxLines=sketch.maxLines||6;
+        const maxLines=noteLinesScaled(sketch.maxLines||6,data.noteSize);
         const textTop=sy+padY+lblSize+4;
         const textH=Math.max(10,ey-textTop-padY);
         const lineH=textH/maxLines;

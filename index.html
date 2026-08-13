@@ -69,6 +69,11 @@
     .preview-wrap{overflow:auto;background:#d1d5db;padding:10px;border-radius:10px}.preview-mini{width:210mm;min-height:297mm;background:#fff;transform-origin:top left;box-shadow:0 3px 10px rgba(0,0,0,.25)}
     .check-row{display:flex;align-items:center;gap:8px}.check-row input{width:auto}
     .status{padding:9px 11px;border-radius:9px;font-size:13px;margin-bottom:10px;display:none}.status.ok{display:block;background:#ecfdf3;color:#067647}.status.err{display:block;background:#fef3f2;color:#b42318}
+    .undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));z-index:60;
+      background:#1f2937;color:#fff;border-radius:12px;padding:11px 12px 11px 15px;display:flex;align-items:center;gap:12px;
+      box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100vw - 24px)}
+    .undo-toast .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
     #printRoot{display:none}
 
     /* A4 layout */
@@ -252,6 +257,7 @@
         <input type="file" id="replaceInput" accept="image/*" hidden />
         <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
+          <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="autoOpenBoard" checked /> 写真を登録したら、そのまま黒板編集を開く</label>
           <div class="btn-row" style="margin-top:0">
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
           </div>
@@ -510,7 +516,7 @@
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light' };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', autoOpenBoard:true, lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -624,10 +630,11 @@
       <div class="photo-actions">
         <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
         <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
-        <button class="btn outline" data-action="replace-photo" data-id="${p.id}">写真を差し替え</button>
-        <button class="btn outline" data-action="save-device" data-id="${p.id}">スマホに保存</button>
+        <button class="btn outline" data-action="replace-photo" data-id="${p.id}">差し替え</button>
+        <button class="btn outline" data-action="save-device" data-id="${p.id}">端末に保存</button>
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
+        <button class="btn" data-action="move-photo" data-id="${p.id}">順番</button>
         <button class="btn danger" data-action="delete-photo" data-id="${p.id}">削除</button>
       </div></div></div>`).join('');
   }
@@ -752,6 +759,7 @@
   async function handleFiles(fileList,{saveDeviceCopy=false}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
+    const addedPhotos=[];
     const arr=currentPhotos(); let order=arr.length;
     const statusMsg=document.createElement('div'); statusMsg.className='status ok'; statusMsg.style.display='block'; statusMsg.textContent=`${files.length}枚を読み込み中です…`; $('page-photos').prepend(statusMsg);
     try{
@@ -770,7 +778,7 @@
         let shotDate=today();
         try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
         const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
-        await idbPut('photos',ph); photos.push(ph);
+        await idbPut('photos',ph); photos.push(ph); addedPhotos.push(ph);
       }
       const pr=currentProject(); if(pr){pr.updatedAt=Date.now();await idbPut('projects',pr)}
       renderPhotos(); renderProjects();
@@ -780,6 +788,9 @@
         if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
       }
       alert(msg);
+      if(settings.autoOpenBoard!==false && addedPhotos.length===1){
+        try{ await openBoardDialog(addedPhotos[0]); }catch(e){ console.warn('黒板編集の自動表示に失敗',e); }
+      }
     }catch(err){console.error(err);alert('写真の読み込みに失敗しました。容量不足の可能性があります。')}
     finally{statusMsg.remove();$('cameraInput').value='';$('galleryInput').value='';}
   }
@@ -889,6 +900,79 @@
     await idbPut('photos',ph);$('photoDialog').close();renderPhotos();
   }
 
+  // ---- 削除の取り消し（直前の1件だけ戻せる） ----
+  let undoState=null;
+  function clearUndo(){
+    if(undoState&&undoState.timer)clearTimeout(undoState.timer);
+    const el=$('undoToast'); if(el)el.remove();
+    undoState=null;
+  }
+  function showUndoToast(message,onUndo,seconds=7){
+    clearUndo();
+    const el=document.createElement('div');
+    el.className='undo-toast'; el.id='undoToast';
+    el.innerHTML=`<span class="msg"></span><button type="button">元に戻す</button>`;
+    el.querySelector('.msg').textContent=message;
+    el.querySelector('button').addEventListener('click',async()=>{
+      const fn=onUndo; clearUndo(); await fn();
+    });
+    document.body.appendChild(el);
+    undoState={timer:setTimeout(()=>clearUndo(),seconds*1000)};
+  }
+  async function deletePhotoWithUndo(ph){
+    const snapshot={...ph};
+    revokePhotoUrl(ph.id);
+    await idbDelete('photos',ph.id);
+    photos=photos.filter(x=>x.id!==ph.id);
+    await renumberCurrentPhotos();
+    renderPhotos();renderProjects();
+    showUndoToast('写真を削除しました',async()=>{
+      photos.push(snapshot);
+      await idbPut('photos',snapshot);
+      await renumberCurrentPhotos();
+      renderPhotos();renderProjects();
+    });
+  }
+  async function renumberCurrentPhotos(){
+    const arr=currentPhotos();
+    for(let i=0;i<arr.length;i++){ if(arr[i].order!==i){arr[i].order=i; await idbPut('photos',arr[i]);} }
+  }
+  async function deleteProjectWithUndo(project){
+    const relPhotos=photos.filter(x=>x.projectId===project.id).map(x=>({...x}));
+    const wasCurrent=currentProjectId===project.id;
+    for(const ph of relPhotos){revokePhotoUrl(ph.id);await idbDelete('photos',ph.id)}
+    await idbDelete('projects',project.id);
+    if(wasCurrent)currentProjectId='';
+    await loadAll();
+    showUndoToast(`「${project.name}」を削除しました`,async()=>{
+      await idbPut('projects',project);
+      for(const ph of relPhotos)await idbPut('photos',ph);
+      if(wasCurrent)currentProjectId=project.id;
+      await loadAll();
+    });
+  }
+  // ---- 写真を指定の位置へ動かす ----
+  async function movePhotoTo(id,targetIndex){
+    const arr=currentPhotos();
+    const from=arr.findIndex(x=>x.id===id);
+    if(from<0)return;
+    const to=Math.max(0,Math.min(arr.length-1,targetIndex));
+    if(from===to)return;
+    const moved=arr.splice(from,1)[0];
+    arr.splice(to,0,moved);
+    for(let i=0;i<arr.length;i++){ if(arr[i].order!==i){arr[i].order=i; await idbPut('photos',arr[i]);} }
+    renderPhotos();
+  }
+  async function askMovePhoto(id){
+    const arr=currentPhotos();
+    const cur=arr.findIndex(x=>x.id===id);
+    if(cur<0)return;
+    const ans=prompt(`この写真を何番目に移動しますか？（1〜${arr.length}）`,String(cur+1));
+    if(ans===null)return;
+    const n=parseInt(ans.trim(),10);
+    if(!n||n<1||n>arr.length){alert(`1から${arr.length}の数字を入れてください。`);return}
+    await movePhotoTo(id,n-1);
+  }
   async function movePhoto(id,dir){
     const arr=currentPhotos(); const i=arr.findIndex(x=>x.id===id); const j=i+dir; if(i<0||j<0||j>=arr.length)return;
     [arr[i].order,arr[j].order]=[arr[j].order,arr[i].order]; await idbPut('photos',arr[i]);await idbPut('photos',arr[j]);renderPhotos();
@@ -1313,8 +1397,8 @@
     localStorage.setItem('photoLedgerTheme',settings.theme);
     await idbPut('settings',{key:'main',value:settings});
   }
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
-  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;if($('autoOpenBoard'))$('autoOpenBoard').checked=settings.autoOpenBoard!==false;applyTheme(settings.theme)}
+  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;settings.autoOpenBoard=$('autoOpenBoard')?$('autoOpenBoard').checked:settings.autoOpenBoard!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
     const project=projects.find(p=>p.id===(ph&&ph.projectId))||currentProject()||{};
@@ -2083,7 +2167,20 @@
   async function openBoardDialog(ph){
     $('boardPhotoId').value=ph.id;boardState.photoId=ph.id;boardState.image=await loadImageElement(ph.blob);
     boardState.strokes=ph.boardData&&ph.boardData.scope==='board'?cloneBoardData(ph.boardData.strokes||[]):[];
-    const savedBoard=ph.boardData&&ph.boardData.board?ph.boardData.board:boardPreset('tajima',ph);const board=applyProjectDefaultsToBoard(savedBoard,ph,false);fillBoardControls(Object.assign({enabled:!(ph.boardData&&ph.boardData.enabled===false)},board));
+    let savedBoard;
+    if(ph.boardData&&ph.boardData.board){
+      savedBoard=ph.boardData.board;
+    }else{
+      const lb=settings.lastBoard||null;
+      savedBoard=boardPreset(lb&&lb.template?lb.template:'tajima',ph);
+      if(lb){
+        if(lb.orient)savedBoard.orient=lb.orient;
+        if(lb.position)savedBoard.position=lb.position;
+        if(lb.size)savedBoard.size=lb.size;
+        if(lb.noteSize)savedBoard.noteSize=lb.noteSize;
+      }
+    }
+    const board=applyProjectDefaultsToBoard(savedBoard,ph,false);fillBoardControls(Object.assign({enabled:!(ph.boardData&&ph.boardData.enabled===false)},board));
     resetBoardZoom();
     boardState.interactionMode='text';
     boardState.projectInfoApplied=false;boardState.beforeApplySnapshot=null;setApplyProjectBtnState(false);
@@ -2099,7 +2196,10 @@
     if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board));ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
     const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
-    await idbPut('photos',ph);$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。手書きは黒板と一緒に拡大・縮小されます。');
+    await idbPut('photos',ph);
+    settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize};
+    try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
+    $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。次の写真も同じ黒板の設定で開きます。');
   }
   async function replacePhotoImage(id,file){
     const ph=photos.find(x=>x.id===id); if(!ph)return;
@@ -2285,6 +2385,7 @@
     const current=readBoardControls();
     const preset=boardPreset(newKey,ph);
     preset.position=current.position;preset.size=current.size;preset.enabled=current.enabled;
+    preset.orient=current.orient;preset.noteSize=current.noteSize;
     if(!GENERIC_TEMPLATES[newKey]&&!GENERIC_TEMPLATES[current.template]&&current.note)preset.note=current.note;
     fillBoardControls(preset);
     renderBoardEditor();
@@ -2352,6 +2453,7 @@
   $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
   $('chooseBackupFolderBtn').addEventListener('click',chooseBackupDirectory);
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
+  $('autoOpenBoard').addEventListener('change',async e=>{settings.autoOpenBoard=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);
@@ -2371,8 +2473,9 @@
     if(b.dataset.action==='edit-project')openProjectDialog(p);
     if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
     if(b.dataset.action==='delete-project'){
-      const cnt=photos.filter(x=>x.projectId===id).length;if(!confirm(`「${p.name}」と登録写真${cnt}枚を削除します。元に戻せません。`))return;
-      for(const ph of photos.filter(x=>x.projectId===id)){revokePhotoUrl(ph.id);await idbDelete('photos',ph.id)}await idbDelete('projects',id);if(currentProjectId===id)currentProjectId='';await loadAll();
+      const cnt=photos.filter(x=>x.projectId===id).length;
+      if(!confirm(`「${p.name}」と登録写真${cnt}枚を削除します。よろしいですか？`))return;
+      await deleteProjectWithUndo(p);
     }
   });
   $('photoList').addEventListener('click',async e=>{
@@ -2385,7 +2488,8 @@
     if(b.dataset.action==='save-device'){try{await saveRegisteredPhotoToPhone(ph)}catch(err){alert(err.message||'スマホへの保存に失敗しました。')}}
     if(b.dataset.action==='up-photo')await movePhoto(id,-1);
     if(b.dataset.action==='down-photo')await movePhoto(id,1);
-    if(b.dataset.action==='delete-photo'){if(!confirm('この写真を削除しますか？'))return;revokePhotoUrl(id);await idbDelete('photos',id);photos=photos.filter(x=>x.id!==id);const arr=currentPhotos();for(let i=0;i<arr.length;i++){arr[i].order=i;await idbPut('photos',arr[i])}renderPhotos();renderProjects()}
+    if(b.dataset.action==='delete-photo')await deletePhotoWithUndo(ph);
+    if(b.dataset.action==='move-photo')await askMovePhoto(id);
     if(b.dataset.action==='replace-photo'){replaceTargetPhotoId=id;$('replaceInput').click()}
   });
   $('replaceInput').addEventListener('change',async e=>{

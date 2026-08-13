@@ -399,6 +399,10 @@
     <div class="dialog-body">
       <p class="hint" style="margin:0 0 10px">表紙をタップすると、その場で直接書き込めます。ここで入力した内容は、印刷・Excelの表紙になるほか、黒板の自動入力や現場一覧の表示にも使われます。</p>
       <input type="hidden" id="projectId" />
+      <div style="margin-bottom:10px"><label>表紙の種類</label><select id="projectCoverType">
+        <option value="standard">標準（工事番号・工期・施工者あり）</option>
+        <option value="simple">シンプル（工事名だけ）</option>
+      </select></div>
       <div class="cover-edit-wrap"><div class="cover-edit" id="coverEdit"></div></div>
       <div class="grid two">
         <div class="cf-dup"><label>工事名 *</label><input id="projectName" placeholder="" /></div>
@@ -409,6 +413,7 @@
         <div class="cf-dup"><label>工期（終了）</label><input id="projectEnd" type="date" /></div>
         <div class="cf-dup"><label>会社名・施工者（任意）</label><input id="projectCompany" placeholder="必要な場合だけ入力" /></div>
         <div class="cf-dup"><input id="projectManager" /></div>
+        <div class="cf-dup"><input id="projectNendo" /></div>
         <div class="cf-dup"><input id="projectEngineer" /></div>
         <div><label>作成年月日（任意）</label><input id="projectCreatedDate" type="date" /></div>
       </div>
@@ -552,8 +557,8 @@
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14e';
-  const APP_UPDATE_NOTE='上のバーの絵がページごとに切り替わるように／設定でバージョンを確認・更新できるように';
+  const APP_VERSION='2026.08.14f';
+  const APP_UPDATE_NOTE='表紙の種類（標準・シンプル）を選べるように／作成年月日が勝手に入る問題を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -713,12 +718,18 @@
   function renderCoverEditor(){
     const host=$('coverEdit'); if(!host)return;
     const st=isoToReiwa(ceVal('projectStart')),en=isoToReiwa(ceVal('projectEnd'));
-    const cre=isoToReiwa(ceVal('projectCreatedDate')||today());
     const f=(k,v,ph,cls)=>`<span class="ce-f ${cls||''}" contenteditable="true" data-cf="${k}" data-ph="${ph||''}">${escapeHtml(v||'')}</span>`;
+    if(ceVal('projectCoverType')==='simple'){
+      host.innerHTML=`
+        <div class="ce-title" style="margin-bottom:34mm">工 事 写 真 帳</div>
+        <div class="ce-row" style="justify-content:center"><span class="ce-line" style="flex:0 1 86%;justify-content:center">${f('name',ceVal('projectName'),'工事名を入力','wide')}</span></div>
+        <div class="ce-row" style="margin-top:30px"><span class="ce-lbl">工事施工者</span><span class="ce-line">${f('company',ceVal('projectCompany'),'会社名を入力','wide')}</span></div>`;
+      return;
+    }
     host.innerHTML=`
       <div class="ce-title">工 事 写 真 帳</div>
       <div class="ce-row"><span class="ce-lbl">工事番号</span><span class="ce-line">
-        <span class="ce-unit">令和</span>${f('nendo',cre.y,'年')}<span class="ce-unit">年度</span>
+        <span class="ce-unit">令和</span>${f('nendo',ceVal('projectNendo'),'年')}<span class="ce-unit">年度</span>
         <span class="ce-unit" style="margin-left:10px">工第</span>${f('number',(ceVal('projectNumber')||'').replace(/^第/,'').replace(/号$/,''),'番号')}<span class="ce-unit">号</span>
       </span></div>
       <div class="ce-row"><span class="ce-lbl">工 事 名</span><span class="ce-line">${f('name',ceVal('projectName'),'工事名を入力','wide')}</span></div>
@@ -738,8 +749,7 @@
     $('projectAddress').value=g('address');
     $('projectCompany').value=g('company');
     const num=g('number'); $('projectNumber').value=num?num:'';
-    const nen=g('nendo');
-    if(nen&&!ceVal('projectCreatedDate')){const iso=reiwaToIso(nen,'1','1'); if(iso)$('projectCreatedDate').value=iso;}
+    $('projectNendo').value=g('nendo');
     const s=reiwaToIso(g('sy'),g('sm'),g('sd')); $('projectStart').value=s;
     const e=reiwaToIso(g('ey'),g('em'),g('ed')); $('projectEnd').value=e;
   }
@@ -748,7 +758,9 @@
     $('projectId').value=p?.id||''; $('projectName').value=p?.name||''; $('projectAddress').value=p?.address||'';
     $('projectSubmitTo').value=p?.submitTo||''; $('projectNumber').value=p?.number||'';
     $('projectStart').value=p?.start||''; $('projectEnd').value=p?.end||''; $('projectCompany').value=p?.company||settings.company||'';
-    $('projectManager').value=p?.manager||''; $('projectEngineer').value=p?.engineer||''; $('projectCreatedDate').value=p?.createdDate||''; $('projectRemarks').value=p?.remarks||'';
+    $('projectManager').value=p?.manager||'';
+    $('projectNendo').value=p?.nendo||(p?String(''):String((reiwaParts(today())||{}).year||''));
+    $('projectCoverType').value=p?.coverType||'standard'; $('projectEngineer').value=p?.engineer||''; $('projectCreatedDate').value=p?.createdDate||''; $('projectRemarks').value=p?.remarks||'';
     renderCoverEditor();
     $('projectDialog').showModal();
     setTimeout(()=>{const el=$('coverEdit').querySelector('[data-cf="name"]'); if(el)el.focus();},60);
@@ -756,7 +768,7 @@
 
   async function saveProject(e){
     e.preventDefault(); syncCoverToForm(); const id=$('projectId').value||uid('project'); const old=projects.find(p=>p.id===id);
-    const p={id,name:$('projectName').value.trim(),address:$('projectAddress').value.trim(),submitTo:$('projectSubmitTo').value.trim(),number:$('projectNumber').value.trim(),start:$('projectStart').value,end:$('projectEnd').value,company:$('projectCompany').value.trim(),manager:$('projectManager').value.trim(),engineer:$('projectEngineer').value.trim(),createdDate:$('projectCreatedDate').value,remarks:$('projectRemarks').value.trim(),createdAt:old?.createdAt||Date.now(),updatedAt:Date.now()};
+    const p={id,name:$('projectName').value.trim(),address:$('projectAddress').value.trim(),submitTo:$('projectSubmitTo').value.trim(),number:$('projectNumber').value.trim(),start:$('projectStart').value,end:$('projectEnd').value,company:$('projectCompany').value.trim(),manager:$('projectManager').value.trim(),engineer:$('projectEngineer').value.trim(),createdDate:$('projectCreatedDate').value,nendo:$('projectNendo').value.trim(),coverType:$('projectCoverType').value,remarks:$('projectRemarks').value.trim(),createdAt:old?.createdAt||Date.now(),updatedAt:Date.now()};
     if(!p.name){alert('工事名を入力してください。');return}
     await idbPut('projects',p); currentProjectId=id; $('projectDialog').close(); await loadAll();
   }
@@ -1100,21 +1112,33 @@
     const data=[]; for(const ph of arr)data.push({...ph,dataUrl:await blobToDataURL(getDisplayBlob(ph))});
     let html='';
     if($('coverSetting').value==='yes'){
-      const cd=reiwaParts(p.createdDate)||reiwaParts(today());
+      const nendo=p.nendo||((reiwaParts(p.createdDate)||reiwaParts(today())||{}).year||'');
       const sp=reiwaParts(p.start),ep=reiwaParts(p.end);
       const num=(p.number||'').replace(/^第/,'').replace(/号$/,'');
       const cell=v=>`<span class="fill">${escapeHtml(v==null||v===''?'':String(v))}</span>`;
-      html+=`<section class="sheet cover-sheet">
-        <div class="cover-title">工 事 写 真 帳</div>
-        <table class="cover-form">
-          <tr><td class="lbl">工事番号</td><td class="val" colspan="3">令和 ${cell(cd?cd.year:'')} 年度　　　工第 ${cell(num)} 号</td></tr>          <tr><td class="lbl">工 事 名</td><td class="val" colspan="3">${escapeHtml(p.name||'')}</td></tr>
-          <tr><td class="lbl">工事箇所</td><td class="val" colspan="3">${escapeHtml(p.address||'')}</td></tr>
-          <tr><td class="lbl">工　　期</td><td class="val" colspan="3">着 手　　令和 ${cell(sp?sp.year:'')} 年 ${cell(sp?sp.month:'')} 月 ${cell(sp?sp.day:'')} 日</td></tr>
-          <tr><td class="lbl"></td><td class="val" colspan="3">竣 工　　令和 ${cell(ep?ep.year:'')} 年 ${cell(ep?ep.month:'')} 月 ${cell(ep?ep.day:'')} 日</td></tr>
-          <tr><td colspan="4" style="padding:0;height:24mm"></td></tr>
-          <tr><td class="lbl">工事施工者</td><td class="val" colspan="3">${escapeHtml(p.company||'')}</td></tr>
-        </table>
-      </section>`;
+      if(p.coverType==='simple'){
+        html+=`<section class="sheet cover-sheet">
+          <div class="cover-title" style="margin-bottom:46mm">工 事 写 真 帳</div>
+          <table class="cover-form">
+            <tr><td class="val" style="font-size:16pt;padding-bottom:0">${escapeHtml(p.name||'')}</td></tr>
+            <tr><td style="padding:0;height:34mm"></td></tr>
+            <tr><td class="val" style="padding-bottom:0">${escapeHtml(p.company||'')}</td></tr>
+          </table>
+        </section>`;
+      }else{
+        html+=`<section class="sheet cover-sheet">
+          <div class="cover-title">工 事 写 真 帳</div>
+          <table class="cover-form">
+            <tr><td class="lbl">工事番号</td><td class="val" colspan="3">令和 ${cell(nendo)} 年度　　　工第 ${cell(num)} 号</td></tr>
+            <tr><td class="lbl">工 事 名</td><td class="val" colspan="3">${escapeHtml(p.name||'')}</td></tr>
+            <tr><td class="lbl">工事箇所</td><td class="val" colspan="3">${escapeHtml(p.address||'')}</td></tr>
+            <tr><td class="lbl">工　　期</td><td class="val" colspan="3">着 手　　令和 ${cell(sp?sp.year:'')} 年 ${cell(sp?sp.month:'')} 月 ${cell(sp?sp.day:'')} 日</td></tr>
+            <tr><td class="lbl"></td><td class="val" colspan="3">竣 工　　令和 ${cell(ep?ep.year:'')} 年 ${cell(ep?ep.month:'')} 月 ${cell(ep?ep.day:'')} 日</td></tr>
+            <tr><td colspan="4" style="padding:0;height:24mm"></td></tr>
+            <tr><td class="lbl">工事施工者</td><td class="val" colspan="3">${escapeHtml(p.company||'')}</td></tr>
+          </table>
+        </section>`;
+      }
     }
     const chunks=[];for(let i=0;i<data.length;i+=3)chunks.push(data.slice(i,i+3));
     chunks.forEach((chunk,pi)=>{
@@ -1279,14 +1303,17 @@
       const coverPath=sheetPath['表紙'];
       if(coverPath){
         let cv=await z.file(coverPath).async('string');
-        const cd=reiwaParts(p.createdDate)||reiwaParts(today());
+        const nendo=p.nendo||((reiwaParts(p.createdDate)||reiwaParts(today())||{}).year||'');
+        const simple=p.coverType==='simple';
         const sp=reiwaParts(p.start),ep=reiwaParts(p.end);
-        cv=xlSetCell(cv,'E12',cd?String(cd.year):'',{number:true});
-        cv=xlSetCell(cv,'J12',(p.number||'').replace(/^第/,'').replace(/号$/,''));
+        cv=xlSetCell(cv,'E12',(!simple&&nendo)?String(nendo):'',{number:true});
+        cv=xlSetCell(cv,'J12',simple?'':(p.number||'').replace(/^第/,'').replace(/号$/,''));
         cv=xlSetCell(cv,'D14',p.name||'');
-        cv=xlSetCell(cv,'D16',p.address||'');
-        if(sp){cv=xlSetCell(cv,'G18',String(sp.year),{number:true});cv=xlSetCell(cv,'I18',String(sp.month),{number:true});cv=xlSetCell(cv,'K18',String(sp.day),{number:true});}
-        if(ep){cv=xlSetCell(cv,'G20',String(ep.year),{number:true});cv=xlSetCell(cv,'I20',String(ep.month),{number:true});cv=xlSetCell(cv,'K20',String(ep.day),{number:true});}
+        cv=xlSetCell(cv,'D16',simple?'':(p.address||''));
+        if(!simple&&sp){cv=xlSetCell(cv,'G18',String(sp.year),{number:true});cv=xlSetCell(cv,'I18',String(sp.month),{number:true});cv=xlSetCell(cv,'K18',String(sp.day),{number:true});}
+        else{cv=xlSetCell(cv,'G18','');cv=xlSetCell(cv,'I18','');cv=xlSetCell(cv,'K18','');}
+        if(!simple&&ep){cv=xlSetCell(cv,'G20',String(ep.year),{number:true});cv=xlSetCell(cv,'I20',String(ep.month),{number:true});cv=xlSetCell(cv,'K20',String(ep.day),{number:true});}
+        else{cv=xlSetCell(cv,'G20','');cv=xlSetCell(cv,'I20','');cv=xlSetCell(cv,'K20','');}
         cv=xlSetCell(cv,'E27',p.company||'');   // 見本の会社名は上書き（未入力なら空欄）
         // 「数字が文字列で入っています」の注意マーク（緑の三角）を出さないようにする
         cv=cv.replace(/<ignoredErrors>[\s\S]*?<\/ignoredErrors>/,'');
@@ -2539,8 +2566,7 @@
       <rect x="31" y="28" width="27" height="20" rx="2"/><path d="M31 34.5h27M40 28v20"/>`,
     output:`<rect x="10" y="6" width="29" height="37" rx="2"/><path d="M16 16h17M16 24h17M16 32h11"/>
       <path d="M43 20v27a2 2 0 0 1-2 2H18"/><path d="M37 42l6 6 6-6"/>`,
-    settings:`<path d="M28 12h8l1.2 6.2 4.4 1.8 5.2-3.4 5.6 5.6-3.4 5.2 1.8 4.4L57 33v8l-6.2 1.2-1.8 4.4 3.4 5.2-5.6 5.6-5.2-3.4-4.4 1.8L36 62h-8l-1.2-6.2-4.4-1.8-5.2 3.4-5.6-5.6 3.4-5.2-1.8-4.4L7 41v-8l6.2-1.2 1.8-4.4-3.4-5.2 5.6-5.6 5.2 3.4 4.4-1.8Z" transform="translate(-3,-9) scale(0.8)"/>
-      <circle cx="22.6" cy="25.4" r="6.6"/>`,
+    settings:`<g transform="translate(32,30)"><path d="M-4 -25h8l1.2 6.2 4.4 1.8 5.2-3.4 5.6 5.6-3.4 5.2 1.8 4.4L25 -4v8l-6.2 1.2-1.8 4.4 3.4 5.2-5.6 5.6-5.2-3.4-4.4 1.8L4 25h-8l-1.2-6.2-4.4-1.8-5.2 3.4-5.6-5.6 3.4-5.2-1.8-4.4L-25 4v-8l6.2-1.2 1.8-4.4-3.4-5.2 5.6-5.6 5.2 3.4 4.4-1.8Z"/><circle cx="0" cy="0" r="7.5"/></g>`,
   };
   function setTopbarArt(name){
     const el=$('topbarArt'); if(!el)return;
@@ -2552,6 +2578,7 @@
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
   $('projectForm').addEventListener('submit',saveProject);
+  $('projectCoverType').addEventListener('change',()=>{ syncCoverToForm(); renderCoverEditor(); });
   $('coverEdit').addEventListener('input',syncCoverToForm);
   $('coverEdit').addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();e.target.blur();}

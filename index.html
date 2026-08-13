@@ -1656,6 +1656,7 @@
     if(position==='rt'){x=w-bw-margin;y=margin}
     return{x,y,w:bw,h:bh};
   }
+  function noteFontScale(noteSize){return noteSize==='l'?1.5:noteSize==='s'?0.75:1;}
   function noteLinesScaled(base,noteSize){return Math.max(1,Math.round(base*(noteSize==='l'?0.66:noteSize==='s'?1.34:1)));}
   function noteLinesFor(noteSize){return noteSize==='l'?6:noteSize==='s'?12:9;}
   function getBoardLayout(w,h,noteSize){
@@ -1672,7 +1673,7 @@
     const noteY=bodyY+notePadY;
     const noteW=innerW-notePadX*2;
     const noteLineH=(bodyH-notePadY*2)/noteMaxLines;
-    const noteFontSize=Math.max(16,Math.floor(noteLineH*0.82));
+    const noteFontSize=Math.max(14,Math.min(Math.floor(noteLineH*0.82),Math.floor(innerW*0.038*noteFontScale(noteSize))));
     const by=innerY+innerH-bottomH;
     return {pad,innerX,innerY,innerW,innerH,rowH,labelW,bottomH,count,bodyY,bodyH,noteX,noteY,noteW,noteLineH,noteFontSize,noteMaxLines,by};
   }
@@ -1957,7 +1958,7 @@
         const textH=Math.max(10,g.y+g.h-textTop-padY);
         const lineH=textH/maxLines;
         const noteW=rowRightX-innerX-padX*2;
-        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(14,Math.round(lineH*0.85)),10);
+        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.85),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
         ctx.font=CHALK_FONT_BOLD(fit.size);
         for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],innerX+padX,textTop+i*lineH);
       }else if(g.row.parts){
@@ -1999,7 +2000,7 @@
         const textH=Math.max(10,ey-textTop-padY);
         const lineH=textH/maxLines;
         const noteW=(innerX+innerW)-sketchColX-padX*2;
-        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(13,Math.round(lineH*0.8)),10);
+        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.8),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
         ctx.font=CHALK_FONT_BOLD(fit.size);
         for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],sketchColX+padX,textTop+i*lineH);
       }

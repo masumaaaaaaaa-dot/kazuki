@@ -34,6 +34,11 @@
         radial-gradient(30% 60% at 52% 50%,rgba(255,255,255,.028),transparent 70%),
         linear-gradient(140deg,#5f736b,#566a62 34%,#4d6159 68%,#62766e);
       border-bottom:1px solid rgba(255,255,255,.28)}
+    .topbar{overflow:hidden}
+    .topbar-row{position:relative;z-index:1}
+    .topbar-art{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:88px;height:80px;opacity:.34;pointer-events:none}
+    .topbar-art svg{width:100%;height:100%}
+    .topbar h1,.topbar .project-chip{max-width:calc(100% - 92px)}
     .topbar h1{text-shadow:0 1px 2px rgba(0,0,0,.32)}
     .topbar .project-chip{text-shadow:0 1px 2px rgba(0,0,0,.3)}
     .topbar-row{display:flex;align-items:center;gap:10px}
@@ -74,16 +79,6 @@
       box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100vw - 24px)}
     .undo-toast .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
-    .page-banner{position:relative;border-radius:14px;overflow:hidden;margin-bottom:13px;padding:14px 15px;color:#fff;
-      background:
-        radial-gradient(58% 46% at 22% 18%,rgba(255,255,255,.055),transparent 72%),
-        radial-gradient(46% 40% at 76% 80%,rgba(255,255,255,.042),transparent 74%),
-        linear-gradient(140deg,#5f736b,#566a62 34%,#4d6159 68%,#62766e);
-      box-shadow:var(--shadow);display:flex;align-items:center;gap:13px;min-height:74px}
-    .page-banner .pb-text{flex:1;min-width:0}
-    .page-banner .pb-title{font-size:16px;font-weight:800;letter-spacing:.06em;text-shadow:0 1px 2px rgba(0,0,0,.3)}
-    .page-banner .pb-sub{font-size:11.5px;opacity:.9;margin-top:3px;line-height:1.5;text-shadow:0 1px 2px rgba(0,0,0,.3)}
-    .page-banner svg{width:62px;height:62px;flex:none;opacity:.95}
     #printRoot{display:none}
 
     /* A4 layout */
@@ -243,11 +238,11 @@
       </div>
       <button class="install-btn" id="installBtn">アプリをインストール</button>
     </div>
+    <div class="topbar-art" id="topbarArt" aria-hidden="true"></div>
   </header>
 
   <main class="content">
     <section id="page-projects" class="tab-page active">
-      <div class="page-banner" id="banner-projects"></div>
       <div class="card">
         <div class="btn-row">
           <button class="btn primary" id="newProjectBtn">＋ 新しい現場</button>
@@ -257,7 +252,6 @@
     </section>
 
     <section id="page-photos" class="tab-page">
-      <div class="page-banner" id="banner-photos"></div>
       <div class="card">
         <h2>写真を登録</h2>
         <p class="hint">写真を撮影・選択すると、そのまま自動保存されます。写真横の記入欄は空欄のままでよく、必要な写真だけ後から最大11行まで入力できます。</p>
@@ -293,7 +287,6 @@
     </section>
 
     <section id="page-output" class="tab-page">
-      <div class="page-banner" id="banner-output"></div>
       <div class="card">
         <div class="grid two">
           <div>
@@ -331,7 +324,6 @@
     </section>
 
     <section id="page-settings" class="tab-page">
-      <div class="page-banner" id="banner-settings"></div>
       <div class="card">
         <h2>画面の配色</h2>
         <div class="mode-toggle theme-toggle" id="themeToggle">
@@ -560,8 +552,8 @@
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14d';
-  const APP_UPDATE_NOTE='各ページに見出しの絵を追加／設定の「既定の提出先」を削除';
+  const APP_VERSION='2026.08.14e';
+  const APP_UPDATE_NOTE='上のバーの絵がページごとに切り替わるように／設定でバージョンを確認・更新できるように';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2539,30 +2531,23 @@
     if(boardPointers.size===0)boardSuppressDraw=false;
   }
 
-  // 各ページの見出し（工事現場らしい線画。チョークで描いたような白線）
-  const PAGE_BANNERS={
-    projects:{title:'現場一覧',sub:'工事ごとに写真帳をつくります',art:`
-      <path d="M6 52h52"/><path d="M14 52V26l16-8 16 8v26"/><path d="M26 52V40h8v12"/>
-      <path d="M14 26h32"/><circle cx="46" cy="17" r="3.4"/><path d="M46 20.5V26"/>`},
-    photos:{title:'写真',sub:'撮影して、黒板を書き込みます',art:`
-      <rect x="6" y="18" width="38" height="28" rx="3"/><path d="M15 18l3-5h14l3 5"/><circle cx="25" cy="32" r="8"/>
-      <rect x="34" y="30" width="24" height="18" rx="2"/><path d="M34 36h24M42 30v18"/>`},
-    output:{title:'A4出力',sub:'印刷・PDF・Excelで提出用に出します',art:`
-      <rect x="12" y="8" width="30" height="38" rx="2"/><path d="M18 18h18M18 26h18M18 34h12"/>
-      <path d="M46 22v26a2 2 0 0 1-2 2H20"/><path d="M40 44l6 6 6-6"/>`},
-    settings:{title:'設定',sub:'会社名・配色・バックアップ',art:`
-      <path d="M28 12h8l1.2 6.2 4.4 1.8 5.2-3.4 5.6 5.6-3.4 5.2 1.8 4.4L57 33v8l-6.2 1.2-1.8 4.4 3.4 5.2-5.6 5.6-5.2-3.4-4.4 1.8L36 62h-8l-1.2-6.2-4.4-1.8-5.2 3.4-5.6-5.6 3.4-5.2-1.8-4.4L7 41v-8l6.2-1.2 1.8-4.4-3.4-5.2 5.6-5.6 5.2 3.4 4.4-1.8Z" transform="translate(-2,-7) scale(0.82)"/>
-      <circle cx="24" cy="27" r="7"/>`},
+  // 上部バーの絵（ページごとに切り替わる。チョークで描いたような白線）
+  const TOPBAR_ART={
+    projects:`<path d="M4 52h56"/><path d="M13 52V25l17-9 17 9v27"/><path d="M25 52V39h10v13"/>
+      <path d="M13 25h34"/><circle cx="47" cy="15" r="3.6"/><path d="M47 18.6V25"/>`,
+    photos:`<rect x="3" y="16" width="36" height="27" rx="3"/><path d="M12 16l3-5h13l3 5"/><circle cx="21" cy="30" r="7.5"/>
+      <rect x="31" y="28" width="27" height="20" rx="2"/><path d="M31 34.5h27M40 28v20"/>`,
+    output:`<rect x="10" y="6" width="29" height="37" rx="2"/><path d="M16 16h17M16 24h17M16 32h11"/>
+      <path d="M43 20v27a2 2 0 0 1-2 2H18"/><path d="M37 42l6 6 6-6"/>`,
+    settings:`<path d="M28 12h8l1.2 6.2 4.4 1.8 5.2-3.4 5.6 5.6-3.4 5.2 1.8 4.4L57 33v8l-6.2 1.2-1.8 4.4 3.4 5.2-5.6 5.6-5.2-3.4-4.4 1.8L36 62h-8l-1.2-6.2-4.4-1.8-5.2 3.4-5.6-5.6 3.4-5.2-1.8-4.4L7 41v-8l6.2-1.2 1.8-4.4-3.4-5.2 5.6-5.6 5.2 3.4 4.4-1.8Z" transform="translate(-3,-9) scale(0.8)"/>
+      <circle cx="22.6" cy="25.4" r="6.6"/>`,
   };
-  function renderPageBanner(name){
-    const el=$('banner-'+name); const b=PAGE_BANNERS[name];
-    if(!el||!b||el.dataset.done)return;
-    el.innerHTML=`<svg viewBox="0 0 64 60" aria-hidden="true" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${b.art}</svg>`
-      +`<div class="pb-text"><div class="pb-title">${b.title}</div><div class="pb-sub">${b.sub}</div></div>`;
-    el.dataset.done='1';
+  function setTopbarArt(name){
+    const el=$('topbarArt'); if(!el)return;
+    const art=TOPBAR_ART[name]||TOPBAR_ART.projects;
+    el.innerHTML=`<svg viewBox="0 0 64 60" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
   }
-  function renderAllBanners(){ Object.keys(PAGE_BANNERS).forEach(renderPageBanner); }
-  function showPage(name){renderPageBanner(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();}
+  function showPage(name){setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();}
 
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
@@ -2777,7 +2762,7 @@
     try{localStorage.setItem('photoLedgerWelcomed','1')}catch(e){}
     $('welcomeDialog').close();
   });
-  renderAllBanners();
+  setTopbarArt('projects');
   openDB().then(d=>{db=d;return loadAll()}).then(()=>{
     notifyUpdatedIfNeeded();
     maybeShowWelcome();

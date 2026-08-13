@@ -349,9 +349,9 @@
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
           <input type="file" id="restoreInput" accept="application/json,.json" hidden />
         </div>
-        <div class="hint" style="margin-top:10px">「バックアップ復元」は、いまのデータをすべて置き換えます。ほかの人から受け取った現場を追加したいときは、下の「現場を取り込む」を使ってください。</div>
+        <div class="hint" style="margin-top:10px">「バックアップ復元」は、いまのデータをすべて置き換えます。現場ごとのバックアップ（現場一覧の「バックアップ」ボタンで保存したファイル）を追加したいときは、下のボタンを使ってください。今のデータは消えません。</div>
         <div class="btn-row" style="margin-top:8px">
-          <button class="btn outline" id="importProjectBtn">現場を取り込む（追加）</button>
+          <button class="btn outline" id="importProjectBtn">現場のバックアップを取り込む</button>
           <input type="file" id="importProjectInput" accept="application/json,.json" hidden />
         </div>
       </div>
@@ -544,8 +544,8 @@
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14b';
-  const APP_UPDATE_NOTE='撮影日を直せるように／電波がなくてもExcel・PDFが作れるように／現場の受け渡し・まとめて削除・MY黒板の整理を追加';
+  const APP_VERSION='2026.08.14c';
+  const APP_UPDATE_NOTE='削除を元に戻したときに順番がずれる問題を修正／現場の「バックアップ」ボタンを分かりやすく';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -641,7 +641,7 @@
           <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
-          <button class="btn" data-action="export-project" data-id="${p.id}">書き出し</button>
+          <button class="btn" data-action="export-project" data-id="${p.id}">バックアップ</button>
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
@@ -986,6 +986,19 @@
     document.body.appendChild(el);
     undoState={timer:setTimeout(()=>clearUndo(),seconds*1000)};
   }
+  // 削除を取り消したとき、元の順番の位置へ戻す
+  async function restorePhotosAtOriginalOrder(snapshots){
+    if(!snapshots.length)return;
+    const pid=snapshots[0].projectId;
+    const ids=new Set(snapshots.map(s=>s.id));
+    snapshots.forEach(s=>photos.push(s));
+    const list=photos.filter(p=>p.projectId===pid && !ids.has(p.id)).sort((a,b)=>(a.order||0)-(b.order||0));
+    [...snapshots].sort((a,b)=>(a.order||0)-(b.order||0)).forEach(s=>{
+      const idx=Math.max(0,Math.min(list.length,s.order||0));
+      list.splice(idx,0,s);
+    });
+    for(let i=0;i<list.length;i++){ list[i].order=i; await idbPut('photos',list[i]); }
+  }
   async function deleteSelectedPhotos(){
     const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
     if(!targets.length){alert('削除する写真を選んでください。');return}
@@ -997,8 +1010,7 @@
     await renumberCurrentPhotos();
     renderPhotos();renderProjects();
     showUndoToast(`${snapshots.length}枚を削除しました`,async()=>{
-      for(const s of snapshots){ photos.push(s); await idbPut('photos',s); }
-      await renumberCurrentPhotos();
+      await restorePhotosAtOriginalOrder(snapshots);
       renderPhotos();renderProjects();
     });
   }
@@ -1010,9 +1022,7 @@
     await renumberCurrentPhotos();
     renderPhotos();renderProjects();
     showUndoToast('写真を削除しました',async()=>{
-      photos.push(snapshot);
-      await idbPut('photos',snapshot);
-      await renumberCurrentPhotos();
+      await restorePhotosAtOriginalOrder([snapshot]);
       renderPhotos();renderProjects();
     });
   }

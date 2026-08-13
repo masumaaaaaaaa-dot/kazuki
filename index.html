@@ -353,6 +353,21 @@
   <button class="nav-btn" data-page="settings"><span>⚙️</span>設定</button>
 </nav>
 
+<dialog id="welcomeDialog">
+  <div class="dialog-head"><h3>はじめての方へ</h3></div>
+  <div class="dialog-body">
+    <p class="hint" style="margin:0 0 14px">3つの手順で、提出用の写真帳ができます。</p>
+    <div style="display:flex;gap:11px;margin-bottom:13px"><div style="flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">1</div>
+      <div><div style="font-weight:800;margin-bottom:3px">現場をつくる</div><div class="hint">「＋ 新しい現場」から、工事名などを表紙に直接書き込みます。</div></div></div>
+    <div style="display:flex;gap:11px;margin-bottom:13px"><div style="flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">2</div>
+      <div><div style="font-weight:800;margin-bottom:3px">写真をとる</div><div class="hint">「写真」タブで撮影します。写真ごとに「黒板」ボタンから黒板を貼れます。</div></div></div>
+    <div style="display:flex;gap:11px;margin-bottom:13px"><div style="flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">3</div>
+      <div><div style="font-weight:800;margin-bottom:3px">出力する</div><div class="hint">「A4出力」タブから、印刷・PDF・Excel（工事写真帳の書式）で出せます。</div></div></div>
+    <div class="hint">写真はこの端末の中だけに保存されます。機種変更や故障に備えて、ときどき「設定」からバックアップしてください。</div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn primary" id="welcomeCloseBtn">はじめる</button></div>
+</dialog>
+
 <dialog id="projectDialog">
   <form method="dialog" id="projectForm">
     <div class="dialog-head"><h3 id="projectDialogTitle">現場情報</h3><button class="btn" value="cancel" type="button" onclick="document.getElementById('projectDialog').close()">閉じる</button></div>
@@ -510,6 +525,9 @@
   'use strict';
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
+  // ▼ アプリを更新したら、この2行を書き替えてください
+  const APP_VERSION='2026.08.14';
+  const APP_UPDATE_NOTE='写真一覧の表示を見やすく／更新のお知らせ・初回ガイド・バックアップの案内を追加';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -603,6 +621,7 @@
         <div class="photo-actions">
           <button class="btn primary" data-action="select-project" data-id="${p.id}">この現場を開く</button>
           <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
+          <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
@@ -624,8 +643,8 @@
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
     host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
       <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
-      <div><div class="item-title">No.${i+1}　${escapeHtml(p.content||'内容未入力')}</div>
-      <div class="photo-meta"><strong>${escapeHtml(p.category||'施工状況')}</strong>｜${escapeHtml(p.workType||'工種未入力')}<br>${escapeHtml(p.location||'撮影場所未入力')}｜${fmtDate(p.date)}</div>
+      <div><div class="item-title">No.${i+1}　${escapeHtml((p.content||'').split('\n')[0]||'記入欄は空欄')}${(p.content||'').split('\n').filter(Boolean).length>1?`　ほか${(p.content||'').split('\n').filter(Boolean).length-1}行`:''}</div>
+      <div class="photo-meta">${p.editedBlob?'<strong>黒板あり</strong>':'黒板なし'}｜${fmtDate(p.date)}${p.remarks?'<br>備考: '+escapeHtml(p.remarks.split('\n')[0]):''}</div>
       <div class="photo-actions">
         <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
         <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
@@ -1367,6 +1386,8 @@
   }
   async function backup(){
     const {blob,filename,failed}=await buildBackupPayload();
+    settings.lastBackupAt=Date.now();
+    try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('バックアップ日時の記録に失敗',e); }
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
     const result=await saveToBackupFolderOrDownload(blob,filename);
     if(result.savedTo==='folder')alert(`「${backupDirectoryHandle.name}」に保存しました。\nファイル名: ${filename}`);
@@ -2487,6 +2508,7 @@
     }
     const id=b.dataset.id;const p=projects.find(x=>x.id===id);if(!p)return;
     if(b.dataset.action==='select-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('photos')}
+    if(b.dataset.action==='output-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('output')}
     if(b.dataset.action==='edit-project')openProjectDialog(p);
     if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
     if(b.dataset.action==='delete-project'){
@@ -2521,8 +2543,56 @@
   $('installBtn').addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').style.display='none'});
   window.addEventListener('appinstalled',()=>{$('installBtn').style.display='none'});
 
-  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(console.warn));
-  openDB().then(d=>{db=d;return loadAll()}).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
+  // 新しいバージョンが公開されたら知らせる
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+        reg.addEventListener('updatefound',()=>{
+          const nw=reg.installing; if(!nw)return;
+          nw.addEventListener('statechange',()=>{
+            if(nw.state==='installed' && navigator.serviceWorker.controller){
+              showActionToast('新しいバージョンがあります','更新する',()=>location.reload(),30);
+            }
+          });
+        });
+        setInterval(()=>reg.update().catch(()=>{}),60*60*1000);
+      }).catch(console.warn);
+    });
+  }
+  // 更新後に、何が変わったかを知らせる
+  function notifyUpdatedIfNeeded(){
+    try{
+      const prev=localStorage.getItem('photoLedgerVersion');
+      if(prev && prev!==APP_VERSION){
+        setTimeout(()=>showActionToast('更新しました：'+APP_UPDATE_NOTE,'',null,10),800);
+      }
+      localStorage.setItem('photoLedgerVersion',APP_VERSION);
+    }catch(e){}
+  }
+  function maybeShowWelcome(){
+    try{
+      if(localStorage.getItem('photoLedgerWelcomed'))return;
+      if(projects.length)  { localStorage.setItem('photoLedgerWelcomed','1'); return; }
+      $('welcomeDialog').showModal();
+    }catch(e){}
+  }
+  function maybeSuggestBackup(){
+    if(!photos.length)return;
+    const last=settings.lastBackupAt||0;
+    const days=last?Math.floor((Date.now()-last)/86400000):null;
+    if(last && days<14)return;
+    const msg=last?`前回のバックアップから${days}日たっています`:'まだバックアップしていません';
+    setTimeout(()=>showActionToast(msg,'バックアップ',()=>{showPage('settings');backup();},12),1500);
+  }
+  $('welcomeCloseBtn').addEventListener('click',()=>{
+    try{localStorage.setItem('photoLedgerWelcomed','1')}catch(e){}
+    $('welcomeDialog').close();
+  });
+  openDB().then(d=>{db=d;return loadAll()}).then(()=>{
+    notifyUpdatedIfNeeded();
+    maybeShowWelcome();
+    maybeSuggestBackup();
+  }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
 })();
 </script>
 </body>

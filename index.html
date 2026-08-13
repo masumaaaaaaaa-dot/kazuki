@@ -271,7 +271,7 @@
         <div class="btn-row" style="margin-top:10px">
           <button class="btn outline full" id="excelBtn">📊 Excelで出力（編集可）</button>
         </div>
-        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大300枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsm）を作成します。パソコンのExcelで開くと、元のテンプレートと同じように「余白」部分の右クリックから写真の取り込みなどの操作ができます（マクロを有効にする必要があります）。パソコンやスマホのExcelアプリで開いて、そのまま編集できます。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。写真の枚数が多いと、作成に少し時間がかかることがあります。</p>
+        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大90枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsm）を作成します。パソコンのExcelで開くと、元のテンプレートと同じように「余白」部分の右クリックから写真の取り込みなどの操作ができます（マクロを有効にする必要があります）。パソコンやスマホのExcelアプリで開いて、そのまま編集できます。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。写真の枚数が多いと、作成に少し時間がかかることがあります。</p>
       </div>
       <div id="outputStatus" class="status"></div>
       <div class="card" id="previewCard" style="display:none">
@@ -472,7 +472,6 @@
 
 <div id="printRoot"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -926,125 +925,178 @@
     return {year:y-2018,month:d.getMonth()+1,day:d.getDate()};
   }
   function albumSheetName(idx){return idx===0?'アルバム':`アルバム (${idx+1})`;}
-  const ALBUM_SLOTS_PER_SHEET=3,ALBUM_SHEET_COUNT=100,ALBUM_MAX_PHOTOS=ALBUM_SLOTS_PER_SHEET*ALBUM_SHEET_COUNT;
+  const ALBUM_SLOTS_PER_SHEET=3,ALBUM_SHEET_COUNT=30,ALBUM_MAX_PHOTOS=ALBUM_SLOTS_PER_SHEET*ALBUM_SHEET_COUNT;
+  // 各コマの写真開始行とコメント行（テンプレートの並びに合わせている）
   const ALBUM_SLOT_ROWS=[{photo:3,captionTop:4,captionBottom:12},{photo:14,captionTop:15,captionBottom:23},{photo:25,captionTop:26,captionBottom:34}];
-  async function injectVbaIntoWorkbook(outBuf,templateBuf){
-    // ExcelJSの出力にはマクロが含まれないため、元テンプレートのマクロ部分を移植して
-    // マクロ有効ブック（.xlsm）として成立させる
-    if(typeof JSZip==='undefined')throw new Error('JSZip未読込');
-    const srcZip=await JSZip.loadAsync(templateBuf);
-    const vbaFile=srcZip.file('xl/vbaProject.bin');
-    if(!vbaFile)throw new Error('テンプレートにマクロが含まれていません');
-    const vba=await vbaFile.async('uint8array');
-    const z=await JSZip.loadAsync(outBuf);
-    z.file('xl/vbaProject.bin',vba);
-    let ct=await z.file('[Content_Types].xml').async('string');
-    ct=ct.replace('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml','application/vnd.ms-excel.sheet.macroEnabled.main+xml');
-    if(!ct.includes('vbaProject'))ct=ct.replace('</Types>','<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>');
-    z.file('[Content_Types].xml',ct);
-    let rels=await z.file('xl/_rels/workbook.xml.rels').async('string');
-    if(!rels.includes('vbaProject')){
-      const ids=[...rels.matchAll(/Id="rId(\d+)"/g)].map(m=>+m[1]);
-      const newId='rId'+(Math.max(0,...ids)+1);
-      rels=rels.replace('</Relationships>',`<Relationship Id="${newId}" Type="http://schemas.microsoft.com/office/2006/relationships/vbaProject" Target="vbaProject.bin"/></Relationships>`);
-      z.file('xl/_rels/workbook.xml.rels',rels);
+  // ---- ここから：元の .xlsm を作り直さずに必要な箇所だけ書き込む処理 ----
+  function xlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function xlColNum(c){let n=0;for(let i=0;i<c.length;i++)n=n*26+(c.charCodeAt(i)-64);return n;}
+  function xlSetCell(xml,ref,text){
+    const mm=/^([A-Z]+)(\d+)$/.exec(ref); if(!mm)return xml;
+    const colNum=xlColNum(mm[1]),row=+mm[2];
+    const cellXml=(text==null||text==='')?'':`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(text)}</t></is></c>`;
+    const m=new RegExp(`<row[^>]*\\sr="${row}"[^>]*(/>|>)`).exec(xml);
+    if(!m){
+      if(!cellXml)return xml;
+      const newRow=`<row r="${row}">${cellXml}</row>`;
+      const rows=[...xml.matchAll(/<row[^>]*\sr="(\d+)"[^>]*(?:\/>|>)/g)];
+      let at=-1; for(const r of rows){ if(+r[1]>row){ at=r.index; break; } }
+      if(at<0){ const c=xml.indexOf('</sheetData>'); return c<0?xml:xml.slice(0,c)+newRow+xml.slice(c); }
+      return xml.slice(0,at)+newRow+xml.slice(at);
     }
-    let wx=await z.file('xl/workbook.xml').async('string');
-    if(!/codeName=/.test(wx)){
-      wx=/<workbookPr/.test(wx) ? wx.replace('<workbookPr','<workbookPr codeName="ThisWorkbook"')
-                                : wx.replace(/(<workbook[^>]*>)/,'$1<workbookPr codeName="ThisWorkbook"/>');
-      z.file('xl/workbook.xml',wx);
+    if(m[1]==='/>'){
+      if(!cellXml)return xml;
+      return xml.slice(0,m.index)+m[0].slice(0,-2)+'>'+cellXml+'</row>'+xml.slice(m.index+m[0].length);
     }
-    return await z.generateAsync({type:'blob',mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12',compression:'DEFLATE'});
+    const s=m.index+m[0].length,e=xml.indexOf('</row>',s); if(e<0)return xml;
+    let inner=xml.slice(s,e);
+    inner=inner.replace(new RegExp(`<c r="${ref}"[^>]*\\/>`),'').replace(new RegExp(`<c r="${ref}"[^>]*>[\\s\\S]*?<\\/c>`),'');
+    if(cellXml){
+      const cells=[...inner.matchAll(/<c r="([A-Z]+)\d+"/g)];
+      let at=-1; for(const c of cells){ if(xlColNum(c[1])>colNum){ at=c.index; break; } }
+      inner=at<0?inner+cellXml:inner.slice(0,at)+cellXml+inner.slice(at);
+    }
+    return xml.slice(0,s)+inner+xml.slice(e);
+  }
+  function xlDrawingXml(items){
+    const EMU=9525;
+    const anchors=items.map((it,i)=>{
+      const id=i+1,cx=Math.round(it.w*EMU),cy=Math.round(it.h*EMU);
+      return `<xdr:oneCellAnchor><xdr:from><xdr:col>${it.col}</xdr:col><xdr:colOff>${Math.round(it.colOff*EMU)}</xdr:colOff><xdr:row>${it.row}</xdr:row><xdr:rowOff>${Math.round(it.rowOff*EMU)}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id}" name="Picture ${id}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId${id}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${anchors}</xdr:wsDr>`;
+  }
+  function xlDrawingRels(items){
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+      +items.map((it,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${it.mediaName}"/>`).join('')
+      +`</Relationships>`;
+  }
+  function xlNextRelId(relsXml){
+    if(!relsXml)return 'rId1';
+    const ids=[...relsXml.matchAll(/Id="rId(\d+)"/g)].map(m=>+m[1]);
+    return 'rId'+(Math.max(0,...ids)+1);
+  }
+  function xlAddDrawingRel(relsXml,rId,target){
+    const rel=`<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="${target}"/>`;
+    if(!relsXml)return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel}</Relationships>`;
+    return relsXml.replace('</Relationships>',rel+'</Relationships>');
   }
   async function exportExcel(){
-    if(typeof ExcelJS==='undefined'){setOutputStatus('Excel出力の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
+    if(typeof JSZip==='undefined'){setOutputStatus('Excel出力の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
     const p=currentProject(); const arr=currentPhotos();
     if(!p){setOutputStatus('現場を選択してください。','err');return}
     if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}
     setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
     let templateBuf;
     try{
-      const templateResp=await fetch('./photo_album_template.xlsm');
-      if(!templateResp.ok)throw new Error('status:'+templateResp.status);
-      templateBuf=await templateResp.arrayBuffer();
-      if(!templateBuf||templateBuf.byteLength<1000)throw new Error('empty or too small: '+(templateBuf?templateBuf.byteLength:0));
+      const r=await fetch('./photo_album_template.xlsm');
+      if(!r.ok)throw new Error('status:'+r.status);
+      templateBuf=await r.arrayBuffer();
+      if(!templateBuf||templateBuf.byteLength<1000)throw new Error('empty');
     }catch(fetchErr){
       console.error('テンプレート読み込みエラー',fetchErr);
       setOutputStatus('写真台帳テンプレート（photo_album_template.xlsm）を読み込めませんでした。GitHubのリポジトリに index.html と同じ場所へこのファイルをアップロードしているか、ご確認ください。','err');
       return;
     }
     try{
-      const wb=new ExcelJS.Workbook();
-      await wb.xlsx.load(templateBuf);
+      const z=await JSZip.loadAsync(templateBuf);
+      // シート名から実ファイルの対応を調べる
+      const wbXml=await z.file('xl/workbook.xml').async('string');
+      const wbRels=await z.file('xl/_rels/workbook.xml.rels').async('string');
+      const relMap={};
+      for(const m of wbRels.matchAll(/Id="(rId\d+)"[^>]*Target="([^"]+)"/g)) relMap[m[1]]=m[2].replace(/^\/?xl\//,'').replace(/^\//,'');
+      const sheetPath={};
+      for(const m of wbXml.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="(rId\d+)"/g)){ if(relMap[m[2]])sheetPath[m[1]]='xl/'+relMap[m[2]]; }
 
-      // 表紙シートへの書き込み
-      const wsCover=wb.getWorksheet('表紙');
-      if(wsCover){
-        wsCover.getCell('D14').value=p.name||'';
-        wsCover.getCell('D16').value=p.address||'';
-        if(p.number)wsCover.getCell('J12').value=p.number.replace(/^第/,'').replace(/号$/,'');
-        const createdParts=reiwaParts(p.createdDate)||reiwaParts(today());
-        if(createdParts)wsCover.getCell('E12').value=createdParts.year;
-        const startParts=reiwaParts(p.start);
-        if(startParts){wsCover.getCell('G18').value=startParts.year;wsCover.getCell('I18').value=startParts.month;wsCover.getCell('K18').value=startParts.day;}
-        const endParts=reiwaParts(p.end);
-        if(endParts){wsCover.getCell('G20').value=endParts.year;wsCover.getCell('I20').value=endParts.month;wsCover.getCell('K20').value=endParts.day;}
-        if(p.company)wsCover.getCell('E27').value=p.company;
+      // 表紙へ書き込み
+      const coverPath=sheetPath['表紙'];
+      if(coverPath){
+        let cv=await z.file(coverPath).async('string');
+        const cd=reiwaParts(p.createdDate)||reiwaParts(today());
+        const sp=reiwaParts(p.start),ep=reiwaParts(p.end);
+        cv=xlSetCell(cv,'E12',cd?String(cd.year):'');
+        cv=xlSetCell(cv,'J12',(p.number||'').replace(/^第/,'').replace(/号$/,''));
+        cv=xlSetCell(cv,'D14',p.name||'');
+        cv=xlSetCell(cv,'D16',p.address||'');
+        if(sp){cv=xlSetCell(cv,'G18',String(sp.year));cv=xlSetCell(cv,'I18',String(sp.month));cv=xlSetCell(cv,'K18',String(sp.day));}
+        if(ep){cv=xlSetCell(cv,'G20',String(ep.year));cv=xlSetCell(cv,'I20',String(ep.month));cv=xlSetCell(cv,'K20',String(ep.day));}
+        cv=xlSetCell(cv,'E27',p.company||'');   // 見本の会社名は上書き（未入力なら空欄）
+        z.file(coverPath,cv);
       }
 
-      // 使う分だけアルバムシートを残し、余分は削除
-      const neededSheets=Math.min(ALBUM_SHEET_COUNT,Math.max(1,Math.ceil(arr.length/ALBUM_SLOTS_PER_SHEET)));
-      for(let i=ALBUM_SHEET_COUNT-1;i>=neededSheets;i--){
-        const sheetName=albumSheetName(i);
-        const ws=wb.getWorksheet(sheetName);
-        if(ws)wb.removeWorksheet(ws.id);
-      }
-
+      // アルバムへ写真とコメントを書き込み
+      let ctXml=await z.file('[Content_Types].xml').async('string');
+      const usedExts=new Set(); const drawingParts=[];
       const overLimit=arr.length>ALBUM_MAX_PHOTOS;
       const fillCount=Math.min(arr.length,ALBUM_MAX_PHOTOS);
+      const perSheet={};
       for(let i=0;i<fillCount;i++){
-        const ph=arr[i];
-        const sheetIdx=Math.floor(i/ALBUM_SLOTS_PER_SHEET),slotIdx=i%ALBUM_SLOTS_PER_SHEET;
-        const ws=wb.getWorksheet(albumSheetName(sheetIdx));
-        if(!ws)continue;
-        const rows=ALBUM_SLOT_ROWS[slotIdx];
-        if((i%ALBUM_SLOTS_PER_SHEET)===0)setOutputStatus(`Excelファイルを作成中です…（${i+1}/${fillCount}枚目の写真を読み込んでいます）`,'ok');
-        try{
-          const displayBlob=ph.editedBlob||ph.blob;
-          const [buf,imgEl]=await Promise.all([displayBlob.arrayBuffer(),loadImageElement(displayBlob)]);
-          const ext=(displayBlob.type&&displayBlob.type.includes('png'))?'png':'jpeg';
-          const imageId=wb.addImage({buffer:buf,extension:ext});
-          const boxWpx=430,boxHpx=(rows.captionBottom-rows.photo+1)*28*96/72-10;
-          const ratio=Math.min(boxWpx/imgEl.naturalWidth,boxHpx/imgEl.naturalHeight);
-          const w=Math.round(imgEl.naturalWidth*ratio),h=Math.round(imgEl.naturalHeight*ratio);
-          ws.addImage(imageId,{tl:{col:1.05,row:rows.photo-1+0.15},ext:{width:w,height:h}});
-        }catch(imgErr){
-          console.warn('写真の埋め込みに失敗',ph.id,imgErr);
+        const sheetIdx=Math.floor(i/ALBUM_SLOTS_PER_SHEET);
+        (perSheet[sheetIdx]=perSheet[sheetIdx]||[]).push({ph:arr[i],slot:i%ALBUM_SLOTS_PER_SHEET,no:i});
+      }
+      let mediaSeq=0;
+      for(const key of Object.keys(perSheet)){
+        const sheetIdx=+key;
+        const name=albumSheetName(sheetIdx);
+        const path=sheetPath[name];
+        if(!path)continue;
+        setOutputStatus(`Excelファイルを作成中です…（${sheetIdx*ALBUM_SLOTS_PER_SHEET+1}/${fillCount}枚目あたりを処理しています）`,'ok');
+        let sh=await z.file(path).async('string');
+        const items=[];
+        for(const entry of perSheet[key]){
+          const ph=entry.ph, rows=ALBUM_SLOT_ROWS[entry.slot];
+          // コメントは1行ずつ、罫線に合わせて書き込む
+          const lines=[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n');
+          const maxLines=rows.captionBottom-rows.captionTop+1;
+          for(let li=0;li<maxLines;li++) sh=xlSetCell(sh,'C'+(rows.captionTop+li), lines[li]||'');
+          try{
+            const blobPh=ph.editedBlob||ph.blob;
+            const [ab,imgEl]=await Promise.all([blobPh.arrayBuffer(),loadImageElement(blobPh)]);
+            const ext=(blobPh.type&&blobPh.type.includes('png'))?'png':'jpeg';
+            usedExts.add(ext);
+            mediaSeq++;
+            const mediaName=`appimg${mediaSeq}.${ext}`;
+            z.file('xl/media/'+mediaName,ab);
+            const boxW=430,boxH=(rows.captionBottom-rows.photo+1)*28*96/72-14;
+            const ratio=Math.min(boxW/imgEl.naturalWidth,boxH/imgEl.naturalHeight);
+            items.push({col:1,colOff:6,row:rows.photo-1,rowOff:4,
+                        w:Math.round(imgEl.naturalWidth*ratio),h:Math.round(imgEl.naturalHeight*ratio),mediaName});
+          }catch(imgErr){ console.warn('写真の埋め込みに失敗',ph.id,imgErr); }
         }
-        try{ws.mergeCells(rows.captionTop,3,rows.captionBottom,3);}catch(mergeErr){/* 既に結合済みなら無視 */}
-        const captionCell=ws.getCell(rows.captionTop,3);
-        captionCell.value=[ph.content,ph.remarks].filter(Boolean).join('\n');
-        captionCell.alignment={wrapText:true,vertical:'top',horizontal:'left'};
+        if(items.length){
+          const dNo=sheetIdx+1;
+          const dPath=`xl/drawings/appdrawing${dNo}.xml`;
+          z.file(dPath,xlDrawingXml(items));
+          z.file(`xl/drawings/_rels/appdrawing${dNo}.xml.rels`,xlDrawingRels(items));
+          drawingParts.push(dPath);
+          const relPath='xl/worksheets/_rels/'+path.split('/').pop()+'.rels';
+          const existing=z.file(relPath)?await z.file(relPath).async('string'):null;
+          const rid=xlNextRelId(existing);
+          z.file(relPath,xlAddDrawingRel(existing,rid,`../drawings/appdrawing${dNo}.xml`));
+          sh=sh.replace(/<drawing[^>]*\/>/,'').replace('</worksheet>',`<drawing r:id="${rid}"/></worksheet>`);
+        }
+        z.file(path,sh);
       }
+      // 画像と図形の種類を宣言に追加
+      usedExts.forEach(ext=>{
+        if(!new RegExp(`Extension="${ext}"`).test(ctXml)){
+          ctXml=ctXml.replace('<Default',`<Default Extension="${ext}" ContentType="${ext==='png'?'image/png':'image/jpeg'}"/><Default`);
+        }
+      });
+      drawingParts.forEach(dp=>{
+        if(!ctXml.includes(`PartName="/${dp}"`)){
+          ctXml=ctXml.replace('</Types>',`<Override PartName="/${dp}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>`);
+        }
+      });
+      z.file('[Content_Types].xml',ctXml);
 
-      const baseName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}`;
-      const arrBuf=await wb.xlsx.writeBuffer();
-      let blob,stampName,macroMsg='';
-      try{
-        blob=await injectVbaIntoWorkbook(arrBuf,templateBuf);
-        stampName=baseName+'.xlsm';
-      }catch(vbaErr){
-        console.warn('マクロの移植に失敗したため、マクロなしで保存します',vbaErr);
-        blob=new Blob([arrBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-        stampName=baseName+'.xlsx';
-        macroMsg='（マクロは付けられなかったため、通常のExcelファイルとして保存しました）';
-      }
+      const stampName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.xlsm`;
+      const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12',compression:'DEFLATE'});
       const result=await saveToBackupFolderOrDownload(blob,stampName);
       const overMsg=overLimit?`（写真が${ALBUM_MAX_PHOTOS}枚を超えていたため、最初の${ALBUM_MAX_PHOTOS}枚のみ収録しています）`:'';
-      if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${macroMsg}${overMsg}`,'ok');
-      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+macroMsg+overMsg,'ok');
-      else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+macroMsg+overMsg,'ok');
+      if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${overMsg}`,'ok');
+      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+overMsg,'ok');
+      else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+overMsg,'ok');
     }catch(e){console.error('Excel作成エラー',e);setOutputStatus('Excelファイルの作成に失敗しました。'+(e&&e.message?'（詳細: '+e.message+'）':''),'err')}
   }
 

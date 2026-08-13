@@ -59,7 +59,7 @@
     .item-head{display:flex;align-items:flex-start;gap:9px}.item-main{flex:1;min-width:0}.item-title{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
     .badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;background:#e6fffb;color:#115e59;font-weight:700}
     .photo-item{display:grid;grid-template-columns:116px 1fr;gap:10px}
-    .thumb{width:116px;height:88px;border-radius:8px;object-fit:cover;background:#e2e8f0;border:1px solid #cbd5e1}
+    .thumb{width:116px;height:104px;border-radius:8px;object-fit:contain;background:#eef1f5;border:1px solid #cbd5e1}
     .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid #cbd5e1;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:max(5px,env(safe-area-inset-bottom))}
@@ -175,7 +175,7 @@
       #boardDialog #boardControlsCol{display:none}
     }
     @media(max-width:620px){
-      .grid.two,.grid.three{grid-template-columns:1fr}.photo-item{grid-template-columns:104px 1fr}.thumb{width:104px;height:82px}.content{padding:10px}.card{padding:12px}.btn-row .btn{min-width:100px}
+      .grid.two,.grid.three{grid-template-columns:1fr}.photo-item{grid-template-columns:104px 1fr}.thumb{width:104px;height:96px}.content{padding:10px}.card{padding:12px}.btn-row .btn{min-width:100px}
     }
     /* ダークモード（印刷用A4シートは対象外。紙面は常に白のまま） */
     html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#20242e;color:var(--text);border-color:#3a4152}
@@ -257,7 +257,6 @@
         <input type="file" id="replaceInput" accept="image/*" hidden />
         <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
-          <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="autoOpenBoard" checked /> 写真を登録したら、そのまま黒板編集を開く</label>
           <div class="btn-row" style="margin-top:0">
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
           </div>
@@ -516,7 +515,7 @@
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', autoOpenBoard:true, lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -787,9 +786,14 @@
         if(deviceSaved) msg+=`\nスマホの写真フォルダにも${deviceSaved}枚保存しました。`;
         if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
       }
-      alert(msg);
-      if(settings.autoOpenBoard!==false && addedPhotos.length===1){
-        try{ await openBoardDialog(addedPhotos[0]); }catch(e){ console.warn('黒板編集の自動表示に失敗',e); }
+      // 撮影のときは、そのまま続けて撮れるように案内を出す
+      if(saveDeviceCopy){
+        showActionToast(`${files.length}枚を保存しました`,'続けて撮影',()=>{ $('cameraInput').click(); },8);
+      }else{
+        showActionToast(`${files.length}枚を保存しました`,'',null,4);
+      }
+      if(deviceSaveFailed){
+        alert('スマホの写真フォルダへの保存に失敗した写真があります。台帳には保存できています。保存先フォルダの設定をご確認ください。');
       }
     }catch(err){console.error(err);alert('写真の読み込みに失敗しました。容量不足の可能性があります。')}
     finally{statusMsg.remove();$('cameraInput').value='';$('galleryInput').value='';}
@@ -906,6 +910,20 @@
     if(undoState&&undoState.timer)clearTimeout(undoState.timer);
     const el=$('undoToast'); if(el)el.remove();
     undoState=null;
+  }
+  function showActionToast(message,actionLabel,onAction,seconds=6){
+    clearUndo();
+    const el=document.createElement('div');
+    el.className='undo-toast'; el.id='undoToast';
+    el.innerHTML='<span class="msg"></span>'+(actionLabel?'<button type="button"></button>':'');
+    el.querySelector('.msg').textContent=message;
+    const btn=el.querySelector('button');
+    if(btn){
+      btn.textContent=actionLabel;
+      btn.addEventListener('click',()=>{ const fn=onAction; clearUndo(); if(fn)fn(); });
+    }
+    document.body.appendChild(el);
+    undoState={timer:setTimeout(()=>clearUndo(),seconds*1000)};
   }
   function showUndoToast(message,onUndo,seconds=7){
     clearUndo();
@@ -1397,8 +1415,8 @@
     localStorage.setItem('photoLedgerTheme',settings.theme);
     await idbPut('settings',{key:'main',value:settings});
   }
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;if($('autoOpenBoard'))$('autoOpenBoard').checked=settings.autoOpenBoard!==false;applyTheme(settings.theme)}
-  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;settings.autoOpenBoard=$('autoOpenBoard')?$('autoOpenBoard').checked:settings.autoOpenBoard!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
+  async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
     const project=projects.find(p=>p.id===(ph&&ph.projectId))||currentProject()||{};
@@ -2453,7 +2471,6 @@
   $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
   $('chooseBackupFolderBtn').addEventListener('click',chooseBackupDirectory);
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
-  $('autoOpenBoard').addEventListener('change',async e=>{settings.autoOpenBoard=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);

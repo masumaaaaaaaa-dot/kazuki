@@ -137,6 +137,8 @@
     .tmpl-thumb-btn.active{border-color:var(--brand);border-width:3px;background:#d1fae5;box-shadow:0 0 0 2px rgba(16,185,129,.35)}
     .tmpl-thumb-btn.active span{color:var(--brand);font-weight:800}
     .tmpl-thumb-btn.active::after{content:'✓ 使用中';position:absolute;top:3px;right:3px;background:var(--brand);color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+    .myboard-tool{position:absolute;top:3px;right:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;z-index:2}
+    .myboard-tool.second{right:29px}
     .myboard-del{position:absolute;top:3px;left:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;z-index:2}
     .tiny-btn{padding:7px 10px;font-size:12px}
     .cover-edit-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:12px 10px;margin-bottom:12px}
@@ -265,6 +267,16 @@
       </div>
       <div class="card">
         <div class="item-head"><h2 style="flex:1">登録写真</h2><span class="badge" id="photoCount">0枚</span></div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn tiny-btn outline" id="selectModeBtn">まとめて選ぶ</button>
+        </div>
+        <div id="bulkBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:9px 10px;background:#f0fdfa;border:1px solid #a7d7cf;border-radius:10px">
+          <span id="bulkCount" style="font-weight:800;font-size:13px">0枚を選択中</span>
+          <span style="flex:1"></span>
+          <button class="btn tiny-btn" id="bulkAllBtn">すべて選ぶ</button>
+          <button class="btn tiny-btn danger" id="bulkDeleteBtn">まとめて削除</button>
+          <button class="btn tiny-btn" id="bulkCancelBtn">やめる</button>
+        </div>
         <div id="photoList"></div>
       </div>
     </section>
@@ -337,6 +349,11 @@
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
           <input type="file" id="restoreInput" accept="application/json,.json" hidden />
         </div>
+        <div class="hint" style="margin-top:10px">「バックアップ復元」は、いまのデータをすべて置き換えます。ほかの人から受け取った現場を追加したいときは、下の「現場を取り込む」を使ってください。</div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn outline" id="importProjectBtn">現場を取り込む（追加）</button>
+          <input type="file" id="importProjectInput" accept="application/json,.json" hidden />
+        </div>
       </div>
       <div class="card">
         <h2>このアプリの出力形式</h2>
@@ -399,6 +416,7 @@
     <div class="dialog-body">
       <input type="hidden" id="photoId" />
       <div style="text-align:center;margin-bottom:10px"><img id="photoEditPreview" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid #cbd5e1" /></div>
+      <div><label>撮影日</label><input id="photoDate" type="date" /></div>
       <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder=""></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
       <div style="margin-top:10px"><label>備考</label><textarea id="photoRemarks" placeholder="補足事項"></textarea></div>
     </div>
@@ -517,17 +535,17 @@
 
 <div id="printRoot"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="./lib/jszip.min.js"></script>
+<script src="./lib/html2canvas.min.js"></script>
+<script src="./lib/jspdf.umd.min.js"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14';
-  const APP_UPDATE_NOTE='写真一覧の表示を見やすく／更新のお知らせ・初回ガイド・バックアップの案内を追加';
+  const APP_VERSION='2026.08.14b';
+  const APP_UPDATE_NOTE='撮影日を直せるように／電波がなくてもExcel・PDFが作れるように／現場の受け渡し・まとめて削除・MY黒板の整理を追加';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -539,6 +557,7 @@
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
   let deferredPrompt = null;
   let replaceTargetPhotoId = '';
+  let selectMode=false; const selectedPhotoIds=new Set();
   let myBoards = [];
   const objectUrls = new Map();
   const boardState = { photoId:'', image:null, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
@@ -592,7 +611,7 @@
   async function loadAll(){
     projects=(await idbGetAll('projects')).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     photos=await idbGetAll('photos');
-    myBoards=(await idbGetAll('myBoards')).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+    myBoards=(await idbGetAll('myBoards')).sort((a,b)=>{const sa=a.sort,sb=b.sort;if(typeof sa==='number'&&typeof sb==='number')return sa-sb;if(typeof sa==='number')return -1;if(typeof sb==='number')return 1;return (b.createdAt||0)-(a.createdAt||0)});
     const ss=await idbGetAll('settings');
     const obj=ss.find(x=>x.key==='main'); if(obj) settings={...settings,...obj.value};
     const dirObj=ss.find(x=>x.key==='photoDirectoryHandle'); photoDirectoryHandle=dirObj?.value||null;
@@ -619,9 +638,10 @@
         <div class="item-sub">${escapeHtml(p.address||'住所未入力')}<br>${count}枚｜${escapeHtml(p.company||'会社名未入力')}</div></div>
         ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}</div>
         <div class="photo-actions">
-          <button class="btn primary" data-action="select-project" data-id="${p.id}">この現場を開く</button>
+          <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
+          <button class="btn" data-action="export-project" data-id="${p.id}">書き出し</button>
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
@@ -637,12 +657,22 @@
   }
   function revokePhotoUrl(id){ for(const [k,u] of [...objectUrls.entries()]){ if(k.startsWith(id+':')){ URL.revokeObjectURL(u); objectUrls.delete(k);} } }
 
+  function updateBulkUI(){
+    const bar=$('bulkBar'); if(!bar)return;
+    bar.style.display=selectMode?'flex':'none';
+    const btn=$('selectModeBtn'); if(btn)btn.textContent=selectMode?'選ぶのをやめる':'まとめて選ぶ';
+    const cnt=$('bulkCount'); if(cnt)cnt.textContent=`${selectedPhotoIds.size}枚を選択中`;
+  }
   function renderPhotos(){
     const host=$('photoList'); const arr=currentPhotos(); $('photoCount').textContent=`${arr.length}枚`;
+    updateBulkUI();
     if(!currentProjectId){host.innerHTML='<div class="empty">先に現場を選択してください。</div>';return}
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
     host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
-      <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
+      <div style="position:relative">
+        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
+        ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
+      </div>
       <div><div class="item-title">No.${i+1}　${escapeHtml((p.content||'').split('\n')[0]||'記入欄は空欄')}${(p.content||'').split('\n').filter(Boolean).length>1?`　ほか${(p.content||'').split('\n').filter(Boolean).length-1}行`:''}</div>
       <div class="photo-meta">${p.editedBlob?'<strong>黒板あり</strong>':'黒板なし'}｜${fmtDate(p.date)}${p.remarks?'<br>備考: '+escapeHtml(p.remarks.split('\n')[0]):''}</div>
       <div class="photo-actions">
@@ -914,12 +944,12 @@
 
   function openPhotoDialog(ph){
     $('photoId').value=ph.id; $('photoEditPreview').src=getPhotoUrl(ph);
-    $('photoContent').value=ph.content||''; $('photoRemarks').value=ph.remarks||'';
+    $('photoDate').value=ph.date||''; $('photoContent').value=ph.content||''; $('photoRemarks').value=ph.remarks||'';
     $('photoDialog').showModal();
   }
   async function savePhoto(e){
     e.preventDefault(); const ph=photos.find(x=>x.id===$('photoId').value); if(!ph)return;
-    ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
+    ph.date=$('photoDate').value||ph.date;ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
     await idbPut('photos',ph);$('photoDialog').close();renderPhotos();
   }
 
@@ -955,6 +985,22 @@
     });
     document.body.appendChild(el);
     undoState={timer:setTimeout(()=>clearUndo(),seconds*1000)};
+  }
+  async function deleteSelectedPhotos(){
+    const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
+    if(!targets.length){alert('削除する写真を選んでください。');return}
+    const snapshots=targets.map(p=>({...p}));
+    for(const p of targets){ revokePhotoUrl(p.id); await idbDelete('photos',p.id); }
+    const ids=new Set(targets.map(p=>p.id));
+    photos=photos.filter(x=>!ids.has(x.id));
+    selectedPhotoIds.clear();
+    await renumberCurrentPhotos();
+    renderPhotos();renderProjects();
+    showUndoToast(`${snapshots.length}枚を削除しました`,async()=>{
+      for(const s of snapshots){ photos.push(s); await idbPut('photos',s); }
+      await renumberCurrentPhotos();
+      renderPhotos();renderProjects();
+    });
   }
   async function deletePhotoWithUndo(ph){
     const snapshot={...ph};
@@ -1081,7 +1127,7 @@
     try{await buildPrint();await waitForPrintImages();setTimeout(()=>window.print(),120)}catch(e){setOutputStatus(e.message,'err');showPage('output')}
   }
   async function exportPdf(){
-    if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){setOutputStatus('PDF保存の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
+    if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){setOutputStatus('PDF保存の準備ができていません。アプリを開き直してもう一度お試しください。','err');return}
     setOutputStatus('PDFを作成中です…（写真の枚数によって少し時間がかかります）','ok');
     const root=$('printRoot');
     const prevCss=root.style.cssText;
@@ -1185,7 +1231,7 @@
     return relsXml.replace('</Relationships>',rel+'</Relationships>');
   }
   async function exportExcel(){
-    if(typeof JSZip==='undefined'){setOutputStatus('Excel出力の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
+    if(typeof JSZip==='undefined'){setOutputStatus('Excel出力の準備ができていません。アプリを開き直してもう一度お試しください。','err');return}
     const p=currentProject(); const arr=currentPhotos();
     if(!p){setOutputStatus('現場を選択してください。','err');return}
     if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}
@@ -1395,6 +1441,45 @@
     else alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}`);
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
+  // ---- 現場ごとの書き出し・取り込み ----
+  async function exportProject(project){
+    const rel=photos.filter(x=>x.projectId===project.id).sort((a,b)=>(a.order||0)-(b.order||0));
+    const ph=[]; let failed=0;
+    for(const p of rel){
+      try{
+        ph.push({...p,blob:undefined,editedBlob:undefined,dataUrl:await blobToDataURL(p.blob),editedDataUrl:p.editedBlob?await blobToDataURL(p.editedBlob):''});
+      }catch(e){ console.warn('書き出しに失敗した写真',p.id,e); failed++; }
+    }
+    const payload={app:'工事写真台帳',type:'project',version:1,exportedAt:new Date().toISOString(),project,photos:ph};
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+    const name=(project.name||'現場').replace(/[\\/:*?"<>|]/g,'_');
+    const filename=`${name}_${today()}_${hhmmStamp()}.json`;
+    const result=await saveToBackupFolderOrDownload(blob,filename);
+    const where=result.savedTo==='folder'?`「${backupDirectoryHandle.name}」`:'ダウンロードフォルダ';
+    alert(`「${project.name}」を書き出しました（写真${ph.length}枚）。\n保存先：${where}\nファイル名：${filename}`
+      +(failed?`\n※${failed}枚は書き出せませんでした。`:''));
+  }
+  async function importProject(file){
+    const obj=JSON.parse(await file.text());
+    if(!obj||!obj.project||!Array.isArray(obj.photos))throw new Error('この形式のファイルは取り込めません。現場の書き出しファイルを選んでください。');
+    const newId=uid('project');
+    const baseName=obj.project.name||'取り込んだ現場';
+    const dupName=projects.some(p=>p.name===baseName)?`${baseName}（取り込み）`:baseName;
+    const project={...obj.project,id:newId,name:dupName,updatedAt:Date.now()};
+    await idbPut('projects',project);
+    let ok=0,failed=0;
+    for(let i=0;i<obj.photos.length;i++){
+      const p=obj.photos[i];
+      try{
+        const q={...p,id:uid('photo'),projectId:newId,order:i,blob:dataURLtoBlob(p.dataUrl),editedBlob:p.editedDataUrl?dataURLtoBlob(p.editedDataUrl):null};
+        delete q.dataUrl;delete q.editedDataUrl;
+        await idbPut('photos',q); ok++;
+      }catch(e){ console.warn('取り込みに失敗した写真',e); failed++; }
+    }
+    currentProjectId=newId;
+    await loadAll();
+    alert(`「${dupName}」を取り込みました（写真${ok}枚）。`+(failed?`\n※${failed}枚は取り込めませんでした。`:''));
+  }
   async function restore(file){
     if(!confirm('現在のデータをすべて置き換えて復元します。よろしいですか？'))return;
     const obj=JSON.parse(await file.text()); if(!Array.isArray(obj.projects)||!Array.isArray(obj.photos))throw new Error('バックアップ形式が正しくありません。');
@@ -1677,16 +1762,38 @@
       return;
     }
     if(hint)hint.style.display='none';
-    wrap.innerHTML=myBoards.map(mb=>`<button type="button" class="tmpl-thumb-btn" data-myboard="${mb.id}"><span class="myboard-del" data-del-myboard="${mb.id}" title="削除">×</span><img src="${myBoardThumbDataUrl(mb)}" alt="" /><span>${escapeHtml(mb.name)}</span></button>`).join('');
+    wrap.innerHTML=myBoards.map((mb,idx)=>`<button type="button" class="tmpl-thumb-btn" data-myboard="${mb.id}"><span class="myboard-del" data-del-myboard="${mb.id}" title="削除">×</span><span class="myboard-tool" data-rename-myboard="${mb.id}" title="名前を変える">✎</span>${idx>0?`<span class="myboard-tool second" data-top-myboard="${mb.id}" title="先頭へ移動">▲</span>`:''}<img src="${myBoardThumbDataUrl(mb)}" alt="" /><span>${escapeHtml(mb.name)}</span></button>`).join('');
     wrap.querySelectorAll('button[data-myboard]').forEach(btn=>{
       btn.addEventListener('click',(e)=>{
-        if(e.target.closest('[data-del-myboard]'))return;
+        if(e.target.closest('[data-del-myboard],[data-rename-myboard],[data-top-myboard]'))return;
         const mb=myBoards.find(x=>x.id===btn.dataset.myboard); if(!mb)return;
         fillBoardControls(cloneBoardData(mb.data));
         boardState.strokes=cloneBoardData(mb.strokes||[]);
         updateMyBoardPickerActive(mb.id);
         renderBoardEditor();
         requestAnimationFrame(renderBoardEditor);
+      });
+    });
+    wrap.querySelectorAll('[data-rename-myboard]').forEach(x=>{
+      x.addEventListener('click',async(e)=>{
+        e.stopPropagation();
+        const mb=myBoards.find(m=>m.id===x.dataset.renameMyboard); if(!mb)return;
+        const name=prompt('この黒板の名前',mb.name);
+        if(name===null)return;
+        const t=name.trim(); if(!t){alert('名前を入力してください。');return}
+        mb.name=t; mb.updatedAt=Date.now();
+        await idbPut('myBoards',mb);
+        renderMyBoardPicker();
+      });
+    });
+    wrap.querySelectorAll('[data-top-myboard]').forEach(x=>{
+      x.addEventListener('click',async(e)=>{
+        e.stopPropagation();
+        const id=x.dataset.topMyboard;
+        const i=myBoards.findIndex(m=>m.id===id); if(i<1)return;
+        const [mb]=myBoards.splice(i,1); myBoards.unshift(mb);
+        for(let k=0;k<myBoards.length;k++){ myBoards[k].sort=k; await idbPut('myBoards',myBoards[k]); }
+        renderMyBoardPicker();
       });
     });
     wrap.querySelectorAll('[data-del-myboard]').forEach(x=>{
@@ -2496,6 +2603,28 @@
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);
   $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
+  $('selectModeBtn').addEventListener('click',()=>{
+    selectMode=!selectMode; selectedPhotoIds.clear(); renderPhotos();
+  });
+  $('bulkCancelBtn').addEventListener('click',()=>{ selectMode=false; selectedPhotoIds.clear(); renderPhotos(); });
+  $('bulkAllBtn').addEventListener('click',()=>{
+    const arr=currentPhotos();
+    if(selectedPhotoIds.size===arr.length){ selectedPhotoIds.clear(); }
+    else { arr.forEach(p=>selectedPhotoIds.add(p.id)); }
+    renderPhotos();
+  });
+  $('bulkDeleteBtn').addEventListener('click',async()=>{ await deleteSelectedPhotos(); });
+  $('photoList').addEventListener('change',e=>{
+    const cb=e.target.closest('.bulk-check'); if(!cb)return;
+    if(cb.checked)selectedPhotoIds.add(cb.dataset.id); else selectedPhotoIds.delete(cb.dataset.id);
+    updateBulkUI();
+  });
+  $('importProjectBtn').addEventListener('click',()=>$('importProjectInput').click());
+  $('importProjectInput').addEventListener('change',async e=>{
+    try{ if(e.target.files[0])await importProject(e.target.files[0]); }
+    catch(err){ console.error(err); alert(err.message||'取り込みに失敗しました。'); }
+    e.target.value='';
+  });
   $('themeToggle').addEventListener('click',e=>{ const b=e.target.closest('button[data-theme]'); if(!b)return; setTheme(b.dataset.theme); });
 
   $('projectList').addEventListener('click',async e=>{
@@ -2509,6 +2638,7 @@
     const id=b.dataset.id;const p=projects.find(x=>x.id===id);if(!p)return;
     if(b.dataset.action==='select-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('photos')}
     if(b.dataset.action==='output-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('output')}
+    if(b.dataset.action==='export-project'){try{await exportProject(p)}catch(err){console.error(err);alert('書き出しに失敗しました。')}}
     if(b.dataset.action==='edit-project')openProjectDialog(p);
     if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
     if(b.dataset.action==='delete-project'){
@@ -2591,7 +2721,6 @@
   openDB().then(d=>{db=d;return loadAll()}).then(()=>{
     notifyUpdatedIfNeeded();
     maybeShowWelcome();
-    maybeSuggestBackup();
   }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
 })();
 </script>

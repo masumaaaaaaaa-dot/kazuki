@@ -14,6 +14,13 @@
       --brand:#0f766e; --brand2:#115e59; --accent:#f59e0b; --bg:#f3f4f6;
       --card:#fff; --text:#172033; --muted:#64748b; --line:#d7dee7; --danger:#b42318;
       --shadow:0 5px 18px rgba(15,23,42,.09);
+      color-scheme:light;
+    }
+    html[data-theme="dark"]{
+      --brand:#14b8a6; --brand2:#0f766e; --accent:#f59e0b; --bg:#0e1015;
+      --card:#1a1d24; --text:#e7ebf2; --muted:#98a3b5; --line:#2b3140; --danger:#ff6b6b;
+      --shadow:0 5px 18px rgba(0,0,0,.5);
+      color-scheme:dark;
     }
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
@@ -37,6 +44,7 @@
     .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#e2e8f0;color:#1e293b}
     .btn.primary{background:var(--brand);color:#fff}.btn.accent{background:var(--accent);color:#fff}.btn.danger{background:#fee4e2;color:var(--danger)}.btn.outline{background:#fff;color:var(--brand);border:1px solid var(--brand)}
     .btn.full{width:100%}.btn-row{display:flex;gap:8px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:120px}
+    .btn.outline.active{background:var(--brand);color:#fff;border-color:var(--brand)}
     .empty{padding:28px 12px;text-align:center;color:var(--muted);border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa}
     .project-item,.photo-item{background:#fff;border:1px solid #dfe5ec;border-radius:12px;padding:11px;margin-bottom:9px}
     .project-item.active{border:2px solid var(--brand);background:#f0fdfa}
@@ -79,7 +87,7 @@
     .board-stage #boardDrawCanvas{background:transparent;z-index:2}
     .board-note-guide{position:absolute;z-index:3;color:#fff;pointer-events:none;white-space:pre-wrap;word-break:break-all;overflow:hidden;font-family:monospace;font-weight:700}
     .board-note-editor{max-width:760px;margin:0 auto}
-    .board-note-editor textarea{display:block;width:100%;aspect-ratio:2.75/1;min-height:0;height:auto;resize:none;font-family:monospace;font-size:1.8em;font-weight:700;line-height:1.22;white-space:pre-wrap;overflow:auto;background-attachment:local;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(1lh - 1px),#dbe3ee calc(1lh - 1px),#dbe3ee 1lh)}
+    .board-note-editor textarea{display:block;width:100%;aspect-ratio:2.75/1;min-height:0;height:auto;resize:none;font-family:monospace;font-size:1.8em;font-weight:700;line-height:1.22;white-space:pre-wrap;overflow:auto}
     .board-note-status{font-size:12px;color:var(--muted);margin-top:5px;font-weight:400}
     .board-note-status.over{color:var(--danger);font-weight:800}
     .zoom-controls{display:flex;gap:6px;justify-content:center;margin-top:8px}
@@ -87,6 +95,16 @@
     .mode-toggle{display:flex;gap:6px;margin-bottom:8px}
     .mode-toggle .btn{flex:1;padding:9px 6px;font-size:12.5px}
     .mode-toggle .btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .draw-tool-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:7px 8px;background:#eef2f7;border:1px solid #dbe3ee;border-radius:10px}
+    .draw-tool-bar.show{display:flex}
+    .draw-tool-bar .sep{width:1px;align-self:stretch;background:#cbd5e1;margin:2px 2px}
+    .swatch-group,.width-group{display:flex;gap:5px}
+    .swatch-btn{width:26px;height:26px;border-radius:50%;border:2px solid #cbd5e1;padding:0;cursor:pointer;background:#fff}
+    .swatch-btn.active{border-color:var(--brand);box-shadow:0 0 0 2px rgba(16,185,129,.35)}
+    .width-btn{width:30px;height:30px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+    .width-btn.active{border-color:var(--brand);background:#d1fae5}
+    .width-btn .dot{border-radius:50%;background:#334155;display:block}
+    .draw-tool-bar .icon-btn{width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;padding:0;cursor:pointer}
     .board-hotspots{position:absolute;inset:0;z-index:4}
     .board-hotspot{position:absolute;cursor:text;-webkit-tap-highlight-color:rgba(34,211,238,.25)}
     .board-hotspot:active{background:rgba(255,255,255,.18)}
@@ -99,24 +117,67 @@
     .tmpl-thumb-btn.active{border-color:var(--brand);border-width:3px;background:#d1fae5;box-shadow:0 0 0 2px rgba(16,185,129,.35)}
     .tmpl-thumb-btn.active span{color:var(--brand);font-weight:800}
     .tmpl-thumb-btn.active::after{content:'✓ 使用中';position:absolute;top:3px;right:3px;background:var(--brand);color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+    .myboard-del{position:absolute;top:3px;left:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;z-index:2}
     .tiny-btn{padding:7px 10px;font-size:12px}
     .inline-note{font-size:11px;color:#64748b;margin-top:4px}
+    .tip-box{padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa}
+    html[data-theme="dark"] .inline-note{color:var(--muted)}
+    html[data-theme="dark"] .tip-box{background:#0c2320;border-color:#1f4d47}
     #boardDialog{width:min(96vw,900px)}
     #boardDialog .board-stage-viewport{aspect-ratio:3/2}
     @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
-    /* スマホを横向きにしたとき：黒板編集を2カラムにして黒板を大きく表示 */
+    /* スマホを横向きにしたとき：黒板だけを大きく表示し、他の入力欄は隠す */
     @media(orientation:landscape) and (max-height:540px){
       #boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
-      #boardDialog .dialog-body{display:flex;align-items:flex-start;gap:12px;padding:10px;padding-bottom:14px}
-      #boardDialog .board-wrap{flex:1 1 60%;max-width:60%;position:sticky;top:0}
-      #boardDialog .board-stage-viewport{max-width:100%}
-      #boardDialog #boardControlsCol{flex:1 1 40%;max-width:40%;max-height:calc(100dvh - 90px);overflow-y:auto;padding-right:3px}
-      #boardDialog #boardControlsCol .grid.two,#boardDialog #boardControlsCol .grid.three{grid-template-columns:1fr}
-      #boardDialog .dialog-head{padding:10px 12px}
+      #boardDialog #boardForm{display:flex;flex-direction:column;height:100%}
+      #boardDialog .dialog-head{padding:8px 12px;flex:0 0 auto;position:static}
+      #boardDialog .dialog-body{display:flex;align-items:flex-start;justify-content:center;gap:12px;padding:8px 10px;flex:1 1 auto;min-height:0;overflow-y:auto}
+      #boardDialog .dialog-foot{flex:0 0 auto;position:static}
+      #boardDialog .board-wrap{flex:0 1 auto;max-width:640px;width:100%;padding:6px}
+      #boardDialog .board-stage-viewport{max-width:100%;max-height:calc(100dvh - 180px);width:auto}
+      #boardDialog .mode-toggle{margin-bottom:5px}
+      #boardDialog .zoom-controls{margin-top:5px}
+      #boardDialog .inline-note{display:none}
+      #boardDialog #boardControlsCol{display:none}
     }
     @media(max-width:620px){
       .grid.two,.grid.three{grid-template-columns:1fr}.photo-item{grid-template-columns:104px 1fr}.thumb{width:104px;height:82px}.content{padding:10px}.card{padding:12px}.btn-row .btn{min-width:100px}
     }
+    /* ダークモード（印刷用A4シートは対象外。紙面は常に白のまま） */
+    html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#20242e;color:var(--text);border-color:#3a4152}
+    html[data-theme="dark"] label{color:#b6c0d0}
+    html[data-theme="dark"] .btn{background:#2a2f3a;color:var(--text)}
+    html[data-theme="dark"] .btn.primary{background:var(--brand);color:#04201c}
+    html[data-theme="dark"] .btn.accent{color:#241400}
+    html[data-theme="dark"] .btn.danger{background:#3a1c1f;color:var(--danger)}
+    html[data-theme="dark"] .btn.outline{background:var(--card);color:var(--brand);border-color:var(--brand)}
+    html[data-theme="dark"] .btn.outline.active{background:var(--brand);color:#04201c}
+    html[data-theme="dark"] .empty{border-color:#3a4152;background:#161920;color:var(--muted)}
+    html[data-theme="dark"] .project-item,html[data-theme="dark"] .photo-item{background:var(--card);border-color:var(--line)}
+    html[data-theme="dark"] .project-item.active{background:#0c2b28;border-color:var(--brand)}
+    html[data-theme="dark"] .badge{background:#0c332e;color:#5eead4}
+    html[data-theme="dark"] .thumb{background:#2a2f3a;border-color:var(--line)}
+    html[data-theme="dark"] .photo-meta{color:#a7b1c2}
+    html[data-theme="dark"] .photo-meta strong{color:var(--text)}
+    html[data-theme="dark"] .bottom-nav{background:var(--card);border-top-color:var(--line)}
+    html[data-theme="dark"] .nav-btn{background:var(--card);color:#8a93a3}
+    html[data-theme="dark"] .nav-btn.active{color:var(--brand)}
+    html[data-theme="dark"] dialog{background:var(--card);color:var(--text)}
+    html[data-theme="dark"] dialog::backdrop{background:rgba(0,0,0,.7)}
+    html[data-theme="dark"] .dialog-head,html[data-theme="dark"] .dialog-foot{background:var(--card);border-color:var(--line)}
+    html[data-theme="dark"] .preview-wrap{background:#05070a}
+    html[data-theme="dark"] .status.ok{background:#0b2e22;color:#4ade80}
+    html[data-theme="dark"] .status.err{background:#3a1315;color:#ff8a8a}
+    html[data-theme="dark"] .board-wrap{background:#141821;border-color:var(--line)}
+    html[data-theme="dark"] .board-stage-viewport{background:#1c212b}
+    html[data-theme="dark"] .draw-tool-bar{background:#1c212b;border-color:var(--line)}
+    html[data-theme="dark"] .width-btn,html[data-theme="dark"] .icon-btn{background:var(--card);border-color:#3a4152}
+    html[data-theme="dark"] .width-btn.active{background:#0c332e;border-color:var(--brand)}
+    html[data-theme="dark"] .tmpl-thumb-btn{background:var(--card);border-color:var(--line)}
+    html[data-theme="dark"] .tmpl-thumb-btn span{color:var(--text)}
+    html[data-theme="dark"] .draw-tool-bar .sep{background:var(--line)}
+    html[data-theme="dark"] .mode-toggle .btn.active{color:#04201c}
+    html[data-theme="dark"] .tmpl-thumb-btn.active{background:#0c332e}
     @media print{
       @page{size:A4 portrait;margin:0}
       body{background:#fff}
@@ -144,7 +205,6 @@
         <h2>現場一覧</h2>
         <div class="btn-row">
           <button class="btn primary" id="newProjectBtn">＋ 新しい現場</button>
-          <button class="btn outline" id="editProjectBtn">現場情報を編集</button>
         </div>
       </div>
       <div id="projectList"></div>
@@ -160,6 +220,7 @@
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
         <input type="file" id="galleryInput" accept="image/*" multiple hidden />
+        <input type="file" id="replaceInput" accept="image/*" hidden />
         <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
           <div class="btn-row" style="margin-top:0">
@@ -195,7 +256,15 @@
           <button class="btn primary" id="previewBtn">A4プレビューを作成</button>
           <button class="btn accent" id="printBtn">印刷・PDF保存</button>
         </div>
-        <p class="hint" style="margin-bottom:0">スマホでは印刷画面で「PDF形式で保存」を選ぶと、役所提出用のA4 PDFとして保存できます。</p>
+        <p class="hint" style="margin-bottom:0">スマホでは印刷画面で「PDF形式で保存」を選ぶと、役所提出用のA4 PDFとして保存できますが、保存先はそのつどスマホ側の画面で選ぶ必要があります。</p>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn outline full" id="pdfSaveBtn">📄 PDFで保存（保存先フォルダへ）</button>
+        </div>
+        <p class="hint" style="margin-bottom:0;margin-top:6px">上の「印刷・PDF保存」と違い、保存先を選ぶ画面を出さずに、設定の「バックアップの保存先フォルダ」へ直接PDFファイルを保存します（未設定の場合はダウンロードフォルダに保存されます）。写真も含めて、印刷プレビューと同じ内容がPDFになります。</p>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn outline full" id="excelBtn">📊 Excelで出力（編集可）</button>
+        </div>
+        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大300枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsx）を作成します。パソコンやスマホのExcelアプリで開いて、そのまま編集できます。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。写真の枚数が多いと、作成に少し時間がかかることがあります。</p>
       </div>
       <div id="outputStatus" class="status"></div>
       <div class="card" id="previewCard" style="display:none">
@@ -206,17 +275,25 @@
 
     <section id="page-settings" class="tab-page">
       <div class="card">
+        <h2>画面の配色</h2>
+        <div class="mode-toggle theme-toggle" id="themeToggle">
+          <button type="button" class="btn active" data-theme="light">☀ 白（ライト）</button>
+          <button type="button" class="btn outline" data-theme="dark">🌙 黒（ダーク）</button>
+        </div>
+        <div class="hint" style="margin-top:6px">印刷（A4出力）の紙面は、配色に関わらず常に白で出力されます。</div>
+      </div>
+      <div class="card">
         <h2>会社・初期設定</h2>
         <div class="grid two">
           <div><label>既定の会社名・施工者（任意）</label><input id="settingCompany" placeholder="必要な場合だけ入力" /></div>
-          <div><label>既定の提出先</label><input id="settingSubmitTo" placeholder="例：和歌山市企業局" /></div>
+          <div><label>既定の提出先</label><input id="settingSubmitTo" placeholder="" /></div>
         </div>
         <button class="btn primary full" id="saveSettingsBtn" style="margin-top:10px">設定を保存</button>
       </div>
       <div class="card">
         <h2>データ管理</h2>
         <p class="hint">写真データはこの端末内に保存されます。スマホ交換やブラウザデータ削除に備えて、定期的にバックアップしてください。「バックアップ保存」を押すと、スマホの「ダウンロード」フォルダに保存されます。ファイル名には日付と時刻が入るので、何度バックアップしても別ファイルとして残ります。Googleドライブなどに預けておきたい場合は、「ファイル」アプリのダウンロードフォルダを開き、そのファイルを共有メニューからドライブへ送ってください。復元するときは、「バックアップ復元」で一番新しい時刻のファイルを選んでください。</p>
-        <div style="margin-bottom:10px;padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa">
+        <div class="tip-box" style="margin-bottom:10px">
           <div id="backupFolderStatus" class="hint" style="margin-bottom:6px"></div>
           <button class="btn outline full" id="chooseBackupFolderBtn" type="button">バックアップの保存先フォルダを設定</button>
           <div class="hint" style="margin-top:6px">写真の保存先と同じように、Googleドライブのフォルダなどを指定できます。設定しておくと、以後は「バックアップ保存」を押すだけでそのフォルダに保存されます。</div>
@@ -246,11 +323,12 @@
   <form method="dialog" id="projectForm">
     <div class="dialog-head"><h3 id="projectDialogTitle">現場情報</h3><button class="btn" value="cancel" type="button" onclick="document.getElementById('projectDialog').close()">閉じる</button></div>
     <div class="dialog-body">
+      <p class="hint" style="margin:0 0 10px">ここで入力した内容は、印刷時の表紙になるほか、黒板の自動入力や現場一覧の表示にも使われます。</p>
       <input type="hidden" id="projectId" />
       <div class="grid two">
-        <div><label>工事名 *</label><input id="projectName" required placeholder="例：○○邸 排水設備工事" /></div>
+        <div><label>工事名 *</label><input id="projectName" required placeholder="" /></div>
         <div><label>工事場所</label><input id="projectAddress" placeholder="施工場所の住所" /></div>
-        <div><label>提出先</label><input id="projectSubmitTo" placeholder="例：和歌山市企業局" /></div>
+        <div><label>提出先</label><input id="projectSubmitTo" placeholder="" /></div>
         <div><label>工事番号</label><input id="projectNumber" /></div>
         <div><label>工期（開始）</label><input id="projectStart" type="date" /></div>
         <div><label>工期（終了）</label><input id="projectEnd" type="date" /></div>
@@ -267,21 +345,11 @@
 
 <dialog id="photoDialog">
   <form method="dialog" id="photoForm">
-    <div class="dialog-head"><h3>写真情報・写真横記入の編集（すべて任意）</h3><button class="btn" type="button" onclick="document.getElementById('photoDialog').close()">閉じる</button></div>
+    <div class="dialog-head"><h3>記入欄の編集</h3><button class="btn" type="button" onclick="document.getElementById('photoDialog').close()">閉じる</button></div>
     <div class="dialog-body">
       <input type="hidden" id="photoId" />
       <div style="text-align:center;margin-bottom:10px"><img id="photoEditPreview" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid #cbd5e1" /></div>
-      <div class="grid two">
-        <div><label>写真区分</label><select id="photoCategory"><option>着工前</option><option>使用材料</option><option>施工状況</option><option>出来形管理</option><option>品質管理</option><option>安全管理</option><option>不可視部分</option><option>完成</option><option>その他</option></select></div>
-        <div><label>撮影日</label><input id="photoDate" type="date" /></div>
-        <div><label>工種</label><input id="photoWorkType" placeholder="例：排水設備工" /></div>
-        <div><label>測点・撮影場所</label><input id="photoLocation" placeholder="例：汚水桝 No.1" /></div>
-        <div><label>管種・管径</label><input id="photoPipe" placeholder="例：VU100" /></div>
-        <div><label>勾配</label><input id="photoSlope" placeholder="例：1/100" /></div>
-        <div><label>設計値</label><input id="photoDesign" placeholder="例：管底深さ 750mm" /></div>
-        <div><label>実測値</label><input id="photoActual" placeholder="例：管底深さ 755mm" /></div>
-      </div>
-      <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder="例：施工箇所や寸法などを、1行ずつ自由に記入"></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
+      <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder=""></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
       <div style="margin-top:10px"><label>備考</label><textarea id="photoRemarks" placeholder="補足事項"></textarea></div>
     </div>
     <div class="dialog-foot"><button type="button" class="btn" onclick="document.getElementById('photoDialog').close()">取消</button><button type="submit" class="btn primary">保存</button></div>
@@ -296,7 +364,35 @@
       <div class="board-wrap">
         <div class="mode-toggle" id="boardModeToggle">
           <button type="button" class="btn tiny-btn active" data-mode="text">✎ 黒板に直接入力</button>
-          <button type="button" class="btn tiny-btn outline" data-mode="draw">🖊 手書き・消しゴム</button>
+          <button type="button" class="btn tiny-btn outline" data-mode="draw">🖊 手書き</button>
+          <button type="button" class="btn tiny-btn outline" data-mode="erase">🧹 消しゴム</button>
+        </div>
+        <div class="draw-tool-bar" id="drawToolBar">
+          <div class="swatch-group" id="drawColorSwatches">
+            <button type="button" class="swatch-btn active" data-color="#ffffff" style="background:#ffffff" title="白"></button>
+            <button type="button" class="swatch-btn" data-color="#ff0000" style="background:#ff0000" title="赤"></button>
+            <button type="button" class="swatch-btn" data-color="#ff8c00" style="background:#ff8c00" title="オレンジ"></button>
+            <button type="button" class="swatch-btn" data-color="#ffff00" style="background:#ffff00" title="黄"></button>
+            <button type="button" class="swatch-btn" data-color="#22c55e" style="background:#22c55e" title="緑"></button>
+            <button type="button" class="swatch-btn" data-color="#00bcd4" style="background:#00bcd4" title="水色"></button>
+            <button type="button" class="swatch-btn" data-color="#0000ff" style="background:#0000ff" title="青"></button>
+            <button type="button" class="swatch-btn" data-color="#a855f7" style="background:#a855f7" title="紫"></button>
+            <button type="button" class="swatch-btn" data-color="#ff69b4" style="background:#ff69b4" title="ピンク"></button>
+            <button type="button" class="swatch-btn" data-color="#000000" style="background:#000000" title="黒"></button>
+          </div>
+          <div class="sep"></div>
+          <div class="width-group" id="drawWidthIcons">
+            <button type="button" class="width-btn" data-width="2" title="細い"><span class="dot" style="width:4px;height:4px"></span></button>
+            <button type="button" class="width-btn active" data-width="4" title="普通"><span class="dot" style="width:7px;height:7px"></span></button>
+            <button type="button" class="width-btn" data-width="7" title="太い"><span class="dot" style="width:11px;height:11px"></span></button>
+            <button type="button" class="width-btn" data-width="12" title="特大"><span class="dot" style="width:15px;height:15px"></span></button>
+          </div>
+          <div class="sep"></div>
+          <button type="button" class="icon-btn" id="undoDrawBtn" title="ひとつ戻す">↶</button>
+          <button type="button" class="icon-btn" id="clearDrawBtn" title="全部消す">🗑</button>
+          <input type="hidden" id="drawColor" value="#ffffff" />
+          <input type="hidden" id="drawWidth" value="4" />
+          <input type="hidden" id="drawMode" value="draw" />
         </div>
         <div class="board-stage-viewport" id="boardStageViewport">
           <div class="board-stage" id="boardStage">
@@ -311,11 +407,11 @@
           <button type="button" class="btn tiny-btn outline" id="boardZoomResetBtn">等倍に戻す</button>
           <button type="button" class="btn tiny-btn outline" id="boardZoomInBtn">＋ 拡大</button>
         </div>
-        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き・消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。黒板の大きさを変えると、手書きも同じ比率で拡大・縮小されます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。指2本のピンチ操作、または上のボタンで黒板を拡大して細かく書き込めます。</div>
+        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。黒板の大きさを変えると、手書きも同じ比率で拡大・縮小されます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。指2本のピンチ操作、または上のボタンで黒板を拡大して細かく書き込めます。</div>
       </div>
       <div id="boardControlsCol">
-      <div style="margin-top:10px;padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa">
-        <div style="font-weight:800;color:#115e59">現場情報を自動入力</div>
+      <div class="tip-box" style="margin-top:10px">
+        <div style="font-weight:800;color:var(--brand2)">現場情報を自動入力</div>
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
         <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
       </div>
@@ -325,12 +421,19 @@
         <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
       </div>
       <div style="margin-top:10px">
-        <label>黒板テンプレート（タップで選択・見た目のプレビュー付き）</label>
+        <label>黒板の選択（タップで選択・見た目のプレビュー付き）</label>
+        <div class="mode-toggle" id="boardPickerTabs">
+          <button type="button" class="btn tiny-btn active" data-tab="template">黒板テンプレート</button>
+          <button type="button" class="btn tiny-btn outline" data-tab="my">MY黒板</button>
+        </div>
         <div class="tmpl-picker" id="boardTemplatePicker"></div>
+        <div class="tmpl-picker" id="myBoardPicker" style="display:none"></div>
+        <div id="myBoardEmptyHint" class="hint" style="display:none">まだMY黒板はありません。黒板の内容を書き込んでから「＋ 今の黒板をMY黒板に保存」で登録すると、次回から選ぶだけで使えます。</div>
+        <button type="button" class="btn outline full" id="saveMyBoardBtn" style="margin-top:8px">＋ 今の黒板をMY黒板に保存</button>
         <select id="boardTemplate" style="display:none">
           <option value="tajima">工事件名・工事場所・施工者</option>
           <option value="work">工事名・工種・測点</option>
-          <option value="muji">無地（文字なし）</option>
+          <option value="muji">無地</option>
           <option value="sunpou">寸法・略図確認</option>
           <option value="kyusui_shinsei">給水装置 申請確認</option>
           <option value="dekigata_keisoku">出来形計測</option>
@@ -338,8 +441,8 @@
           <option value="kenchiku_tou">棟別・撮影箇所確認</option>
           <option value="ky_katsudo">危険予知活動表</option>
           <option value="concrete_uchisetsu">コンクリート打設記録</option>
-          <option value="dekigata_hyou">出来形管理（設計・実測）</option>
-          <option value="kensa_kawa">検査確認（河川・道路）</option>
+          <option value="dekigata_hyou">出来形管理</option>
+          <option value="kensa_kawa">検査確認</option>
           <option value="free">自由設定</option>
         </select>
       </div>
@@ -349,20 +452,8 @@
         <div><label>上段3 ラベル</label><input id="boardLabel3" /></div><div><label>上段3 文字</label><input id="boardValue3" /></div>
         <div><label>下段 ラベル</label><input id="boardBottomLabel" /></div><div><label>下段 文字</label><input id="boardBottomValue" /></div>
       </div>
-      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（9行まで・改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder="例：VU100配管布設状況&#10;管底深さ 750mm&#10;勾配 1/100"></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。文字は見やすいように大きめにしています。縦は9行です。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
+      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（9行まで・改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。文字は見やすいように大きめにしています。縦は9行です。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
       <div id="boardGenericFields" style="margin-top:10px"></div>
-      <div class="card" style="margin:12px 0 0;padding:10px">
-        <h3>黒板への手書き・図の追記</h3>
-        <div class="grid three">
-          <div><label>色</label><select id="drawColor"><option value="#ffffff">白</option><option value="#ff0000">赤</option><option value="#0000ff">青</option><option value="#ffff00">黄</option><option value="#000000">黒</option></select></div>
-          <div><label>太さ</label><select id="drawWidth"><option value="2">細い</option><option value="4" selected>普通</option><option value="7">太い</option><option value="12">特大</option></select></div>
-          <div><label>操作</label><select id="drawMode"><option value="draw">手書き</option><option value="erase">消しゴム</option></select></div>
-        </div>
-        <div class="btn-row" style="margin-top:8px">
-          <button type="button" class="btn tiny-btn outline" id="undoDrawBtn">ひとつ戻す</button>
-          <button type="button" class="btn tiny-btn" id="clearDrawBtn">全部消す</button>
-        </div>
-      </div>
       </div>
     </div>
     <div class="dialog-foot">
@@ -374,22 +465,28 @@
 
 <div id="printRoot"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   const DB_NAME = 'nich_kouji_photo_ledger';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light' };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
   let deferredPrompt = null;
+  let replaceTargetPhotoId = '';
+  let myBoards = [];
   const objectUrls = new Map();
-  const boardState = { photoId:'', image:null, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null };
+  const boardState = { photoId:'', image:null, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
 
   const today = () => new Date().toISOString().slice(0,10);
   const uid = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
@@ -418,8 +515,17 @@
         if(!d.objectStoreNames.contains('projects')) d.createObjectStore('projects',{keyPath:'id'});
         if(!d.objectStoreNames.contains('photos')){const s=d.createObjectStore('photos',{keyPath:'id'});s.createIndex('projectId','projectId',{unique:false});}
         if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'key'});
+        if(!d.objectStoreNames.contains('myBoards')) d.createObjectStore('myBoards',{keyPath:'id'});
       };
-      req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+      req.onblocked=()=>{
+        alert('アプリの更新準備ができませんでした。他のタブやホーム画面から開いているこのアプリをすべて閉じてから、もう一度開き直してください。');
+      };
+      req.onsuccess=()=>{
+        const d=req.result;
+        d.onversionchange=()=>{ d.close(); };
+        resolve(d);
+      };
+      req.onerror=()=>reject(req.error);
     });
   }
   function tx(store,mode='readonly'){return db.transaction(store,mode).objectStore(store)}
@@ -431,6 +537,7 @@
   async function loadAll(){
     projects=(await idbGetAll('projects')).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     photos=await idbGetAll('photos');
+    myBoards=(await idbGetAll('myBoards')).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
     const ss=await idbGetAll('settings');
     const obj=ss.find(x=>x.key==='main'); if(obj) settings={...settings,...obj.value};
     const dirObj=ss.find(x=>x.key==='photoDirectoryHandle'); photoDirectoryHandle=dirObj?.value||null;
@@ -452,13 +559,13 @@
     if(!projects.length){host.innerHTML='<div class="empty">まだ現場がありません。<br>「新しい現場」から作成してください。</div>';return}
     host.innerHTML=projects.map(p=>{
       const count=photos.filter(x=>x.projectId===p.id).length;
-      return `<div class="project-item ${p.id===currentProjectId?'active':''}">
+      return `<div class="project-item ${p.id===currentProjectId?'active':''}" data-id="${p.id}">
         <div class="item-head"><div class="item-main"><div class="item-title">${escapeHtml(p.name)}</div>
         <div class="item-sub">${escapeHtml(p.address||'住所未入力')}<br>${count}枚｜${escapeHtml(p.company||'会社名未入力')}</div></div>
         ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}</div>
         <div class="photo-actions">
           <button class="btn primary" data-action="select-project" data-id="${p.id}">この現場を開く</button>
-          <button class="btn" data-action="edit-project" data-id="${p.id}">編集</button>
+          <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
@@ -483,9 +590,9 @@
       <div><div class="item-title">No.${i+1}　${escapeHtml(p.content||'内容未入力')}</div>
       <div class="photo-meta"><strong>${escapeHtml(p.category||'施工状況')}</strong>｜${escapeHtml(p.workType||'工種未入力')}<br>${escapeHtml(p.location||'撮影場所未入力')}｜${fmtDate(p.date)}</div>
       <div class="photo-actions">
-        <button class="btn primary" data-action="edit-photo" data-id="${p.id}">内容編集</button>
         <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
         <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
+        <button class="btn outline" data-action="replace-photo" data-id="${p.id}">写真を差し替え</button>
         <button class="btn outline" data-action="save-device" data-id="${p.id}">スマホに保存</button>
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
@@ -494,7 +601,7 @@
   }
 
   function openProjectDialog(p=null){
-    $('projectDialogTitle').textContent=p?'現場情報を編集':'新しい現場';
+    $('projectDialogTitle').textContent=p?'表紙を編集':'新しい現場（表紙の内容）';
     $('projectId').value=p?.id||''; $('projectName').value=p?.name||''; $('projectAddress').value=p?.address||'';
     $('projectSubmitTo').value=p?.submitTo||settings.submitTo||''; $('projectNumber').value=p?.number||'';
     $('projectStart').value=p?.start||''; $('projectEnd').value=p?.end||''; $('projectCompany').value=p?.company||'';
@@ -690,13 +797,13 @@
   }
 
   function openPhotoDialog(ph){
-    $('photoId').value=ph.id; $('photoEditPreview').src=getPhotoUrl(ph); $('photoCategory').value=ph.category||'施工状況'; $('photoDate').value=ph.date||today();
-    $('photoWorkType').value=ph.workType||''; $('photoLocation').value=ph.location||''; $('photoPipe').value=ph.pipe||''; $('photoSlope').value=ph.slope||''; $('photoDesign').value=ph.design||''; $('photoActual').value=ph.actual||''; $('photoContent').value=ph.content||''; $('photoRemarks').value=ph.remarks||'';
+    $('photoId').value=ph.id; $('photoEditPreview').src=getPhotoUrl(ph);
+    $('photoContent').value=ph.content||''; $('photoRemarks').value=ph.remarks||'';
     $('photoDialog').showModal();
   }
   async function savePhoto(e){
     e.preventDefault(); const ph=photos.find(x=>x.id===$('photoId').value); if(!ph)return;
-    ph.category=$('photoCategory').value;ph.date=$('photoDate').value;ph.workType=$('photoWorkType').value.trim();ph.location=$('photoLocation').value.trim();ph.pipe=$('photoPipe').value.trim();ph.slope=$('photoSlope').value.trim();ph.design=$('photoDesign').value.trim();ph.actual=$('photoActual').value.trim();ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
+    ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
     await idbPut('photos',ph);$('photoDialog').close();renderPhotos();
   }
 
@@ -760,6 +867,130 @@
   async function printLedger(){
     try{await buildPrint();await waitForPrintImages();setTimeout(()=>window.print(),120)}catch(e){setOutputStatus(e.message,'err');showPage('output')}
   }
+  async function exportPdf(){
+    if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){setOutputStatus('PDF保存の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
+    setOutputStatus('PDFを作成中です…（写真の枚数によって少し時間がかかります）','ok');
+    const root=$('printRoot');
+    const prevCss=root.style.cssText;
+    try{
+      await buildPrint();
+      await waitForPrintImages();
+      root.style.cssText='display:block;position:fixed;left:-10000px;top:0;background:#fff';
+      const sheets=[...root.querySelectorAll('.sheet')];
+      if(!sheets.length) throw new Error('出力する内容がありません。');
+      const {jsPDF}=window.jspdf;
+      const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+      for(let i=0;i<sheets.length;i++){
+        const canvas=await html2canvas(sheets[i],{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+        const imgData=canvas.toDataURL('image/jpeg',0.92);
+        if(i>0)pdf.addPage();
+        pdf.addImage(imgData,'JPEG',0,0,210,297);
+      }
+      const p=currentProject();
+      const filename=`${(p&&p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.pdf`;
+      const blob=pdf.output('blob');
+      const result=await saveToBackupFolderOrDownload(blob,filename);
+      if(result.savedTo==='folder')setOutputStatus(`PDFファイルを「${backupDirectoryHandle.name}」に保存しました。`,'ok');
+      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。','ok');
+      else setOutputStatus('PDFファイルをダウンロードフォルダに保存しました。','ok');
+    }catch(e){console.error(e);setOutputStatus(e.message||'PDFの作成に失敗しました。','err')}
+    finally{ root.style.cssText=prevCss; }
+  }
+  function estimateRowHeightPt(...texts){
+    const lines=Math.max(1,...texts.map(t=>String(t||'').split('\n').length));
+    return Math.min(240,Math.max(18,lines*15+6));
+  }
+  function hhmmStamp(){const now=new Date();return String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');}
+  function reiwaParts(dateStr){
+    if(!dateStr)return null;
+    const d=new Date(dateStr+'T00:00:00'); if(Number.isNaN(d.getTime()))return null;
+    const y=d.getFullYear(); if(y<2019)return null;
+    return {year:y-2018,month:d.getMonth()+1,day:d.getDate()};
+  }
+  function albumSheetName(idx){return idx===0?'アルバム':`アルバム (${idx+1})`;}
+  const ALBUM_SLOTS_PER_SHEET=3,ALBUM_SHEET_COUNT=100,ALBUM_MAX_PHOTOS=ALBUM_SLOTS_PER_SHEET*ALBUM_SHEET_COUNT;
+  const ALBUM_SLOT_ROWS=[{photo:3,captionTop:4,captionBottom:12},{photo:14,captionTop:15,captionBottom:23},{photo:25,captionTop:26,captionBottom:34}];
+  async function exportExcel(){
+    if(typeof ExcelJS==='undefined'){setOutputStatus('Excel出力の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
+    const p=currentProject(); const arr=currentPhotos();
+    if(!p){setOutputStatus('現場を選択してください。','err');return}
+    if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}
+    setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
+    let templateBuf;
+    try{
+      const templateResp=await fetch('./photo_album_template.xlsx');
+      if(!templateResp.ok)throw new Error('status:'+templateResp.status);
+      templateBuf=await templateResp.arrayBuffer();
+      if(!templateBuf||templateBuf.byteLength<1000)throw new Error('empty or too small: '+(templateBuf?templateBuf.byteLength:0));
+    }catch(fetchErr){
+      console.error('テンプレート読み込みエラー',fetchErr);
+      setOutputStatus('写真台帳テンプレート（photo_album_template.xlsx）を読み込めませんでした。GitHubのリポジトリに index.html と同じ場所へこのファイルをアップロードしているか、ご確認ください。','err');
+      return;
+    }
+    try{
+      const wb=new ExcelJS.Workbook();
+      await wb.xlsx.load(templateBuf);
+
+      // 表紙シートへの書き込み
+      const wsCover=wb.getWorksheet('表紙');
+      if(wsCover){
+        wsCover.getCell('D14').value=p.name||'';
+        wsCover.getCell('D16').value=p.address||'';
+        if(p.number)wsCover.getCell('J12').value=p.number.replace(/^第/,'').replace(/号$/,'');
+        const createdParts=reiwaParts(p.createdDate)||reiwaParts(today());
+        if(createdParts)wsCover.getCell('E12').value=createdParts.year;
+        const startParts=reiwaParts(p.start);
+        if(startParts){wsCover.getCell('G18').value=startParts.year;wsCover.getCell('I18').value=startParts.month;wsCover.getCell('K18').value=startParts.day;}
+        const endParts=reiwaParts(p.end);
+        if(endParts){wsCover.getCell('G20').value=endParts.year;wsCover.getCell('I20').value=endParts.month;wsCover.getCell('K20').value=endParts.day;}
+        if(p.company)wsCover.getCell('E27').value=p.company;
+      }
+
+      // 使う分だけアルバムシートを残し、余分は削除
+      const neededSheets=Math.min(ALBUM_SHEET_COUNT,Math.max(1,Math.ceil(arr.length/ALBUM_SLOTS_PER_SHEET)));
+      for(let i=ALBUM_SHEET_COUNT-1;i>=neededSheets;i--){
+        const sheetName=albumSheetName(i);
+        const ws=wb.getWorksheet(sheetName);
+        if(ws)wb.removeWorksheet(ws.id);
+      }
+
+      const overLimit=arr.length>ALBUM_MAX_PHOTOS;
+      const fillCount=Math.min(arr.length,ALBUM_MAX_PHOTOS);
+      for(let i=0;i<fillCount;i++){
+        const ph=arr[i];
+        const sheetIdx=Math.floor(i/ALBUM_SLOTS_PER_SHEET),slotIdx=i%ALBUM_SLOTS_PER_SHEET;
+        const ws=wb.getWorksheet(albumSheetName(sheetIdx));
+        if(!ws)continue;
+        const rows=ALBUM_SLOT_ROWS[slotIdx];
+        if((i%ALBUM_SLOTS_PER_SHEET)===0)setOutputStatus(`Excelファイルを作成中です…（${i+1}/${fillCount}枚目の写真を読み込んでいます）`,'ok');
+        try{
+          const displayBlob=ph.editedBlob||ph.blob;
+          const [buf,imgEl]=await Promise.all([displayBlob.arrayBuffer(),loadImageElement(displayBlob)]);
+          const ext=(displayBlob.type&&displayBlob.type.includes('png'))?'png':'jpeg';
+          const imageId=wb.addImage({buffer:buf,extension:ext});
+          const boxWpx=430,boxHpx=(rows.captionBottom-rows.photo+1)*28*96/72-10;
+          const ratio=Math.min(boxWpx/imgEl.naturalWidth,boxHpx/imgEl.naturalHeight);
+          const w=Math.round(imgEl.naturalWidth*ratio),h=Math.round(imgEl.naturalHeight*ratio);
+          ws.addImage(imageId,{tl:{col:1.05,row:rows.photo-1+0.15},ext:{width:w,height:h}});
+        }catch(imgErr){
+          console.warn('写真の埋め込みに失敗',ph.id,imgErr);
+        }
+        try{ws.mergeCells(rows.captionTop,3,rows.captionBottom,3);}catch(mergeErr){/* 既に結合済みなら無視 */}
+        const captionCell=ws.getCell(rows.captionTop,3);
+        captionCell.value=[ph.content,ph.remarks].filter(Boolean).join('\n');
+        captionCell.alignment={wrapText:true,vertical:'top',horizontal:'left'};
+      }
+
+      const stampName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.xlsx`;
+      const arrBuf=await wb.xlsx.writeBuffer();
+      const blob=new Blob([arrBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const result=await saveToBackupFolderOrDownload(blob,stampName);
+      const overMsg=overLimit?`（写真が${ALBUM_MAX_PHOTOS}枚を超えていたため、最初の${ALBUM_MAX_PHOTOS}枚のみ収録しています）`:'';
+      if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${overMsg}`,'ok');
+      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+overMsg,'ok');
+      else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+overMsg,'ok');
+    }catch(e){console.error('Excel作成エラー',e);setOutputStatus('Excelファイルの作成に失敗しました。'+(e&&e.message?'（詳細: '+e.message+'）':''),'err')}
+  }
 
   async function buildBackupPayload(){
     const allPhotos=await idbGetAll('photos'); const ph=[]; const failed=[];
@@ -771,7 +1002,7 @@
         failed.push(p.filename||p.id);
       }
     }
-    const payload={app:'工事写真台帳',version:1,exportedAt:new Date().toISOString(),projects:await idbGetAll('projects'),photos:ph,settings};
+    const payload={app:'工事写真台帳',version:1,exportedAt:new Date().toISOString(),projects:await idbGetAll('projects'),photos:ph,myBoards:await idbGetAll('myBoards'),settings};
     const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
     const now=new Date();const hh=String(now.getHours()).padStart(2,'0');const mm=String(now.getMinutes()).padStart(2,'0');
     const filename=`工事写真台帳バックアップ_${today()}_${hh}${mm}.json`;
@@ -816,9 +1047,7 @@
     if((await backupDirectoryHandle.queryPermission(opts))==='granted') return true;
     return (await backupDirectoryHandle.requestPermission(opts))==='granted';
   }
-  async function backup(){
-    const {blob,filename,failed}=await buildBackupPayload();
-    if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
+  async function saveToBackupFolderOrDownload(blob,filename){
     if(backupDirectoryHandle){
       try{
         if(!await ensureBackupDirectoryPermission()) throw new Error('保存先への書き込みが許可されていません。');
@@ -826,21 +1055,29 @@
         const writable=await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
-        alert(`「${backupDirectoryHandle.name}」に保存しました。\nファイル名: ${filename}`);
-        return;
+        return {savedTo:'folder'};
       }catch(e){
         console.warn('保存先フォルダへの保存に失敗',e);
-        alert(`保存先フォルダに保存できませんでした。${e?.message||''}\nダウンロードフォルダに保存します。`);
+        downloadBlob(blob,filename);
+        return {savedTo:'download',error:e};
       }
     }
     downloadBlob(blob,filename);
-    alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}`);
+    return {savedTo:'download'};
+  }
+  async function backup(){
+    const {blob,filename,failed}=await buildBackupPayload();
+    if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
+    const result=await saveToBackupFolderOrDownload(blob,filename);
+    if(result.savedTo==='folder')alert(`「${backupDirectoryHandle.name}」に保存しました。\nファイル名: ${filename}`);
+    else if(result.error)alert(`保存先フォルダに保存できませんでした。${result.error?.message||''}\nダウンロードフォルダに保存します。`);
+    else alert(`スマホの「ダウンロード」フォルダに保存しました。\nファイル名: ${filename}`);
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
   async function restore(file){
     if(!confirm('現在のデータをすべて置き換えて復元します。よろしいですか？'))return;
     const obj=JSON.parse(await file.text()); if(!Array.isArray(obj.projects)||!Array.isArray(obj.photos))throw new Error('バックアップ形式が正しくありません。');
-    await idbClear('projects');await idbClear('photos');
+    await idbClear('projects');await idbClear('photos');await idbClear('myBoards');
     let failedProjects=0,failedPhotos=0;
     for(const p of obj.projects){ try{ await idbPut('projects',p); }catch(e){ console.warn('現場データの復元に失敗',p&&p.id,e); failedProjects++; } }
     for(const p of obj.photos){
@@ -853,13 +1090,32 @@
         failedPhotos++;
       }
     }
+    if(Array.isArray(obj.myBoards)){
+      for(const mb of obj.myBoards){ try{ await idbPut('myBoards',mb); }catch(e){ console.warn('MY黒板の復元に失敗',mb&&mb.id,e); } }
+    }
     settings={...settings,...obj.settings};await idbPut('settings',{key:'main',value:settings});objectUrls.forEach(URL.revokeObjectURL);objectUrls.clear();currentProjectId='';await loadAll();
     if(failedProjects||failedPhotos)alert(`復元が完了しましたが、一部復元できなかったデータがあります（現場${failedProjects}件、写真${failedPhotos}枚）。バックアップファイルが壊れている可能性があります。\n復元できたのは、現場${obj.projects.length-failedProjects}件・写真${obj.photos.length-failedPhotos}枚です。`);
     else alert(`復元が完了しました。（現場${obj.projects.length}件・写真${obj.photos.length}枚）`);
   }
   function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false}
+  function applyTheme(theme){
+    const t=theme==='dark'?'dark':'light';
+    document.documentElement.dataset.theme=t;
+    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.setAttribute('content',t==='dark'?'#0e1015':'#0f766e');
+    const wrap=$('themeToggle'); if(wrap)wrap.querySelectorAll('button[data-theme]').forEach(b=>{
+      const active=b.dataset.theme===t;
+      b.classList.toggle('active',active);
+      b.classList.toggle('outline',!active);
+    });
+  }
+  async function setTheme(theme){
+    settings.theme=theme==='dark'?'dark':'light';
+    applyTheme(settings.theme);
+    localStorage.setItem('photoLedgerTheme',settings.theme);
+    await idbPut('settings',{key:'main',value:settings});
+  }
+  function loadSettingsUI(){$('settingCompany').value=settings.company||'';$('settingSubmitTo').value=settings.submitTo||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.submitTo=$('settingSubmitTo').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -879,10 +1135,10 @@
     free:{top:[{label:'項目1',field:null},{label:'項目2',field:null},{label:'項目3',field:null}],bottom:{label:'',field:null}}
   };
   const GENERIC_TEMPLATES={
-    muji:{label:'無地（文字なし）',rows:[
-      {weight:1,parts:[]}
+    muji:{label:'無地',rows:[
+      {weight:6,note:{key:'note',label:'',maxLines:9}}
     ]},
-    sunpou:{label:'寸法・略図確認',sketch:{fromRow:1,toRow:6,colPct:0.55,label:'略図'},rows:[
+    sunpou:{label:'寸法・略図確認',sketch:{fromRow:1,toRow:6,colPct:0.55,label:'略図',noteKey:'sketchNote',maxLines:8},rows:[
       {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
       {weight:1,parts:[{label:'工種',ctxField:'workType'}]},
       {weight:1,parts:[{label:'撮影月日',ctxField:'shotDate'}]},
@@ -899,7 +1155,7 @@
       {weight:1,parts:[{label:'撮影年月日',ctxField:'shotDate'}]},
       {weight:1,parts:[{label:'公認業者',ctxField:'company'}]}
     ]},
-    dekigata_keisoku:{label:'出来形計測',sketch:{fromRow:0,toRow:2,colPct:0.55,label:'略図'},rows:[
+    dekigata_keisoku:{label:'出来形計測',sketch:{fromRow:0,toRow:2,colPct:0.55,label:'略図',noteKey:'sketchNote',maxLines:5},rows:[
       {weight:1,parts:[{label:'工種',ctxField:'workType'}]},
       {weight:1,parts:[{label:'位置',ctxField:'location'}]},
       {weight:1,parts:[{label:'実測寸法（設計）',ctxField:null}]},
@@ -912,14 +1168,14 @@
       {weight:5,note:{key:'note',label:'状況説明',maxLines:6}},
       {weight:1,parts:[{label:'請負者',ctxField:'company'}]}
     ]},
-    kenchiku_tou:{label:'棟別・撮影箇所確認',sketch:{fromRow:2,toRow:2,colPct:0.42,label:'説明図'},rows:[
+    kenchiku_tou:{label:'棟別・撮影箇所確認',sketch:{fromRow:2,toRow:2,colPct:0.42,label:'説明図',noteKey:'sketchNote',maxLines:3},rows:[
       {weight:1,parts:[{label:'工事名称',ctxField:'projectName'}]},
       {weight:1,parts:[{label:'年月日',ctxField:'shotDate'},{label:'棟番号',ctxField:null}]},
-      {weight:2.5,parts:[{label:'撮影箇所（測点等）',ctxField:'location'}]},
+      {weight:2.5,note:{key:'shootPoint',label:'撮影箇所（測点等）',maxLines:3}},
       {weight:1,parts:[{label:'立会者',ctxField:null}]}
     ]},
     ky_katsudo:{label:'危険予知活動表',rows:[
-      {weight:1,parts:[{label:'',ctxField:null,placeholder:'例：8月10日　危険予知活動表'}]},
+      {weight:1,parts:[{label:'',ctxField:null,placeholder:''}]},
       {weight:1,parts:[{label:'グループの作業内容',ctxField:null}]},
       {weight:3,note:{key:'note',label:'危険のポイント',maxLines:4}},
       {weight:3,note:{key:'note2',label:'私達はこうする',maxLines:4}},
@@ -936,12 +1192,12 @@
       {weight:1,parts:[{label:'備考',ctxField:null}]},
       {weight:1,parts:[{label:'施工者',ctxField:'company'}]}
     ]},
-    dekigata_hyou:{label:'出来形管理（設計・実測）',rows:[
+    dekigata_hyou:{label:'出来形管理',rows:[
       {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
       {weight:1,parts:[{label:'工種',ctxField:'workType'},{label:'測点',ctxField:'location'}]},
       {weight:6,note:{key:'note',label:'設計値・実測値',maxLines:7}}
     ]},
-    kensa_kawa:{label:'検査確認（河川・道路）',rows:[
+    kensa_kawa:{label:'検査確認',rows:[
       {weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
       {weight:1,parts:[{label:'河川名・路線名',ctxField:null},{label:'地名',ctxField:null}]},
       {weight:1,parts:[{label:'検査年月日',ctxField:'shotDate'},{label:'天候',ctxField:null},{label:'位置No.',ctxField:null}]},
@@ -957,7 +1213,9 @@
   }
   function genericTemplateNoteKeys(key){
     const t=GENERIC_TEMPLATES[key]; if(!t)return [];
-    return t.rows.filter(r=>r.note).map(r=>r.note);
+    const list=t.rows.filter(r=>r.note).map(r=>r.note);
+    if(t.sketch&&t.sketch.noteKey)list.push({key:t.sketch.noteKey,label:'',maxLines:t.sketch.maxLines||6});
+    return list;
   }
   function escapeAttr(s){return escapeHtml(s);}
   function boardPreset(name,ph){
@@ -996,7 +1254,7 @@
     return b;
   }
   function setLegacyFieldsVisible(v){
-    const grid=$('boardLegacyFields'); if(grid)grid.style.display=v?'':'none';
+    const grid=$('boardLegacyFields'); if(grid)grid.style.display='none';
     const note=$('boardLegacyNote'); if(note)note.style.display=v?'':'none';
   }
   function clearGenericFieldsUI(){ const c=$('boardGenericFields'); if(c)c.innerHTML=''; }
@@ -1004,7 +1262,7 @@
     const container=$('boardGenericFields'); if(!container)return;
     const list=genericTemplateFieldList(key);
     const notes=genericTemplateNoteKeys(key);
-    let html='<div class="grid two">';
+    let html='<div class="grid two" style="display:none">';
     list.forEach(f=>{
       const val=(data.fields&&data.fields[f.id])||'';
       html+=`<div><label>${escapeHtml(f.label||'項目')}</label><input id="gf_${f.id}" value="${escapeAttr(val)}" placeholder="${escapeAttr(f.placeholder||'')}" /></div>`;
@@ -1065,6 +1323,75 @@
   function renderTemplatePicker(selectedKey){
     buildTemplatePickerOnce();
     updateTemplatePickerActive(selectedKey);
+  }
+  function switchBoardPickerTab(tabName){
+    const tabsWrap=$('boardPickerTabs'); if(tabsWrap)tabsWrap.querySelectorAll('button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tabName));
+    const tp=$('boardTemplatePicker'),mp=$('myBoardPicker'),hint=$('myBoardEmptyHint');
+    if(tabName==='my'){
+      if(tp)tp.style.display='none';
+      if(mp)mp.style.display='';
+      if(hint)hint.style.display=myBoards.length?'none':'block';
+    }else{
+      if(tp)tp.style.display='';
+      if(mp)mp.style.display='none';
+      if(hint)hint.style.display='none';
+    }
+  }
+  function myBoardThumbDataUrl(mb){
+    const c=document.createElement('canvas');c.width=240;c.height=160;const ctx=c.getContext('2d');
+    ctx.drawImage(makeBoardCanvas(mb.data,mb.strokes||[],240,160),0,0);
+    return c.toDataURL('image/png');
+  }
+  function updateMyBoardPickerActive(selId){
+    const wrap=$('myBoardPicker'); if(!wrap)return;
+    wrap.querySelectorAll('button[data-myboard]').forEach(b=>b.classList.toggle('active',b.dataset.myboard===selId));
+  }
+  function renderMyBoardPicker(){
+    const wrap=$('myBoardPicker'); if(!wrap)return;
+    const hint=$('myBoardEmptyHint');
+    if(!myBoards.length){
+      wrap.innerHTML='';
+      if(hint && $('boardPickerTabs').querySelector('[data-tab="my"]').classList.contains('active'))hint.style.display='block';
+      return;
+    }
+    if(hint)hint.style.display='none';
+    wrap.innerHTML=myBoards.map(mb=>`<button type="button" class="tmpl-thumb-btn" data-myboard="${mb.id}"><span class="myboard-del" data-del-myboard="${mb.id}" title="削除">×</span><img src="${myBoardThumbDataUrl(mb)}" alt="" /><span>${escapeHtml(mb.name)}</span></button>`).join('');
+    wrap.querySelectorAll('button[data-myboard]').forEach(btn=>{
+      btn.addEventListener('click',(e)=>{
+        if(e.target.closest('[data-del-myboard]'))return;
+        const mb=myBoards.find(x=>x.id===btn.dataset.myboard); if(!mb)return;
+        fillBoardControls(cloneBoardData(mb.data));
+        boardState.strokes=cloneBoardData(mb.strokes||[]);
+        updateMyBoardPickerActive(mb.id);
+        renderBoardEditor();
+        requestAnimationFrame(renderBoardEditor);
+      });
+    });
+    wrap.querySelectorAll('[data-del-myboard]').forEach(x=>{
+      x.addEventListener('click',async(e)=>{
+        e.stopPropagation();
+        const id=x.dataset.delMyboard;
+        const mb=myBoards.find(m=>m.id===id); if(!mb)return;
+        if(!confirm(`「${mb.name}」を削除しますか？`))return;
+        await idbDelete('myBoards',id);
+        myBoards=myBoards.filter(m=>m.id!==id);
+        renderMyBoardPicker();
+      });
+    });
+  }
+  async function saveMyBoard(){
+    const board=readBoardControls();
+    const name=prompt('この黒板の名前を付けてください（例：排水設備工事 標準）','');
+    if(name===null)return;
+    const trimmed=name.trim();
+    if(!trimmed){alert('名前を入力してください。');return;}
+    const mb={id:uid('myboard'),name:trimmed,template:board.template,data:board,strokes:cloneBoardData(boardState.strokes||[]),createdAt:Date.now(),updatedAt:Date.now()};
+    await idbPut('myBoards',mb);
+    myBoards.unshift(mb);
+    renderMyBoardPicker();
+    switchBoardPickerTab('my');
+    updateMyBoardPickerActive(mb.id);
+    alert('MY黒板に保存しました。手書きの内容も一緒に保存されています。次回からは「MY黒板」タブから選ぶだけで使えます。');
   }
   function cloneBoardData(data){ return JSON.parse(JSON.stringify(data)); }
   function fillBoardControls(data){
@@ -1147,12 +1474,12 @@
     let size=Math.max(minSize,Math.round(baseSize));
     let lines=[];
     while(size>=minSize){
-      ctx.font='700 '+size+'px monospace';
+      ctx.font=CHALK_FONT_BOLD(size);
       lines=wrapTextLines(ctx,text,maxW);
       if(lines.length<=maxLines)return{size,lines};
       size--;
     }
-    ctx.font='700 '+minSize+'px monospace';
+    ctx.font=CHALK_FONT_BOLD(minSize);
     lines=wrapTextLines(ctx,text,maxW);
     return{size:minSize,lines};
   }
@@ -1180,7 +1507,7 @@
     el.style.top=m.noteY+'px';
     el.style.width=m.noteW+'px';
     el.style.height=(m.noteLineH*m.noteMaxLines)+'px';
-    el.style.backgroundImage=`repeating-linear-gradient(to bottom, transparent 0, transparent ${m.noteLineH-1}px, rgba(255,255,255,.4) ${m.noteLineH-1}px, rgba(255,255,255,.4) ${m.noteLineH}px)`;
+    el.style.backgroundImage='none';
     el.textContent='';
     el.style.display=data&&data.enabled!==false?'block':'none';
     const rm=getBoardLayout(BOARD_RENDER_W,BOARD_RENDER_H);
@@ -1200,17 +1527,165 @@
   }
   function fitFontSizePx(ctx,text,maxW,baseSize,minSize){
     let size=Math.max(minSize,Math.round(baseSize));
-    ctx.font=size+'px sans-serif';
+    ctx.font=CHALK_FONT_BOLD(size);
     while(size>minSize && ctx.measureText(String(text||'')).width>maxW){
-      size--; ctx.font=size+'px sans-serif';
+      size--; ctx.font=CHALK_FONT_BOLD(size);
     }
     return size;
   }
+  const CHALK_WHITE='rgba(250,250,245,0.97)';
+  const CHALK_LINE='rgba(255,255,255,0.72)';
+  const CHALK_GLOW='rgba(255,255,255,0.4)';
+  function CHALK_FONT_BOLD(size){return '700 '+size+'px "Yu Gothic","Hiragino Sans","Noto Sans JP",sans-serif';}
+  const _chalkTextureCache={};
+  function createSeededRandom(seed){
+    let s=(seed>>>0)||1;
+    return function(){
+      s=(s*1664525+1013904223)>>>0;
+      return s/4294967296;
+    };
+  }
+  function fillSoftEllipse(ctx,x,y,rx,ry,rotation,colorStart,colorEnd){
+    ctx.save();
+    ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(rx,ry);
+    const rg=ctx.createRadialGradient(0,0,0,0,0,1);
+    rg.addColorStop(0,colorStart);rg.addColorStop(1,colorEnd);
+    ctx.fillStyle=rg;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+  function getChalkTexture(w,h){
+    const key=w+'x'+h;
+    if(_chalkTextureCache[key])return _chalkTextureCache[key];
+    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
+    const rand=createSeededRandom(((w*73856093)^(h*19349663)^0x9e3779b9)>>>0);
+    const minSide=Math.min(w,h);
+
+    const base=cx.createLinearGradient(0,0,w,h);
+    base.addColorStop(0,'#5f736b');
+    base.addColorStop(0.32,'#566a62');
+    base.addColorStop(0.68,'#4d6159');
+    base.addColorStop(1,'#62766e');
+    cx.fillStyle=base;cx.fillRect(0,0,w,h);
+
+    const verticalTone=cx.createLinearGradient(0,0,0,h);
+    verticalTone.addColorStop(0,'rgba(255,255,255,0.042)');
+    verticalTone.addColorStop(0.24,'rgba(255,255,255,0.012)');
+    verticalTone.addColorStop(0.55,'rgba(255,255,255,0)');
+    verticalTone.addColorStop(1,'rgba(0,0,0,0.072)');
+    cx.fillStyle=verticalTone;cx.fillRect(0,0,w,h);
+
+    const sideTone=cx.createLinearGradient(0,0,w,0);
+    sideTone.addColorStop(0,'rgba(255,255,255,0.022)');
+    sideTone.addColorStop(0.48,'rgba(255,255,255,0)');
+    sideTone.addColorStop(0.82,'rgba(0,0,0,0.016)');
+    sideTone.addColorStop(1,'rgba(0,0,0,0.045)');
+    cx.fillStyle=sideTone;cx.fillRect(0,0,w,h);
+
+    for(let i=0;i<18;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.16+rand()*0.22)*minSide;
+      const ry=rx*(0.36+rand()*0.44);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(255,255,255,'+(0.014+rand()*0.018).toFixed(3)+')','rgba(255,255,255,0)');
+    }
+
+    for(let i=0;i<9;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.22+rand()*0.24)*minSide;
+      const ry=rx*(0.42+rand()*0.42);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(255,255,255,'+(0.028+rand()*0.024).toFixed(3)+')','rgba(255,255,255,0)');
+    }
+
+    for(let i=0;i<7;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.12+rand()*0.18)*minSide;
+      const ry=rx*(0.45+rand()*0.35);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(255,255,255,'+(0.012+rand()*0.015).toFixed(3)+')','rgba(255,255,255,0)');
+    }
+
+    for(let i=0;i<12;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.14+rand()*0.2)*minSide;
+      const ry=rx*(0.32+rand()*0.4);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(0,0,0,'+(0.01+rand()*0.018).toFixed(3)+')','rgba(0,0,0,0)');
+    }
+
+    for(let i=0;i<11;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.09+rand()*0.13)*minSide;
+      const ry=rx*(0.55+rand()*0.45);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(240,244,239,'+(0.01+rand()*0.014).toFixed(3)+')','rgba(240,244,239,0)');
+    }
+
+    for(let i=0;i<58;i++){
+      const angle=rand()*Math.PI;
+      const x1=rand()*w;
+      const y1=rand()*h;
+      const len=(0.025+rand()*0.085)*w;
+      cx.save();cx.translate(x1,y1);cx.rotate(angle);
+      cx.strokeStyle='rgba(255,255,255,'+(0.012+rand()*0.025).toFixed(3)+')';
+      cx.lineWidth=0.35+rand()*0.75;
+      cx.beginPath();cx.moveTo(-len/2,0);cx.lineTo(len/2,0);cx.stroke();
+      cx.restore();
+    }
+
+    for(let i=0;i<28;i++){
+      const angle=rand()*Math.PI;
+      const cx0=rand()*w,cy0=rand()*h;
+      const len=(0.045+rand()*0.1)*w;
+      const wid=0.45+rand()*1.0;
+      cx.save();cx.translate(cx0,cy0);cx.rotate(angle);
+      const rg=cx.createLinearGradient(-len/2,0,len/2,0);
+      rg.addColorStop(0,'rgba(255,255,255,0)');
+      rg.addColorStop(0.5,'rgba(255,255,255,'+(0.014+rand()*0.022).toFixed(3)+')');
+      rg.addColorStop(1,'rgba(255,255,255,0)');
+      cx.fillStyle=rg;cx.fillRect(-len/2,-wid/2,len,wid);
+      cx.restore();
+    }
+
+    const dustClusters=6;
+    for(let i=0;i<dustClusters;i++){
+      const x=rand()*w;
+      const y=rand()*h;
+      const rx=(0.16+rand()*0.22)*minSide;
+      const ry=rx*(0.5+rand()*0.35);
+      fillSoftEllipse(cx,x,y,rx,ry,rand()*Math.PI,'rgba(255,255,255,'+(0.012+rand()*0.014).toFixed(3)+')','rgba(255,255,255,0)');
+    }
+
+    const dotCount=Math.round(w*h*0.03);
+    for(let i=0;i<dotCount;i++){
+      const x=rand()*w,y=rand()*h,v=rand();
+      if(v<0.56){cx.fillStyle='rgba(255,255,255,'+(rand()*0.045).toFixed(3)+')';}
+      else if(v<0.9){cx.fillStyle='rgba(0,0,0,'+(rand()*0.028).toFixed(3)+')';}
+      else{cx.fillStyle='rgba(222,228,223,'+(0.008+rand()*0.012).toFixed(3)+')';}
+      cx.fillRect(x,y,1,1);
+    }
+
+    const edgeShade=cx.createRadialGradient(w/2,h/2,minSide*0.25,w/2,h/2,Math.max(w,h)*0.79);
+    edgeShade.addColorStop(0,'rgba(0,0,0,0)');
+    edgeShade.addColorStop(0.76,'rgba(0,0,0,0.028)');
+    edgeShade.addColorStop(1,'rgba(0,0,0,0.11)');
+    cx.fillStyle=edgeShade;cx.fillRect(0,0,w,h);
+
+    const bottomShade=cx.createLinearGradient(0,0,0,h);
+    bottomShade.addColorStop(0,'rgba(0,0,0,0)');
+    bottomShade.addColorStop(0.78,'rgba(0,0,0,0.012)');
+    bottomShade.addColorStop(1,'rgba(0,0,0,0.036)');
+    cx.fillStyle=bottomShade;cx.fillRect(0,0,w,h);
+
+    _chalkTextureCache[key]=c;
+    return c;
+  }
   function drawLegacyBoardFace(ctx,w,h,data){
     const m=getBoardLayout(w,h);
-    ctx.save();ctx.fillStyle='#0b6d27';ctx.fillRect(0,0,w,h);
-    ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
-    const rows=data.top||[];ctx.fillStyle='#fff';
+    ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
+    ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
+    ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
+    const rows=data.top||[];ctx.fillStyle=CHALK_WHITE;
     const baseRowFont=m.noteFontSize;
     const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
     const labelMaxW=Math.max(10,m.labelW-14);
@@ -1219,27 +1694,28 @@
       const yy=m.innerY+i*m.rowH;ctx.strokeRect(m.innerX,yy,m.innerW,m.rowH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,yy);ctx.lineTo(m.innerX+m.labelW,yy+m.rowH);ctx.stroke();
       const row=rows[i]||{label:'',value:''};ctx.textBaseline='middle';
       const labelSize=fitFontSizePx(ctx,row.label,labelMaxW,baseRowFont,minRowFont);
-      ctx.font=labelSize+'px sans-serif';ctx.fillText(row.label||'',m.innerX+10,yy+m.rowH/2);
+      ctx.font=CHALK_FONT_BOLD(labelSize);ctx.fillText(row.label||'',m.innerX+10,yy+m.rowH/2);
       const valueSize=fitFontSizePx(ctx,row.value,valueMaxW,baseRowFont,minRowFont);
-      ctx.font=valueSize+'px sans-serif';ctx.fillText(row.value||'',m.innerX+m.labelW+10,yy+m.rowH/2);
+      ctx.font=CHALK_FONT_BOLD(valueSize);ctx.fillText(row.value||'',m.innerX+m.labelW+10,yy+m.rowH/2);
     }
     ctx.strokeRect(m.innerX,m.bodyY,m.innerW,m.bodyH);
     ctx.textBaseline='top';
     const noteFit=fitNoteFont(ctx,data.note||'',m.noteW,m.noteMaxLines,m.noteFontSize,10);
-    ctx.font='700 '+noteFit.size+'px monospace';
+    ctx.font=CHALK_FONT_BOLD(noteFit.size);
     for(let i=0;i<noteFit.lines.length&&i<m.noteMaxLines;i++)ctx.fillText(noteFit.lines[i],m.noteX,m.noteY+i*m.noteLineH);
     ctx.strokeRect(m.innerX,m.by,m.innerW,m.bottomH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,m.by);ctx.lineTo(m.innerX+m.labelW,m.by+m.bottomH);ctx.stroke();ctx.textBaseline='middle';
     const bLabelSize=fitFontSizePx(ctx,data.bottom&&data.bottom.label,labelMaxW,baseRowFont,minRowFont);
-    ctx.font=bLabelSize+'px sans-serif';ctx.fillText(data.bottom&&data.bottom.label||'',m.innerX+10,m.by+m.bottomH/2);
+    ctx.font=CHALK_FONT_BOLD(bLabelSize);ctx.fillText(data.bottom&&data.bottom.label||'',m.innerX+10,m.by+m.bottomH/2);
     const bValueSize=fitFontSizePx(ctx,data.bottom&&data.bottom.value,valueMaxW,baseRowFont,minRowFont);
-    ctx.font=bValueSize+'px sans-serif';ctx.fillText(data.bottom&&data.bottom.value||'',m.innerX+m.labelW+10,m.by+m.bottomH/2);ctx.restore();
+    ctx.font=CHALK_FONT_BOLD(bValueSize);ctx.fillText(data.bottom&&data.bottom.value||'',m.innerX+m.labelW+10,m.by+m.bottomH/2);ctx.restore();
   }
   function drawGenericBoardFace(ctx,w,h,data){
     const t=GENERIC_TEMPLATES[data.template]; if(!t)return;
     const pad=Math.max(8,Math.round(w*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
-    ctx.save();ctx.fillStyle='#0b6d27';ctx.fillRect(0,0,w,h);
-    ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(pad,pad,w-pad*2,h-pad*2);
+    ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
+    ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
+    ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(pad,pad,w-pad*2,h-pad*2);
     const totalWeight=t.rows.reduce((s,r)=>s+(r.weight||1),0);
     let y=innerY;
     const rowsGeom=t.rows.map(r=>{const rh=innerH*((r.weight||1)/totalWeight);const g={row:r,y,h:rh};y+=rh;return g;});
@@ -1251,14 +1727,14 @@
     rowsGeom.forEach((g,ri)=>{
       const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
       const rowRightX=inSketchRange?sketchColX:innerX+innerW;
-      ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(innerX,g.y,rowRightX-innerX,g.h);
-      ctx.fillStyle='#fff';
+      ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(innerX,g.y,rowRightX-innerX,g.h);
+      ctx.fillStyle=CHALK_WHITE;
       if(g.row.note){
         const key=g.row.note.key;
         const text=data[key]||'';
         const padX=8,padY=6;
         const lblSize=Math.max(11,Math.round(baseFont*0.85));
-        ctx.font='700 '+lblSize+'px sans-serif';ctx.textBaseline='top';
+        ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
         if(g.row.note.label)ctx.fillText(g.row.note.label,innerX+padX,g.y+padY);
         const maxLines=g.row.note.maxLines||4;
         const textTop=g.y+padY+(g.row.note.label?lblSize+4:0);
@@ -1266,7 +1742,7 @@
         const lineH=textH/maxLines;
         const noteW=rowRightX-innerX-padX*2;
         const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(14,Math.round(lineH*0.85)),10);
-        ctx.font='700 '+fit.size+'px monospace';
+        ctx.font=CHALK_FONT_BOLD(fit.size);
         for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],innerX+padX,textTop+i*lineH);
       }else if(g.row.parts){
         const parts=g.row.parts;
@@ -1279,14 +1755,14 @@
           let valX=x+8;
           if(p.label){
             const labelSize=fitFontSizePx(ctx,p.label,partW*0.4,baseFont,minFont);
-            ctx.font=labelSize+'px sans-serif';
+            ctx.font=CHALK_FONT_BOLD(labelSize);
             ctx.fillText(p.label,x+8,g.y+g.h/2);
             valX=x+partW*0.42;
           }
           if(val){
             const valMaxW=Math.max(10,x+partW-valX-8);
             const valSize=fitFontSizePx(ctx,val,valMaxW,baseFont,minFont);
-            ctx.font=valSize+'px sans-serif';
+            ctx.font=CHALK_FONT_BOLD(valSize);
             ctx.fillText(val,valX,g.y+g.h/2);
           }
           x+=partW;
@@ -1295,9 +1771,22 @@
     });
     if(sketch){
       const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
-      ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
-      ctx.font='700 '+Math.max(12,Math.round(innerH*0.035))+'px sans-serif';ctx.textBaseline='top';ctx.fillStyle='#fff';
-      ctx.fillText(sketch.label||'略図',sketchColX+10,sy+6);
+      ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
+      const padX=8,padY=6;
+      const lblSize=Math.max(16,Math.round(innerH*0.052));
+      ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE;
+      ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
+      if(sketch.noteKey){
+        const text=data[sketch.noteKey]||'';
+        const maxLines=sketch.maxLines||6;
+        const textTop=sy+padY+lblSize+4;
+        const textH=Math.max(10,ey-textTop-padY);
+        const lineH=textH/maxLines;
+        const noteW=(innerX+innerW)-sketchColX-padX*2;
+        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(13,Math.round(lineH*0.8)),10);
+        ctx.font=CHALK_FONT_BOLD(fit.size);
+        for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],sketchColX+padX,textTop+i*lineH);
+      }
     }
     ctx.restore();
   }
@@ -1338,6 +1827,11 @@
     clampBoardZoom();
     applyBoardZoomTransform();
   }
+  function panBoardZoom(dxClient,dyClient){
+    boardZoom.tx+=dxClient; boardZoom.ty+=dyClient;
+    clampBoardZoom();
+    applyBoardZoomTransform();
+  }
   function resetBoardZoom(){boardZoom.scale=1;boardZoom.tx=0;boardZoom.ty=0;applyBoardZoomTransform();}
   function renderBoardEditor(){
     const vp=$('boardStageViewport');const w=Math.max(280,Math.min(vp.clientWidth||window.innerWidth-40,900));boardState.displayW=w;boardState.displayH=Math.round(w*(2/3));
@@ -1353,13 +1847,22 @@
     }
     renderBoardFieldHotspots();
   }
+  function setApplyProjectBtnState(applied){
+    const btn=$('applyProjectToBoardBtn'); if(!btn)return;
+    btn.classList.toggle('active',applied);
+    btn.textContent=applied?'✓ 現在の現場情報を反映中（もう一度押すと戻す）':'現在の現場情報を黒板へ反映';
+  }
   async function openBoardDialog(ph){
     $('boardPhotoId').value=ph.id;boardState.photoId=ph.id;boardState.image=await loadImageElement(ph.blob);
     boardState.strokes=ph.boardData&&ph.boardData.scope==='board'?cloneBoardData(ph.boardData.strokes||[]):[];
     const savedBoard=ph.boardData&&ph.boardData.board?ph.boardData.board:boardPreset('tajima',ph);const board=applyProjectDefaultsToBoard(savedBoard,ph,false);fillBoardControls(Object.assign({enabled:!(ph.boardData&&ph.boardData.enabled===false)},board));
     resetBoardZoom();
     boardState.interactionMode='text';
+    boardState.projectInfoApplied=false;boardState.beforeApplySnapshot=null;setApplyProjectBtnState(false);
     const modeWrap=$('boardModeToggle'); if(modeWrap)modeWrap.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode==='text'));
+    const toolBar=$('drawToolBar'); if(toolBar)toolBar.classList.remove('show');
+    switchBoardPickerTab('template');
+    renderMyBoardPicker();
     $('boardDialog').showModal();requestAnimationFrame(renderBoardEditor);
   }
   async function saveBoardEdits(){
@@ -1369,6 +1872,29 @@
     const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。手書きは黒板と一緒に拡大・縮小されます。');
+  }
+  async function replacePhotoImage(id,file){
+    const ph=photos.find(x=>x.id===id); if(!ph)return;
+    if(!confirm('写真を差し替えます。記入済みの内容・黒板の文字はそのまま引き継がれます。よろしいですか？'))return;
+    const newBlob=await compressImage(file,1800,1400,.86);
+    ph.blob=newBlob;
+    if(ph.boardData && ph.boardData.scope==='board' && ph.boardData.enabled!==false){
+      const img=await loadImageElement(newBlob);
+      const full=document.createElement('canvas');full.width=img.naturalWidth;full.height=img.naturalHeight;const ctx=full.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(img,0,0,full.width,full.height);
+      const board=ph.boardData.board;const strokes=ph.boardData.strokes||[];
+      const boardCanvas=makeBoardCanvas(board,strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m');
+      ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h);
+      const editedBlob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の再作成に失敗しました。')),'image/jpeg',0.92));
+      ph.editedBlob=editedBlob;ph.editedUpdatedAt=Date.now();
+    }else{
+      ph.editedBlob=null;ph.editedUpdatedAt=0;
+    }
+    ph.updatedAt=Date.now();
+    await idbPut('photos',ph);
+    revokePhotoUrl(id);
+    renderPhotos();
+    alert('写真を差し替えました。');
   }
   async function resetEditedPhoto(){
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph)return;if(!confirm('黒板付き写真と手書きを消して、元写真に戻しますか？'))return;
@@ -1412,6 +1938,10 @@
         g.row.parts.forEach((p,pi)=>{ rects.push({kind:'text',targetId:'gf_r'+ri+'_'+pi,x:innerX+pi*partW,y:g.y,w:partW,h:g.h}); });
       }
     });
+    if(sketch&&sketch.noteKey){
+      const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
+      rects.push({kind:'note',targetId:'gn_'+sketch.noteKey,x:sketchColX,y:sy,w:(innerX+innerW)-sketchColX,h:ey-sy});
+    }
     return rects;
   }
   function currentBoardFieldRects(){
@@ -1460,20 +1990,20 @@
   }
 
   const boardPointers=new Map();
-  let boardPinchPrevDist=null,boardSuppressDraw=false;
+  let boardSuppressDraw=false,boardPinchPrevDist=null,boardPinchPrevMid=null;
   function pointerDist(p1,p2){return Math.hypot(p1.x-p2.x,p1.y-p2.y)}
   function pointerMid(p1,p2){return{x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2}}
   function onBoardPointerDown(ev){
     if(!$('boardDialog').open)return;
-    ev.preventDefault();
     boardPointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
     if(boardPointers.size===1&&!boardSuppressDraw&&boardState.interactionMode==='draw'){
+      ev.preventDefault();
       boardState.activeDrawPointerId=ev.pointerId;
       startDraw(ev);
-    }else if(boardPointers.size===2){
+    }else if(boardPointers.size>=2){
       if(boardState.drawing){boardState.strokes.pop();boardState.drawing=false;boardState.currentStroke=null;renderBoardEditor()}
       boardState.activeDrawPointerId=null;boardSuppressDraw=true;
-      const pts=[...boardPointers.values()];boardPinchPrevDist=pointerDist(pts[0],pts[1]);
+      const pts=[...boardPointers.values()];boardPinchPrevDist=pointerDist(pts[0],pts[1]);boardPinchPrevMid=pointerMid(pts[0],pts[1]);
     }
   }
   function onBoardPointerMove(ev){
@@ -1485,9 +2015,10 @@
       const d=pointerDist(pts[0],pts[1]),mid=pointerMid(pts[0],pts[1]);
       if(boardPinchPrevDist){
         const factor=d/boardPinchPrevDist;
-        setBoardZoom(boardZoom.scale*factor,mid.x,mid.y);
+        setBoardZoom(boardZoom.scale*factor,boardPinchPrevMid.x,boardPinchPrevMid.y);
+        panBoardZoom(mid.x-boardPinchPrevMid.x,mid.y-boardPinchPrevMid.y);
       }
-      boardPinchPrevDist=d;
+      boardPinchPrevDist=d;boardPinchPrevMid=mid;
     }else if(ev.pointerId===boardState.activeDrawPointerId){
       moveDraw(ev);
     }
@@ -1495,7 +2026,7 @@
   function onBoardPointerUp(ev){
     boardPointers.delete(ev.pointerId);
     if(ev.pointerId===boardState.activeDrawPointerId){endDraw();boardState.activeDrawPointerId=null}
-    if(boardPointers.size<2)boardPinchPrevDist=null;
+    if(boardPointers.size<2){boardPinchPrevDist=null;boardPinchPrevMid=null;}
     if(boardPointers.size===0)boardSuppressDraw=false;
   }
 
@@ -1503,7 +2034,6 @@
 
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
-  $('editProjectBtn').addEventListener('click',()=>{const p=currentProject();if(!p)return alert('現場を選択してください。');openProjectDialog(p)});
   $('projectForm').addEventListener('submit',saveProject);
   $('photoContent').addEventListener('input',e=>{
     const limited=limitToElevenLines(e.target.value);
@@ -1522,7 +2052,24 @@
     fillBoardControls(preset);
     renderBoardEditor();
   });
-  $('applyProjectToBoardBtn').addEventListener('click',()=>{ const ph=photos.find(x=>x.id===$('boardPhotoId').value); const updated=applyProjectDefaultsToBoard(readBoardControls(),ph,true); fillBoardControls(updated); renderBoardEditor(); });
+  $('applyProjectToBoardBtn').addEventListener('click',()=>{
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);
+    if(!boardState.projectInfoApplied){
+      boardState.beforeApplySnapshot=cloneBoardData(readBoardControls());
+      const updated=applyProjectDefaultsToBoard(readBoardControls(),ph,true);
+      fillBoardControls(updated);
+      boardState.projectInfoApplied=true;
+      setApplyProjectBtnState(true);
+    }else{
+      if(boardState.beforeApplySnapshot)fillBoardControls(cloneBoardData(boardState.beforeApplySnapshot));
+      boardState.projectInfoApplied=false;
+      boardState.beforeApplySnapshot=null;
+      setApplyProjectBtnState(false);
+    }
+    renderBoardEditor();
+  });
+  $('boardPickerTabs').addEventListener('click',(e)=>{ const b=e.target.closest('button[data-tab]'); if(!b)return; switchBoardPickerTab(b.dataset.tab); });
+  $('saveMyBoardBtn').addEventListener('click',saveMyBoard);
   $('undoDrawBtn').addEventListener('click',()=>{ boardState.strokes.pop(); renderBoardEditor(); });
   $('clearDrawBtn').addEventListener('click',()=>{ boardState.strokes=[]; renderBoardEditor(); });
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
@@ -1534,9 +2081,22 @@
   $('boardModeToggle').addEventListener('click',(e)=>{
     const btn=e.target.closest('button[data-mode]'); if(!btn)return;
     closeBoardInlineEditor();
-    boardState.interactionMode=btn.dataset.mode;
+    const mode=btn.dataset.mode;
+    boardState.interactionMode = mode==='text' ? 'text' : 'draw';
+    $('drawMode').value = mode==='erase' ? 'erase' : 'draw';
     $('boardModeToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
+    const toolBar=$('drawToolBar'); if(toolBar)toolBar.classList.toggle('show',mode!=='text');
     renderBoardFieldHotspots();
+  });
+  $('drawColorSwatches').addEventListener('click',(e)=>{
+    const btn=e.target.closest('button[data-color]'); if(!btn)return;
+    $('drawColor').value=btn.dataset.color;
+    $('drawColorSwatches').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
+  });
+  $('drawWidthIcons').addEventListener('click',(e)=>{
+    const btn=e.target.closest('button[data-width]'); if(!btn)return;
+    $('drawWidth').value=btn.dataset.width;
+    $('drawWidthIcons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
   });
   window.addEventListener('resize',()=>{ if($('boardDialog').open) renderBoardEditor(); });
   window.addEventListener('orientationchange',()=>{ if($('boardDialog').open) setTimeout(renderBoardEditor,80); });
@@ -1557,11 +2117,19 @@
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
-  $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);
+  $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);
   $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
+  $('themeToggle').addEventListener('click',e=>{ const b=e.target.closest('button[data-theme]'); if(!b)return; setTheme(b.dataset.theme); });
 
   $('projectList').addEventListener('click',async e=>{
-    const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const p=projects.find(x=>x.id===id);if(!p)return;
+    const b=e.target.closest('button[data-action]');
+    if(!b){
+      const card=e.target.closest('.project-item'); if(!card)return;
+      const id=card.dataset.id; if(!id||id===currentProjectId)return;
+      currentProjectId=id; updateCurrentLabel(); renderProjects();
+      return;
+    }
+    const id=b.dataset.id;const p=projects.find(x=>x.id===id);if(!p)return;
     if(b.dataset.action==='select-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('photos')}
     if(b.dataset.action==='edit-project')openProjectDialog(p);
     if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
@@ -1572,7 +2140,6 @@
   });
   $('photoList').addEventListener('click',async e=>{
     const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
-    if(b.dataset.action==='edit-photo')openPhotoDialog(ph);
     if(b.dataset.action==='edit-board')await openBoardDialog(ph);
     if(b.dataset.action==='edit-content'){
       openPhotoDialog(ph);
@@ -1582,6 +2149,14 @@
     if(b.dataset.action==='up-photo')await movePhoto(id,-1);
     if(b.dataset.action==='down-photo')await movePhoto(id,1);
     if(b.dataset.action==='delete-photo'){if(!confirm('この写真を削除しますか？'))return;revokePhotoUrl(id);await idbDelete('photos',id);photos=photos.filter(x=>x.id!==id);const arr=currentPhotos();for(let i=0;i<arr.length;i++){arr[i].order=i;await idbPut('photos',arr[i])}renderPhotos();renderProjects()}
+    if(b.dataset.action==='replace-photo'){replaceTargetPhotoId=id;$('replaceInput').click()}
+  });
+  $('replaceInput').addEventListener('change',async e=>{
+    try{
+      const file=e.target.files[0]; if(!file||!replaceTargetPhotoId)return;
+      await replacePhotoImage(replaceTargetPhotoId,file);
+    }catch(err){console.error(err);alert('写真の差し替えに失敗しました。')}
+    finally{e.target.value='';replaceTargetPhotoId=''}
   });
 
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').style.display='block'});

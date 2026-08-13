@@ -66,9 +66,16 @@
     /* A4 layout */
     .sheet{width:210mm;height:297mm;background:#fff;color:#111;padding:9mm 10mm 8mm;box-sizing:border-box;position:relative;page-break-after:always;overflow:hidden;font-family:"Yu Gothic",Meiryo,sans-serif}
     .sheet:last-child{page-break-after:auto}
-    .cover-sheet{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-    .cover-title{font-size:28pt;font-weight:700;letter-spacing:.35em;margin-bottom:30mm}
-    .cover-table{width:155mm;border-collapse:collapse;font-size:12pt}.cover-table th,.cover-table td{border:1px solid #333;padding:5mm 4mm;text-align:left}.cover-table th{width:40mm;background:#f5f5f5;font-weight:600}.cover-company{margin-top:25mm;font-size:15pt;font-weight:700}
+    .cover-sheet{display:flex;flex-direction:column;justify-content:center;padding:0 22mm}
+    .cover-title{font-size:26pt;font-weight:700;letter-spacing:.5em;text-align:center;margin:0 auto 26mm;padding-bottom:2mm;border-bottom:1.2pt solid #000;width:110mm;text-indent:.5em}
+    .cover-form{width:100%;font-size:12.5pt;border-collapse:collapse}
+    .cover-form td{padding:0 0 12mm;vertical-align:bottom;white-space:nowrap}
+    .cover-form td.lbl{width:34mm;font-weight:600;letter-spacing:.35em;text-align:center}
+    .cover-form td.val{border-bottom:1pt solid #000;padding-left:3mm;padding-right:3mm}
+    .cover-form td.sub{width:16mm;text-align:center;border-bottom:1pt solid #000}
+    .cover-form .fill{display:inline-block;min-width:6mm;text-align:center}
+    .cover-form .grow{width:auto}
+    .cover-form td.gap{padding:0 0 12mm}
     .ledger-head{height:10mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:1px solid #777;margin-bottom:2mm;font-size:9pt}
     .ledger-head .title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.12em}.ledger-head .page{text-align:right}
     .photo-row-print{height:84.5mm;display:grid;grid-template-columns:118mm 1fr;column-gap:3mm;padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
@@ -264,7 +271,7 @@
         <div class="btn-row" style="margin-top:10px">
           <button class="btn outline full" id="excelBtn">📊 Excelで出力（編集可）</button>
         </div>
-        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大300枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsx）を作成します。パソコンやスマホのExcelアプリで開いて、そのまま編集できます。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。写真の枚数が多いと、作成に少し時間がかかることがあります。</p>
+        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大300枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsm）を作成します。パソコンのExcelで開くと、元のテンプレートと同じように「余白」部分の右クリックから写真の取り込みなどの操作ができます（マクロを有効にする必要があります）。パソコンやスマホのExcelアプリで開いて、そのまま編集できます。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。写真の枚数が多いと、作成に少し時間がかかることがあります。</p>
       </div>
       <div id="outputStatus" class="status"></div>
       <div class="card" id="previewCard" style="display:none">
@@ -466,6 +473,7 @@
 <div id="printRoot"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -833,11 +841,21 @@
     const data=[]; for(const ph of arr)data.push({...ph,dataUrl:await blobToDataURL(getDisplayBlob(ph))});
     let html='';
     if($('coverSetting').value==='yes'){
-      const period=[p.start?eraDate(p.start):'',p.end?eraDate(p.end):''].filter(Boolean).join(' ～ ');
-      const optionalCreated = p.createdDate ? `<tr><th>作成年月日</th><td>${escapeHtml(eraDate(p.createdDate))}</td></tr>` : '';
-      const optionalCompany = p.company ? `<div class="cover-company">${escapeHtml(p.company)}</div>` : '';
-      html+=`<section class="sheet cover-sheet"><div class="cover-title">工 事 写 真 帳</div><table class="cover-table">
-      <tr><th>工事名</th><td>${escapeHtml(p.name)}</td></tr><tr><th>工事場所</th><td>${escapeHtml(p.address||'')}</td></tr><tr><th>提出先</th><td>${escapeHtml(p.submitTo||'')}</td></tr><tr><th>工事番号</th><td>${escapeHtml(p.number||'')}</td></tr><tr><th>工期</th><td>${escapeHtml(period)}</td></tr><tr><th>現場担当者</th><td>${escapeHtml(p.manager||'')}</td></tr>${optionalCreated}</table>${optionalCompany}</section>`;
+      const cd=reiwaParts(p.createdDate)||reiwaParts(today());
+      const sp=reiwaParts(p.start),ep=reiwaParts(p.end);
+      const num=(p.number||'').replace(/^第/,'').replace(/号$/,'');
+      const cell=v=>`<span class="fill">${escapeHtml(v==null||v===''?'':String(v))}</span>`;
+      html+=`<section class="sheet cover-sheet">
+        <div class="cover-title">工 事 写 真 帳</div>
+        <table class="cover-form">
+          <tr><td class="lbl">工事番号</td><td class="val" colspan="3">令和 ${cell(cd?cd.year:'')} 年度　　　工第 ${cell(num)} 号</td></tr>          <tr><td class="lbl">工 事 名</td><td class="val" colspan="3">${escapeHtml(p.name||'')}</td></tr>
+          <tr><td class="lbl">工事箇所</td><td class="val" colspan="3">${escapeHtml(p.address||'')}</td></tr>
+          <tr><td class="lbl">工　　期</td><td class="val" colspan="3">着 手　　令和 ${cell(sp?sp.year:'')} 年 ${cell(sp?sp.month:'')} 月 ${cell(sp?sp.day:'')} 日</td></tr>
+          <tr><td class="lbl"></td><td class="val" colspan="3">竣 工　　令和 ${cell(ep?ep.year:'')} 年 ${cell(ep?ep.month:'')} 月 ${cell(ep?ep.day:'')} 日</td></tr>
+          <tr><td colspan="4" style="padding-bottom:30mm"></td></tr>
+          <tr><td class="lbl">工事施工者</td><td class="val" colspan="3" style="padding-bottom:0">${escapeHtml(p.company||'')}</td></tr>
+        </table>
+      </section>`;
     }
     const chunks=[];for(let i=0;i<data.length;i+=3)chunks.push(data.slice(i,i+3));
     chunks.forEach((chunk,pi)=>{
@@ -910,6 +928,35 @@
   function albumSheetName(idx){return idx===0?'アルバム':`アルバム (${idx+1})`;}
   const ALBUM_SLOTS_PER_SHEET=3,ALBUM_SHEET_COUNT=100,ALBUM_MAX_PHOTOS=ALBUM_SLOTS_PER_SHEET*ALBUM_SHEET_COUNT;
   const ALBUM_SLOT_ROWS=[{photo:3,captionTop:4,captionBottom:12},{photo:14,captionTop:15,captionBottom:23},{photo:25,captionTop:26,captionBottom:34}];
+  async function injectVbaIntoWorkbook(outBuf,templateBuf){
+    // ExcelJSの出力にはマクロが含まれないため、元テンプレートのマクロ部分を移植して
+    // マクロ有効ブック（.xlsm）として成立させる
+    if(typeof JSZip==='undefined')throw new Error('JSZip未読込');
+    const srcZip=await JSZip.loadAsync(templateBuf);
+    const vbaFile=srcZip.file('xl/vbaProject.bin');
+    if(!vbaFile)throw new Error('テンプレートにマクロが含まれていません');
+    const vba=await vbaFile.async('uint8array');
+    const z=await JSZip.loadAsync(outBuf);
+    z.file('xl/vbaProject.bin',vba);
+    let ct=await z.file('[Content_Types].xml').async('string');
+    ct=ct.replace('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml','application/vnd.ms-excel.sheet.macroEnabled.main+xml');
+    if(!ct.includes('vbaProject'))ct=ct.replace('</Types>','<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>');
+    z.file('[Content_Types].xml',ct);
+    let rels=await z.file('xl/_rels/workbook.xml.rels').async('string');
+    if(!rels.includes('vbaProject')){
+      const ids=[...rels.matchAll(/Id="rId(\d+)"/g)].map(m=>+m[1]);
+      const newId='rId'+(Math.max(0,...ids)+1);
+      rels=rels.replace('</Relationships>',`<Relationship Id="${newId}" Type="http://schemas.microsoft.com/office/2006/relationships/vbaProject" Target="vbaProject.bin"/></Relationships>`);
+      z.file('xl/_rels/workbook.xml.rels',rels);
+    }
+    let wx=await z.file('xl/workbook.xml').async('string');
+    if(!/codeName=/.test(wx)){
+      wx=/<workbookPr/.test(wx) ? wx.replace('<workbookPr','<workbookPr codeName="ThisWorkbook"')
+                                : wx.replace(/(<workbook[^>]*>)/,'$1<workbookPr codeName="ThisWorkbook"/>');
+      z.file('xl/workbook.xml',wx);
+    }
+    return await z.generateAsync({type:'blob',mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12',compression:'DEFLATE'});
+  }
   async function exportExcel(){
     if(typeof ExcelJS==='undefined'){setOutputStatus('Excel出力の準備ができていません。インターネットに接続して、もう一度お試しください。','err');return}
     const p=currentProject(); const arr=currentPhotos();
@@ -918,13 +965,13 @@
     setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
     let templateBuf;
     try{
-      const templateResp=await fetch('./photo_album_template.xlsx');
+      const templateResp=await fetch('./photo_album_template.xlsm');
       if(!templateResp.ok)throw new Error('status:'+templateResp.status);
       templateBuf=await templateResp.arrayBuffer();
       if(!templateBuf||templateBuf.byteLength<1000)throw new Error('empty or too small: '+(templateBuf?templateBuf.byteLength:0));
     }catch(fetchErr){
       console.error('テンプレート読み込みエラー',fetchErr);
-      setOutputStatus('写真台帳テンプレート（photo_album_template.xlsx）を読み込めませんでした。GitHubのリポジトリに index.html と同じ場所へこのファイルをアップロードしているか、ご確認ください。','err');
+      setOutputStatus('写真台帳テンプレート（photo_album_template.xlsm）を読み込めませんでした。GitHubのリポジトリに index.html と同じ場所へこのファイルをアップロードしているか、ご確認ください。','err');
       return;
     }
     try{
@@ -981,14 +1028,23 @@
         captionCell.alignment={wrapText:true,vertical:'top',horizontal:'left'};
       }
 
-      const stampName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.xlsx`;
+      const baseName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}`;
       const arrBuf=await wb.xlsx.writeBuffer();
-      const blob=new Blob([arrBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      let blob,stampName,macroMsg='';
+      try{
+        blob=await injectVbaIntoWorkbook(arrBuf,templateBuf);
+        stampName=baseName+'.xlsm';
+      }catch(vbaErr){
+        console.warn('マクロの移植に失敗したため、マクロなしで保存します',vbaErr);
+        blob=new Blob([arrBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        stampName=baseName+'.xlsx';
+        macroMsg='（マクロは付けられなかったため、通常のExcelファイルとして保存しました）';
+      }
       const result=await saveToBackupFolderOrDownload(blob,stampName);
       const overMsg=overLimit?`（写真が${ALBUM_MAX_PHOTOS}枚を超えていたため、最初の${ALBUM_MAX_PHOTOS}枚のみ収録しています）`:'';
-      if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${overMsg}`,'ok');
-      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+overMsg,'ok');
-      else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+overMsg,'ok');
+      if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${macroMsg}${overMsg}`,'ok');
+      else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+macroMsg+overMsg,'ok');
+      else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+macroMsg+overMsg,'ok');
     }catch(e){console.error('Excel作成エラー',e);setOutputStatus('Excelファイルの作成に失敗しました。'+(e&&e.message?'（詳細: '+e.message+'）':''),'err')}
   }
 

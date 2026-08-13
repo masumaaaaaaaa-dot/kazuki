@@ -79,6 +79,21 @@
       box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100vw - 24px)}
     .undo-toast .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
+
+    /* テーマカラー（設定で切り替え。既定は「標準」＝これまでの色） */
+    html[data-color="green"]{--brand:#33513f;--brand2:#22362c;--accent:#e0a83c}
+    html[data-theme="dark"][data-color="green"]{--brand:#6fae87;--brand2:#4f8163;--accent:#e0a83c}
+    html[data-color="navy"]{--brand:#1f3a5f;--brand2:#152a46;--accent:#e8a33d}
+    html[data-theme="dark"][data-color="navy"]{--brand:#7aa8d8;--brand2:#456d9c;--accent:#e8a33d}
+    html[data-color="sumi"]{--brand:#3b4a52;--brand2:#26333a;--accent:#d98c2b}
+    html[data-theme="dark"][data-color="sumi"]{--brand:#8fa5b0;--brand2:#5d747f;--accent:#d98c2b}
+    html[data-color="brown"]{--brand:#6b4a2f;--brand2:#4b3320;--accent:#d99b3d}
+    html[data-theme="dark"][data-color="brown"]{--brand:#c39a72;--brand2:#8d6a4a;--accent:#d99b3d}
+    .color-picker{display:flex;gap:9px;flex-wrap:wrap}
+    .color-swatch{width:56px;height:56px;border-radius:12px;border:2px solid transparent;position:relative;padding:0;overflow:hidden}
+    .color-swatch span{position:absolute;left:0;right:0;bottom:0;height:34%;background:rgba(255,255,255,.9)}
+    .color-swatch.active{border-color:var(--text);box-shadow:0 0 0 3px rgba(0,0,0,.08)}
+    .color-name{font-size:11px;color:var(--muted);text-align:center;margin-top:3px}
     #printRoot{display:none}
 
     /* A4 layout */
@@ -331,6 +346,10 @@
           <button type="button" class="btn outline" data-theme="dark">🌙 黒（ダーク）</button>
         </div>
         <div class="hint" style="margin-top:6px">印刷（A4出力）の紙面は、配色に関わらず常に白で出力されます。</div>
+        <div style="margin-top:14px"><label>テーマカラー</label>
+          <div class="color-picker" id="colorPicker"></div>
+          <div class="hint" style="margin-top:7px">ボタンの色や文字の色が変わります。いつでも「標準」に戻せます。</div>
+        </div>
       </div>
       <div class="card">
         <h2>会社・初期設定</h2>
@@ -556,15 +575,16 @@
   'use strict';
   const $ = id => document.getElementById(id);
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
+  {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14g';
-  const APP_UPDATE_NOTE='アプリアイコンを作り直し／シンプル表紙の文字と線の間隔を調整';
+  const APP_VERSION='2026.08.14h';
+  const APP_UPDATE_NOTE='テーマカラーを5色から選べるように（設定→画面の配色）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -1550,6 +1570,31 @@
   }
   function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 
+  const COLOR_THEMES=[
+    {id:'default',name:'標準',c1:'#0f766e',c2:'#115e59'},
+    {id:'green',name:'黒板',c1:'#33513f',c2:'#22362c'},
+    {id:'navy',name:'紺',c1:'#1f3a5f',c2:'#152a46'},
+    {id:'sumi',name:'墨',c1:'#3b4a52',c2:'#26333a'},
+    {id:'brown',name:'茶',c1:'#6b4a2f',c2:'#4b3320'},
+  ];
+  function applyColorTheme(id){
+    const t=COLOR_THEMES.find(x=>x.id===id)?id:'default';
+    if(t==='default')delete document.documentElement.dataset.color;
+    else document.documentElement.dataset.color=t;
+    const host=$('colorPicker');
+    if(host)host.querySelectorAll('button[data-color-id]').forEach(b=>b.classList.toggle('active',b.dataset.colorId===t));
+  }
+  function renderColorPicker(){
+    const host=$('colorPicker'); if(!host||host.dataset.done)return;
+    host.innerHTML=COLOR_THEMES.map(t=>`<div><button type="button" class="color-swatch" data-color-id="${t.id}" title="${t.name}" style="background:linear-gradient(150deg,${t.c1},${t.c2})"><span></span></button><div class="color-name">${t.name}</div></div>`).join('');
+    host.dataset.done='1';
+  }
+  async function setColorTheme(id){
+    settings.colorTheme=id;
+    applyColorTheme(id);
+    try{localStorage.setItem('photoLedgerColor',id)}catch(e){}
+    await idbPut('settings',{key:'main',value:settings});
+  }
   function applyTheme(theme){
     const t=theme==='dark'?'dark':'light';
     document.documentElement.dataset.theme=t;
@@ -1575,7 +1620,8 @@
     location.reload(true);
   }
   function loadSettingsUI(){
-    const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
+    const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
+    renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -2695,6 +2741,10 @@
     try{ if(e.target.files[0])await importProject(e.target.files[0]); }
     catch(err){ console.error(err); alert(err.message||'取り込みに失敗しました。'); }
     e.target.value='';
+  });
+  $('colorPicker').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-color-id]'); if(!b)return;
+    setColorTheme(b.dataset.colorId);
   });
   $('themeToggle').addEventListener('click',e=>{ const b=e.target.closest('button[data-theme]'); if(!b)return; setTheme(b.dataset.theme); });
 

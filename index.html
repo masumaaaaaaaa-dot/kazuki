@@ -483,7 +483,7 @@
         <div><label>上段3 ラベル</label><input id="boardLabel3" /></div><div><label>上段3 文字</label><input id="boardValue3" /></div>
         <div><label>下段 ラベル</label><input id="boardBottomLabel" /></div><div><label>下段 文字</label><input id="boardBottomValue" /></div>
       </div>
-      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（9行まで・改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。文字は見やすいように大きめにしています。縦は9行です。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
+      <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（改行できます）</label><div style="margin-bottom:6px"><label style="font-weight:400">文字の大きさ</label><select id="boardNoteSize"><option value="s">小さめ（12行まで）</option><option value="m" selected>標準（9行まで）</option><option value="l">大きめ（6行まで）</option></select></div><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。「文字の大きさ」を大きめにすると、そのぶん書ける行数が減ります。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
       <div id="boardGenericFields" style="margin-top:10px"></div>
       </div>
     </div>
@@ -1597,6 +1597,7 @@
     $('boardPosition').value = data.position||'rb';
     $('boardSize').value = data.size||'s';
     $('boardOrient').value = data.orient||'land';
+    $('boardNoteSize').value = data.noteSize||'m';
     if(GENERIC_TEMPLATES[data.template]){
       setLegacyFieldsVisible(false);
       renderGenericFieldsUI(data.template,data);
@@ -1613,7 +1614,7 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value};
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value};
     if(GENERIC_TEMPLATES[base.template]){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
@@ -1645,14 +1646,16 @@
     if(position==='rt'){x=w-bw-margin;y=margin}
     return{x,y,w:bw,h:bh};
   }
-  function getBoardLayout(w,h){
+  function noteLinesScaled(base,noteSize){return Math.max(1,Math.round(base*(noteSize==='l'?0.66:noteSize==='s'?1.34:1)));}
+  function noteLinesFor(noteSize){return noteSize==='l'?6:noteSize==='s'?12:9;}
+  function getBoardLayout(w,h,noteSize){
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     // 縦向きでも1行の高さが間延びしないよう、短辺を基準に決める
     const rowH=Math.round(Math.min(innerH*0.088,innerW*0.075)),labelW=Math.round(innerW*0.20),bottomH=rowH;
     const count=3;
     const bodyY=innerY+count*rowH,bodyH=innerH-count*rowH-bottomH;
-    const noteMaxLines=9;
+    const noteMaxLines=noteLinesFor(noteSize);
     const notePadX=Math.max(8,Math.round(innerW*0.008));
     const notePadY=Math.max(6,Math.round(bodyH*0.012));
     const noteX=innerX+notePadX;
@@ -1705,7 +1708,7 @@
   }
   function renderBoardNoteGuide(data,w,h){
     const el=$('boardNoteGuide'); if(!el)return;
-    const m=getBoardLayout(w,h);
+    const m=getBoardLayout(w,h,data&&data.noteSize);
     el.style.left=m.noteX+'px';
     el.style.top=m.noteY+'px';
     el.style.width=m.noteW+'px';
@@ -1713,7 +1716,7 @@
     el.style.backgroundImage='none';
     el.textContent='';
     el.style.display=data&&data.enabled!==false?'block':'none';
-    const rs=boardRenderSize(data);const rm=getBoardLayout(rs.w,rs.h);
+    const rs=boardRenderSize(data);const rm=getBoardLayout(rs.w,rs.h,data&&data.noteSize);
     const mctx=noteMeasureCtx();
     const fit=fitNoteFont(mctx,data&&data.note||'',rm.noteW,rm.noteMaxLines,rm.noteFontSize,10);
     updateBoardNoteStatusText(fit,rm.noteFontSize,rm.noteMaxLines);
@@ -1884,7 +1887,7 @@
     return c;
   }
   function drawLegacyBoardFace(ctx,w,h,data){
-    const m=getBoardLayout(w,h);
+    const m=getBoardLayout(w,h,data&&data.noteSize);
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
     ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
     ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
@@ -1939,7 +1942,7 @@
         const lblSize=Math.max(11,Math.round(baseFont*0.85));
         ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
         if(g.row.note.label)ctx.fillText(g.row.note.label,innerX+padX,g.y+padY);
-        const maxLines=g.row.note.maxLines||4;
+        const maxLines=noteLinesScaled(g.row.note.maxLines||4,data.noteSize);
         const textTop=g.y+padY+(g.row.note.label?lblSize+4:0);
         const textH=Math.max(10,g.y+g.h-textTop-padY);
         const lineH=textH/maxLines;
@@ -2119,8 +2122,8 @@
   function moveDraw(ev){if(!boardState.drawing||!boardState.currentStroke)return;boardState.currentStroke.points.push(pointerPos(ev,$('boardDrawCanvas')));renderBoardEditor()}
   function endDraw(){boardState.drawing=false;boardState.currentStroke=null}
 
-  function legacyFieldRects(w,h){
-    const m=getBoardLayout(w,h);
+  function legacyFieldRects(w,h,noteSize){
+    const m=getBoardLayout(w,h,noteSize);
     const rects=[];
     for(let i=0;i<3;i++){
       const yy=m.innerY+i*m.rowH;
@@ -2162,7 +2165,7 @@
     const board=readBoardControls();
     const w=boardState.displayW||760,h=boardState.displayH||Math.round(w*2/3);
     if(GENERIC_TEMPLATES[board.template])return genericFieldRects(w,h,board.template);
-    return legacyFieldRects(w,h);
+    return legacyFieldRects(w,h,board.noteSize);
   }
   function closeBoardInlineEditor(){ const el=$('boardInlineEditor'); if(el)el.remove(); }
   function openBoardInlineEditor(r){
@@ -2263,7 +2266,7 @@
     if(e.target.value!==limited)e.target.value=limited;
   });
   $('photoForm').addEventListener('submit',savePhoto);
-  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
+  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
   $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; renderBoardEditor(); });
   $('boardTemplate').addEventListener('change',()=>{
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);

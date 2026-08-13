@@ -447,6 +447,7 @@
       </div>
       <div class="grid two" style="margin-top:10px">
         <label class="check-row"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
+        <div><label>黒板の向き</label><select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select></div>
         <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option></select></div>
         <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
       </div>
@@ -1595,6 +1596,7 @@
     $('boardTemplate').value = data.template||'tajima';
     $('boardPosition').value = data.position||'rb';
     $('boardSize').value = data.size||'s';
+    $('boardOrient').value = data.orient||'land';
     if(GENERIC_TEMPLATES[data.template]){
       setLegacyFieldsVisible(false);
       renderGenericFieldsUI(data.template,data);
@@ -1611,7 +1613,7 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value};
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value};
     if(GENERIC_TEMPLATES[base.template]){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
@@ -1627,12 +1629,16 @@
     try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; }); return img; }
     finally{ setTimeout(()=>URL.revokeObjectURL(url),1000); }
   }
-  function computeBoardRect(w,h,position,size){
+  function computeBoardRect(w,h,position,size,aspect){
     const ratio=size==='s'?0.38:size==='l'?0.68:0.53;
+    const ar=aspect||(2/3);   // 高さ÷幅
     const margin=Math.max(12,Math.round(Math.min(w,h)*0.018));
-    let bw=Math.min(w*ratio,w-margin*2);
-    let bh=bw*(2/3);
-    if(bh>h-margin*2){bh=h-margin*2;bw=bh*(3/2)}
+    // 横向きの黒板を回転させたのと同じ大きさになるよう、長い辺を基準にする
+    const longSide=w*ratio;
+    let bw,bh;
+    if(ar>1){ bh=longSide; bw=bh/ar; } else { bw=longSide; bh=bw*ar; }
+    if(bw>w-margin*2){bw=w-margin*2;bh=bw*ar}
+    if(bh>h-margin*2){bh=h-margin*2;bw=bh/ar}
     let x=margin,y=h-bh-margin;
     if(position==='rb'){x=w-bw-margin;y=h-bh-margin}
     if(position==='lt'){x=margin;y=margin}
@@ -1640,9 +1646,10 @@
     return{x,y,w:bw,h:bh};
   }
   function getBoardLayout(w,h){
-    const pad=Math.max(8,Math.round(w*0.025));
+    const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
-    const rowH=Math.round(innerH*0.088),labelW=Math.round(innerW*0.20),bottomH=rowH;
+    // 縦向きでも1行の高さが間延びしないよう、短辺を基準に決める
+    const rowH=Math.round(Math.min(innerH*0.088,innerW*0.075)),labelW=Math.round(innerW*0.20),bottomH=rowH;
     const count=3;
     const bodyY=innerY+count*rowH,bodyH=innerH-count*rowH-bottomH;
     const noteMaxLines=9;
@@ -1706,7 +1713,7 @@
     el.style.backgroundImage='none';
     el.textContent='';
     el.style.display=data&&data.enabled!==false?'block':'none';
-    const rm=getBoardLayout(BOARD_RENDER_W,BOARD_RENDER_H);
+    const rs=boardRenderSize(data);const rm=getBoardLayout(rs.w,rs.h);
     const mctx=noteMeasureCtx();
     const fit=fitNoteFont(mctx,data&&data.note||'',rm.noteW,rm.noteMaxLines,rm.noteFontSize,10);
     updateBoardNoteStatusText(fit,rm.noteFontSize,rm.noteMaxLines);
@@ -1882,7 +1889,7 @@
     ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
     ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
     const rows=data.top||[];ctx.fillStyle=CHALK_WHITE;
-    const baseRowFont=m.noteFontSize;
+    const baseRowFont=Math.min(m.noteFontSize,Math.floor(m.rowH*0.62));
     const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
     const labelMaxW=Math.max(10,m.labelW-14);
     const valueMaxW=Math.max(10,m.innerW-m.labelW-16);
@@ -1907,7 +1914,7 @@
   }
   function drawGenericBoardFace(ctx,w,h,data){
     const t=GENERIC_TEMPLATES[data.template]; if(!t)return;
-    const pad=Math.max(8,Math.round(w*0.025));
+    const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
     ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
@@ -1918,8 +1925,8 @@
     const sketch=t.sketch;
     const sketchColX=sketch?innerX+innerW*sketch.colPct:null;
     const unitH=innerH/totalWeight;
-    const baseFont=Math.max(18,Math.round(unitH*0.42));
-    const minFont=Math.max(11,Math.round(unitH*0.16));
+    const baseFont=Math.max(16,Math.min(Math.round(unitH*0.42),Math.round(innerW*0.051)));
+    const minFont=Math.max(10,Math.min(Math.round(unitH*0.16),Math.round(innerW*0.02)));
     rowsGeom.forEach((g,ri)=>{
       const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
       const rowRightX=inSketchRange?sketchColX:innerX+innerW;
@@ -1969,7 +1976,7 @@
       const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
       ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
       const padX=8,padY=6;
-      const lblSize=Math.max(16,Math.round(innerH*0.052));
+      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
       ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE;
       ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
       if(sketch.noteKey){
@@ -1993,11 +2000,18 @@
   function drawStrokesOnCtx(ctx,w,h,strokes){
     (strokes||[]).forEach(st=>{const pts=st.points||[];if(!pts.length)return;ctx.save();const isErase=st.mode==='erase';ctx.globalCompositeOperation=isErase?'destination-out':'source-over';ctx.strokeStyle=st.color||'#fff';const eraseMul=isErase?2.6:1;ctx.lineWidth=(st.width||4)*eraseMul*(Math.min(w,h)/600);ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();pts.forEach((p,i)=>{const x=p.x*w,y=p.y*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();ctx.restore()});
   }
-  function makeBoardCanvas(board,strokes,width=1200,height=800){
+  function makeBoardCanvas(board,strokes,width,height){
+    if(width==null||height==null){const s=boardRenderSize(board);width=s.w;height=s.h;}
     const base=document.createElement('canvas');base.width=width;base.height=height;const bctx=base.getContext('2d');drawBoardFace(bctx,width,height,board);
     const ink=document.createElement('canvas');ink.width=width;ink.height=height;drawStrokesOnCtx(ink.getContext('2d'),width,height,strokes);bctx.drawImage(ink,0,0);return base;
   }
   const BOARD_RENDER_W=1200,BOARD_RENDER_H=800;
+  // 黒板の向き（横向き＝3:2／縦向き＝2:3）
+  function isPortraitBoard(board){return board&&board.orient==='port';}
+  function boardRenderSize(board){
+    return isPortraitBoard(board)?{w:BOARD_RENDER_H,h:BOARD_RENDER_W}:{w:BOARD_RENDER_W,h:BOARD_RENDER_H};
+  }
+  function boardAspect(board){const s=boardRenderSize(board);return s.h/s.w;}
   const boardZoom={scale:1,tx:0,ty:0};
   function applyBoardZoomTransform(){
     const stage=$('boardStage'); if(!stage)return;
@@ -2030,12 +2044,16 @@
   }
   function resetBoardZoom(){boardZoom.scale=1;boardZoom.tx=0;boardZoom.ty=0;applyBoardZoomTransform();}
   function renderBoardEditor(){
-    const vp=$('boardStageViewport');const w=Math.max(280,Math.min(vp.clientWidth||window.innerWidth-40,900));boardState.displayW=w;boardState.displayH=Math.round(w*(2/3));
-    const base=$('boardBaseCanvas'),draw=$('boardDrawCanvas');
-    base.width=BOARD_RENDER_W;base.height=BOARD_RENDER_H;draw.width=BOARD_RENDER_W;draw.height=BOARD_RENDER_H;
     const board=readBoardControls();
-    const bctx=base.getContext('2d');bctx.clearRect(0,0,BOARD_RENDER_W,BOARD_RENDER_H);drawBoardFace(bctx,BOARD_RENDER_W,BOARD_RENDER_H,board);
-    const dctx=draw.getContext('2d');dctx.clearRect(0,0,BOARD_RENDER_W,BOARD_RENDER_H);drawStrokesOnCtx(dctx,BOARD_RENDER_W,BOARD_RENDER_H,boardState.strokes);
+    const size=boardRenderSize(board);
+    const vp=$('boardStageViewport');
+    vp.style.aspectRatio=size.w+' / '+size.h;
+    const w=Math.max(240,Math.min(vp.clientWidth||window.innerWidth-40,900));
+    boardState.displayW=w;boardState.displayH=Math.round(w*size.h/size.w);
+    const base=$('boardBaseCanvas'),draw=$('boardDrawCanvas');
+    base.width=size.w;base.height=size.h;draw.width=size.w;draw.height=size.h;
+    const bctx=base.getContext('2d');bctx.clearRect(0,0,size.w,size.h);drawBoardFace(bctx,size.w,size.h,board);
+    const dctx=draw.getContext('2d');dctx.clearRect(0,0,size.w,size.h);drawStrokesOnCtx(dctx,size.w,size.h,boardState.strokes);
     if(GENERIC_TEMPLATES[board.template]){
       const el=$('boardNoteGuide'); if(el)el.style.display='none';
     }else{
@@ -2064,7 +2082,7 @@
   async function saveBoardEdits(){
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
     const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
-    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m');ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board));ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
     const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。手書きは黒板と一緒に拡大・縮小されます。');
@@ -2079,7 +2097,7 @@
       const full=document.createElement('canvas');full.width=img.naturalWidth;full.height=img.naturalHeight;const ctx=full.getContext('2d');
       ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(img,0,0,full.width,full.height);
       const board=ph.boardData.board;const strokes=ph.boardData.strokes||[];
-      const boardCanvas=makeBoardCanvas(board,strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m');
+      const boardCanvas=makeBoardCanvas(board,strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board));
       ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h);
       const editedBlob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の再作成に失敗しました。')),'image/jpeg',0.92));
       ph.editedBlob=editedBlob;ph.editedUpdatedAt=Date.now();
@@ -2245,7 +2263,7 @@
     if(e.target.value!==limited)e.target.value=limited;
   });
   $('photoForm').addEventListener('submit',savePhoto);
-  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
+  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
   $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; renderBoardEditor(); });
   $('boardTemplate').addEventListener('change',()=>{
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);

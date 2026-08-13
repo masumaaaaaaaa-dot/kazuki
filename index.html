@@ -931,10 +931,17 @@
   // ---- ここから：元の .xlsm を作り直さずに必要な箇所だけ書き込む処理 ----
   function xlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function xlColNum(c){let n=0;for(let i=0;i<c.length;i++)n=n*26+(c.charCodeAt(i)-64);return n;}
-  function xlSetCell(xml,ref,text){
+  function xlSetCell(xml,ref,text,opt){
     const mm=/^([A-Z]+)(\d+)$/.exec(ref); if(!mm)return xml;
     const colNum=xlColNum(mm[1]),row=+mm[2];
-    const cellXml=(text==null||text==='')?'':`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(text)}</t></is></c>`;
+    const asNumber=opt&&opt.number&&/^-?\d+(\.\d+)?$/.test(String(text));
+    // もとのセルの書式（フォントや配置）はそのまま引き継ぐ
+    const exist=new RegExp(`<c r="${ref}"([^>]*)(?:/>|>)`).exec(xml);
+    let styleAttr='';
+    if(exist){ const sm=/\ss="(\d+)"/.exec(exist[1]); if(sm)styleAttr=` s="${sm[1]}"`; }
+    const cellXml=(text==null||text==='')?''
+      : asNumber ? `<c r="${ref}"${styleAttr}><v>${xlEsc(text)}</v></c>`
+                 : `<c r="${ref}"${styleAttr} t="inlineStr"><is><t xml:space="preserve">${xlEsc(text)}</t></is></c>`;
     const m=new RegExp(`<row[^>]*\\sr="${row}"[^>]*(/>|>)`).exec(xml);
     if(!m){
       if(!cellXml)return xml;
@@ -1014,13 +1021,17 @@
         let cv=await z.file(coverPath).async('string');
         const cd=reiwaParts(p.createdDate)||reiwaParts(today());
         const sp=reiwaParts(p.start),ep=reiwaParts(p.end);
-        cv=xlSetCell(cv,'E12',cd?String(cd.year):'');
+        cv=xlSetCell(cv,'E12',cd?String(cd.year):'',{number:true});
         cv=xlSetCell(cv,'J12',(p.number||'').replace(/^第/,'').replace(/号$/,''));
         cv=xlSetCell(cv,'D14',p.name||'');
         cv=xlSetCell(cv,'D16',p.address||'');
-        if(sp){cv=xlSetCell(cv,'G18',String(sp.year));cv=xlSetCell(cv,'I18',String(sp.month));cv=xlSetCell(cv,'K18',String(sp.day));}
-        if(ep){cv=xlSetCell(cv,'G20',String(ep.year));cv=xlSetCell(cv,'I20',String(ep.month));cv=xlSetCell(cv,'K20',String(ep.day));}
+        if(sp){cv=xlSetCell(cv,'G18',String(sp.year),{number:true});cv=xlSetCell(cv,'I18',String(sp.month),{number:true});cv=xlSetCell(cv,'K18',String(sp.day),{number:true});}
+        if(ep){cv=xlSetCell(cv,'G20',String(ep.year),{number:true});cv=xlSetCell(cv,'I20',String(ep.month),{number:true});cv=xlSetCell(cv,'K20',String(ep.day),{number:true});}
         cv=xlSetCell(cv,'E27',p.company||'');   // 見本の会社名は上書き（未入力なら空欄）
+        // 「数字が文字列で入っています」の注意マーク（緑の三角）を出さないようにする
+        cv=cv.replace(/<ignoredErrors>[\s\S]*?<\/ignoredErrors>/,'');
+        const ignore='<ignoredErrors><ignoredError sqref="D14 D16 J12 E27" numberStoredAsText="1"/></ignoredErrors>';
+        cv=/<drawing\s/.test(cv) ? cv.replace(/<drawing/,ignore+'<drawing') : cv.replace('</worksheet>',ignore+'</worksheet>');
         z.file(coverPath,cv);
       }
 
@@ -1075,6 +1086,10 @@
           z.file(relPath,xlAddDrawingRel(existing,rid,`../drawings/appdrawing${dNo}.xml`));
           sh=sh.replace(/<drawing[^>]*\/>/,'').replace('</worksheet>',`<drawing r:id="${rid}"/></worksheet>`);
         }
+        // コメント欄に数字だけを書いた場合の注意マークを抑制
+        sh=sh.replace(/<ignoredErrors>[\s\S]*?<\/ignoredErrors>/,'');
+        const ig='<ignoredErrors><ignoredError sqref="C3:C34" numberStoredAsText="1"/></ignoredErrors>';
+        sh=/<drawing\s/.test(sh) ? sh.replace(/<drawing/,ig+'<drawing') : sh.replace('</worksheet>',ig+'</worksheet>');
         z.file(path,sh);
       }
       // 画像と図形の種類を宣言に追加

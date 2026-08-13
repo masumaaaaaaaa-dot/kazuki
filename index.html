@@ -366,6 +366,12 @@
         </div>
       </div>
       <div class="card">
+        <h2>アプリの情報</h2>
+        <div class="hint">いま動いているバージョン：<strong id="appVersionLabel" style="font-size:14px;color:var(--text)">-</strong></div>
+        <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
+        <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
+      </div>
+      <div class="card">
         <h2>このアプリの出力形式</h2>
         <div class="hint">A4縦／1ページ3枚／左側に写真／右側に罫線入りの任意記入欄／写真番号／表紙は工事名・工事場所・提出先・工事番号・工期・現場担当者に加え、会社名と作成年月日は入力した場合だけ表示／ページ番号付き。</div>
       </div>
@@ -1541,7 +1547,16 @@
     localStorage.setItem('photoLedgerTheme',settings.theme);
     await idbPut('settings',{key:'main',value:settings});
   }
-  function loadSettingsUI(){$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
+  async function forceUpdateApp(){
+    if(!confirm('最新版を読み込み直します。よろしいですか？\n（保存した現場・写真は消えません）'))return;
+    try{
+      if('caches' in window){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }
+      if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+    }catch(e){ console.warn('更新処理に失敗',e); }
+    location.reload(true);
+  }
+  function loadSettingsUI(){
+    const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -2645,6 +2660,7 @@
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);
+  $('forceUpdateBtn').addEventListener('click',forceUpdateApp);
   $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
   $('selectModeBtn').addEventListener('click',()=>{
     selectMode=!selectMode; selectedPhotoIds.clear(); renderPhotos();

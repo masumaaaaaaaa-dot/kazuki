@@ -392,6 +392,7 @@
       <div class="card">
         <h2>アプリの情報</h2>
         <div class="hint">いま動いているバージョン：<strong id="appVersionLabel" style="font-size:14px;color:var(--text)">-</strong></div>
+        <div class="hint" style="margin-top:4px">使い始めた日：<strong id="firstUsedLabel" style="font-size:14px;color:var(--text)">-</strong></div>
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
       </div>
@@ -591,14 +592,14 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14s';
-  const APP_UPDATE_NOTE='古いiPhoneでも色が正しく出るように調整';
+  const APP_VERSION='2026.08.14t';
+  const APP_UPDATE_NOTE='「使い始めた日」を記録するようにしました（将来の料金プラン変更に備えて）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -1690,6 +1691,7 @@
   }
   function loadSettingsUI(){
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
+    const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
     renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
@@ -2911,7 +2913,22 @@
     $('welcomeDialog').close();
   });
   setTopbarArt('projects');
-  openDB().then(d=>{db=d;return loadAll()}).then(()=>{
+  // 利用開始日を記録（将来の料金プラン変更時に、以前から使っている方を判別するため）
+  async function recordFirstUse(){
+    try{
+      let stamp=0;
+      try{ stamp=parseInt(localStorage.getItem('photoLedgerFirstUsedAt')||'0',10)||0; }catch(e){}
+      if(!settings.firstUsedAt){
+        settings.firstUsedAt=stamp||Date.now();
+        settings.firstUsedVersion=settings.firstUsedVersion||APP_VERSION;
+        await idbPut('settings',{key:'main',value:settings});
+      }
+      if(!stamp){ try{ localStorage.setItem('photoLedgerFirstUsedAt',String(settings.firstUsedAt)); }catch(e){} }
+    }catch(e){ console.warn('利用開始日の記録に失敗',e); }
+  }
+  openDB().then(d=>{db=d;return loadAll()}).then(async()=>{
+    await recordFirstUse();
+    loadSettingsUI();
     notifyUpdatedIfNeeded();
     maybeShowWelcome();
   }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});

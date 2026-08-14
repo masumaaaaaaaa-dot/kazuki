@@ -291,6 +291,11 @@
         <input type="file" id="galleryInput" accept="image/*" multiple hidden />
         <input type="file" id="replaceInput" accept="image/*" hidden />
         <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
+          <div style="margin-bottom:10px"><label>「その場で撮影」の方法</label><select id="cameraMode">
+            <option value="native">スマホのカメラを使う（画質優先・おすすめ）</option>
+            <option value="inapp">アプリ内カメラ（黒板を見ながら撮る）</option>
+          </select>
+          <div class="hint" style="margin-top:5px" id="cameraModeHint"></div></div>
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
           <div class="btn-row" style="margin-top:0">
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
@@ -412,6 +417,23 @@
   <button class="nav-btn" data-page="settings"><span>⚙️</span>設定</button>
 </nav>
 
+<dialog id="cameraDialog" style="width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;background:#000">
+  <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
+    <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000"></video>
+    <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
+    <div style="position:absolute;left:0;right:0;top:0;padding:12px 14px;background:linear-gradient(180deg,rgba(0,0,0,.65),transparent);color:#fff;font-size:12.5px;line-height:1.6">
+      黒板をつかんで動かせます。位置はこのあとの写真に反映されます。
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);display:flex;align-items:center;gap:12px">
+      <button type="button" class="btn" id="camCloseBtn" style="background:rgba(255,255,255,.16);color:#fff">閉じる</button>
+      <span style="flex:1"></span>
+      <button type="button" id="camShutterBtn" aria-label="撮影" style="width:74px;height:74px;border-radius:50%;border:5px solid rgba(255,255,255,.9);background:#fff"></button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="camSwitchBtn" style="background:rgba(255,255,255,.16);color:#fff">切替</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="welcomeDialog">
   <div class="dialog-head"><h3>はじめての方へ</h3></div>
   <div class="dialog-body">
@@ -518,6 +540,14 @@
           </div>
         </div>
         <div class="draw-hint" id="drawHint">指2本で黒板を拡大・移動できます</div>
+        <div id="posPickWrap" style="display:none;margin-top:10px">
+          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
+          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;touch-action:none">
+            <img id="posPickPhoto" style="width:100%;display:block" alt="" />
+            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move"></div>
+          </div>
+          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
+        </div>
         <div class="zoom-controls">
           <button type="button" class="btn tiny-btn outline" id="boardZoomOutBtn">－ 縮小</button>
           <button type="button" class="btn tiny-btn outline" id="boardZoomResetBtn">等倍に戻す</button>
@@ -533,8 +563,9 @@
       </div>
       <div class="grid two" style="margin-top:10px">
         <label class="check-row"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
+        <div><label>板の種類</label><select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select></div>
         <div><label>黒板の向き</label><select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select></div>
-        <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option></select></div>
+        <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由（指で動かす）</option></select></div>
         <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
       </div>
       <div style="margin-top:10px">
@@ -593,14 +624,14 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14w';
-  const APP_UPDATE_NOTE='部品ファイルの置き場所に関わらず動くよう調整';
+  const APP_VERSION='2026.08.14x';
+  const APP_UPDATE_NOTE='アプリ内カメラ／黒板の位置を指で調整／ホワイトボードを追加';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', cameraMode:'native', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -860,7 +891,85 @@
     }catch(e){ console.warn('EXIF読み取りに失敗',e); }
     return null;
   }
-  async function handleFiles(fileList,{saveDeviceCopy=false}={}){
+  // ---- アプリ内カメラ（黒板を見ながら撮影） ----
+  let camStream=null, camFacing='environment', camBoardPos={x:0.78,y:0.8};
+  function camBoardData(){
+    const lb=settings.lastBoard||{};
+    const base=boardPreset(lb.template||'tajima',null);
+    if(lb.orient)base.orient=lb.orient;
+    if(lb.size)base.size=lb.size;
+    if(lb.noteSize)base.noteSize=lb.noteSize;
+    if(lb.surface)base.surface=lb.surface;
+    const p=currentProject();
+    return applyProjectDefaultsToBoard(base,{projectId:p?p.id:''},true);
+  }
+  async function openCameraDialog(){
+    const dlg=$('cameraDialog'); if(!dlg)return;
+    try{
+      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}},audio:false});
+    }catch(err){
+      console.warn('カメラを使えません',err);
+      alert('カメラを使えませんでした。ブラウザのカメラ許可をご確認ください。\nスマホのカメラで撮影します。');
+      $('cameraInput').click(); return;
+    }
+    const v=$('camVideo'); v.srcObject=camStream; await v.play().catch(()=>{});
+    // 黒板の見本を重ねる
+    const board=camBoardData();
+    const cv=makeBoardCanvas(board,[]);
+    const ov=$('camBoardOverlay');
+    ov.src=cv.toDataURL('image/png');
+    ov.style.display=board.enabled===false?'none':'block';
+    const place=()=>{
+      const stage=v.getBoundingClientRect();
+      const ratio=board.size==='s'?0.34:board.size==='l'?0.6:0.46;
+      const w=Math.round(stage.width*ratio);
+      ov.style.width=w+'px';
+      const h=w*(cv.height/cv.width);
+      ov.style.left=Math.round(camBoardPos.x*stage.width-w/2)+'px';
+      ov.style.top=Math.round(camBoardPos.y*stage.height-h/2)+'px';
+    };
+    setTimeout(place,120);
+    ov.dataset.place='1'; ov._place=place;
+    dlg.showModal();
+  }
+  function closeCameraDialog(){
+    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
+  }
+  function initInAppCamera(){
+    const ov=$('camBoardOverlay'), v=$('camVideo');
+    if(!ov)return;
+    let drag=false,offX=0,offY=0;
+    const start=e=>{const t=e.touches?e.touches[0]:e;const r=ov.getBoundingClientRect();
+      offX=t.clientX-r.left-r.width/2; offY=t.clientY-r.top-r.height/2; drag=true; e.preventDefault();};
+    const move=e=>{ if(!drag)return; const t=e.touches?e.touches[0]:e;
+      const s=v.getBoundingClientRect();
+      camBoardPos={x:Math.max(0.05,Math.min(0.95,(t.clientX-offX-s.left)/s.width)),
+                   y:Math.max(0.05,Math.min(0.95,(t.clientY-offY-s.top)/s.height))};
+      if(ov._place)ov._place(); e.preventDefault();};
+    const end=()=>{drag=false};
+    ov.addEventListener('mousedown',start); ov.addEventListener('touchstart',start,{passive:false});
+    window.addEventListener('mousemove',move); window.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('mouseup',end); window.addEventListener('touchend',end);
+
+    $('camCloseBtn').addEventListener('click',closeCameraDialog);
+    $('camSwitchBtn').addEventListener('click',async()=>{
+      camFacing=(camFacing==='environment')?'user':'environment';
+      closeCameraDialog(); await openCameraDialog();
+    });
+    $('camShutterBtn').addEventListener('click',async()=>{
+      const video=$('camVideo');
+      if(!video.videoWidth){alert('カメラの準備ができていません。少し待ってからもう一度押してください。');return}
+      const cn=document.createElement('canvas');
+      cn.width=video.videoWidth; cn.height=video.videoHeight;
+      cn.getContext('2d').drawImage(video,0,0,cn.width,cn.height);
+      const blob=await new Promise(res=>cn.toBlob(res,'image/jpeg',0.9));
+      closeCameraDialog();
+      const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
+      await handleFiles([file],{saveDeviceCopy:true,boardPos:{...camBoardPos}});
+    });
+  }
+  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
     const addedPhotos=[];
@@ -882,6 +991,22 @@
         let shotDate=today();
         try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
         const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
+        // アプリ内カメラで黒板の位置を決めていた場合は、その黒板を貼り付ける
+        if(boardPos){
+          try{
+            const board=camBoardData();
+            board.freePos=boardPos;
+            board.position='free';
+            const full=await loadImageElement(ph.blob);
+            const cv=document.createElement('canvas');cv.width=full.width;cv.height=full.height;
+            const cx2=cv.getContext('2d');cx2.drawImage(full,0,0);
+            const bc=makeBoardCanvas(board,[]);
+            const r=computeBoardRect(full.width,full.height,'free',board.size||'m',boardAspect(board),boardPos);
+            cx2.drawImage(bc,r.x,r.y,r.w,r.h);
+            ph.editedBlob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
+            ph.boardData={board,strokes:[]};
+          }catch(e){ console.warn('黒板の合成に失敗',e); }
+        }
         await idbPut('photos',ph); photos.push(ph); addedPhotos.push(ph);
       }
       const pr=currentProject(); if(pr){pr.updatedAt=Date.now();await idbPut('projects',pr)}
@@ -893,7 +1018,7 @@
       }
       // 撮影のときは、そのまま続けて撮れるように案内を出す
       if(saveDeviceCopy){
-        showActionToast(`${files.length}枚を保存しました`,'続けて撮影',()=>{ $('cameraInput').click(); },8);
+        showActionToast(`${files.length}枚を保存しました`,'続けて撮影',()=>{ if(settings.cameraMode==='inapp')openCameraDialog(); else $('cameraInput').click(); },8);
       }else{
         showActionToast(`${files.length}枚を保存しました`,'',null,4);
       }
@@ -1693,7 +1818,8 @@
   function loadSettingsUI(){
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
     const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
-    renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;applyTheme(settings.theme)}
+    renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;
+    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'native';updateCameraModeHint();}applyTheme(settings.theme)}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -2001,6 +2127,8 @@
     $('boardPosition').value = data.position||'rb';
     $('boardSize').value = data.size||'s';
     $('boardOrient').value = data.orient||'land';
+    $('boardSurface').value = data.surface||'chalk';
+    boardState.freePos = data.freePos||null;
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
     const sizeRow=$('boardNoteSizeRow');
@@ -2026,7 +2154,7 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value};
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null};
     if(GENERIC_TEMPLATES[base.template]){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
@@ -2042,7 +2170,7 @@
     try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; }); return img; }
     finally{ setTimeout(()=>URL.revokeObjectURL(url),1000); }
   }
-  function computeBoardRect(w,h,position,size,aspect){
+  function computeBoardRect(w,h,position,size,aspect,free){
     const ratio=size==='s'?0.38:size==='l'?0.68:0.53;
     const ar=aspect||(2/3);   // 高さ÷幅
     const margin=Math.max(12,Math.round(Math.min(w,h)*0.018));
@@ -2056,6 +2184,12 @@
     if(position==='rb'){x=w-bw-margin;y=h-bh-margin}
     if(position==='lt'){x=margin;y=margin}
     if(position==='rt'){x=w-bw-margin;y=margin}
+    // 指で動かして決めた位置があれば、そちらを使う（写真に対する割合で保持）
+    if(free&&typeof free.x==='number'&&typeof free.y==='number'){
+      x=free.x*w-bw/2; y=free.y*h-bh/2;
+      x=Math.max(margin,Math.min(w-bw-margin,x));
+      y=Math.max(margin,Math.min(h-bh-margin,y));
+    }
     return{x,y,w:bw,h:bh};
   }
   function noteFontScale(noteSize){return noteSize==='l'?1.5:noteSize==='s'?0.75:1;}
@@ -2152,9 +2286,17 @@
     }
     return size;
   }
-  const CHALK_WHITE='rgba(250,250,245,0.97)';
-  const CHALK_LINE='rgba(255,255,255,0.72)';
-  const CHALK_GLOW='rgba(255,255,255,0.4)';
+  // 板の種類（黒板／ホワイトボード）で色を切り替える
+  let boardSurface='chalk';   // 'chalk' または 'white'
+  function setBoardSurface(kind){ boardSurface=(kind==='white')?'white':'chalk'; }
+  const SURFACE_COLORS={
+    chalk:{ink:'rgba(250,250,245,0.97)',line:'rgba(255,255,255,0.72)',glow:'rgba(255,255,255,0.4)'},
+    white:{ink:'rgba(28,32,36,0.96)',line:'rgba(60,66,72,0.55)',glow:'rgba(255,255,255,0)'},
+  };
+  Object.defineProperty(window,'_bs',{get:()=>boardSurface});
+  const CHALK_WHITE_GET=()=>SURFACE_COLORS[boardSurface].ink;
+  const CHALK_LINE_GET=()=>SURFACE_COLORS[boardSurface].line;
+  const CHALK_GLOW_GET=()=>SURFACE_COLORS[boardSurface].glow;
   function CHALK_FONT_BOLD(size){return '700 '+size+'px "Yu Gothic","Hiragino Sans","Noto Sans JP",sans-serif';}
   const _chalkTextureCache={};
   function createSeededRandom(seed){
@@ -2172,7 +2314,42 @@
     ctx.fillStyle=rg;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
     ctx.restore();
   }
+  const _whiteTextureCache={};
+  function getWhiteboardTexture(w,h){
+    const key=w+'x'+h;
+    if(_whiteTextureCache[key])return _whiteTextureCache[key];
+    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
+    const rand=createSeededRandom(((w*2654435761)^(h*40503))>>>0);
+    const base=cx.createLinearGradient(0,0,w,h);
+    base.addColorStop(0,'#fdfdfb');
+    base.addColorStop(0.45,'#f7f8f6');
+    base.addColorStop(1,'#f1f3f1');
+    cx.fillStyle=base;cx.fillRect(0,0,w,h);
+    // 光の映り込みを控えめに
+    const gloss=cx.createLinearGradient(0,0,w*0.6,h);
+    gloss.addColorStop(0,'rgba(255,255,255,0.75)');
+    gloss.addColorStop(0.35,'rgba(255,255,255,0.12)');
+    gloss.addColorStop(1,'rgba(255,255,255,0)');
+    cx.fillStyle=gloss;cx.fillRect(0,0,w,h);
+    // うっすらとした拭きムラ
+    cx.save();
+    for(let i=0;i<10;i++){
+      cx.globalAlpha=0.02+rand()*0.03;
+      fillSoftEllipse(cx,rand()*w,rand()*h,w*(0.16+rand()*0.24),h*(0.08+rand()*0.16),rand()*Math.PI,'rgba(120,130,140,0.5)','rgba(120,130,140,0)');
+    }
+    cx.restore();
+    // 縁の影
+    const edge=cx.createLinearGradient(0,0,0,h);
+    edge.addColorStop(0,'rgba(0,0,0,0.045)');
+    edge.addColorStop(0.06,'rgba(0,0,0,0)');
+    edge.addColorStop(0.94,'rgba(0,0,0,0)');
+    edge.addColorStop(1,'rgba(0,0,0,0.06)');
+    cx.fillStyle=edge;cx.fillRect(0,0,w,h);
+    _whiteTextureCache[key]=c;
+    return c;
+  }
   function getChalkTexture(w,h){
+    if(boardSurface==='white')return getWhiteboardTexture(w,h);
     const key=w+'x'+h;
     if(_chalkTextureCache[key])return _chalkTextureCache[key];
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
@@ -2302,9 +2479,9 @@
   function drawLegacyBoardFace(ctx,w,h,data){
     const m=getBoardLayout(w,h,data&&data.noteSize);
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
-    ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
-    ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
-    const rows=data.top||[];ctx.fillStyle=CHALK_WHITE;
+    ctx.shadowColor=CHALK_GLOW_GET();ctx.shadowBlur=Math.max(1,w*0.0022);
+    ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
+    const rows=data.top||[];ctx.fillStyle=CHALK_WHITE_GET();
     const baseRowFont=Math.min(m.noteFontSize,Math.floor(m.rowH*0.62));
     const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
     const labelMaxW=Math.max(10,m.labelW-14);
@@ -2333,8 +2510,8 @@
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
-    ctx.shadowColor=CHALK_GLOW;ctx.shadowBlur=Math.max(1,w*0.0022);
-    ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(pad,pad,w-pad*2,h-pad*2);
+    ctx.shadowColor=CHALK_GLOW_GET();ctx.shadowBlur=Math.max(1,w*0.0022);
+    ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(pad,pad,w-pad*2,h-pad*2);
     const totalWeight=t.rows.reduce((s,r)=>s+(r.weight||1),0);
     let y=innerY;
     const rowsGeom=t.rows.map(r=>{const rh=innerH*((r.weight||1)/totalWeight);const g={row:r,y,h:rh};y+=rh;return g;});
@@ -2346,8 +2523,8 @@
     rowsGeom.forEach((g,ri)=>{
       const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
       const rowRightX=inSketchRange?sketchColX:innerX+innerW;
-      ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(innerX,g.y,rowRightX-innerX,g.h);
-      ctx.fillStyle=CHALK_WHITE;
+      ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(innerX,g.y,rowRightX-innerX,g.h);
+      ctx.fillStyle=CHALK_WHITE_GET();
       if(g.row.note){
         const key=g.row.note.key;
         const text=data[key]||'';
@@ -2390,10 +2567,10 @@
     });
     if(sketch){
       const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
-      ctx.strokeStyle=CHALK_LINE;ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
+      ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
       const padX=8,padY=6;
       const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
-      ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE;
+      ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();
       ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
       if(sketch.noteKey){
         const text=data[sketch.noteKey]||'';
@@ -2410,6 +2587,7 @@
     ctx.restore();
   }
   function drawBoardFace(ctx,w,h,data){
+    setBoardSurface(data&&data.surface);   // 黒板／ホワイトボードの切り替え
     if(data&&GENERIC_TEMPLATES[data.template]) return drawGenericBoardFace(ctx,w,h,data);
     return drawLegacyBoardFace(ctx,w,h,data);
   }
@@ -2459,8 +2637,62 @@
     applyBoardZoomTransform();
   }
   function resetBoardZoom(){boardZoom.scale=1;boardZoom.tx=0;boardZoom.ty=0;applyBoardZoomTransform();}
+  // ---- 写真の上で黒板の位置を指で決める ----
+  let posPickState=null;
+  function updatePosPickUI(){
+    const wrap=$('posPickWrap'); if(!wrap)return;
+    const board=readBoardControls();
+    const on=board.position==='free' && board.enabled!==false;
+    wrap.style.display=on?'block':'none';
+    if(!on)return;
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);
+    if(!ph)return;
+    const img=$('posPickPhoto');
+    const url=getPhotoUrl({...ph,editedBlob:null});
+    if(img.dataset.pid!==ph.id){ img.src=url; img.dataset.pid=ph.id; }
+    const draw=()=>{
+      const stage=$('posPickStage'), box=$('posPickBoard');
+      const sw=stage.clientWidth, sh=stage.clientHeight;
+      if(!sw||!sh)return;
+      const r=computeBoardRect(sw,sh,board.position,board.size||'m',boardAspect(board),board.freePos);
+      box.style.left=r.x+'px'; box.style.top=r.y+'px';
+      box.style.width=r.w+'px'; box.style.height=r.h+'px';
+      box.style.background=board.surface==='white'?'rgba(250,250,250,.85)':'rgba(60,84,74,.85)';
+    };
+    if(img.complete)draw(); else img.onload=draw;
+    posPickState={draw};
+  }
+  function initPosPick(){
+    const stage=$('posPickStage'), box=$('posPickBoard');
+    if(!stage||!box)return;
+    let dragging=false, offX=0, offY=0;
+    const start=(e)=>{
+      const t=e.touches?e.touches[0]:e;
+      const br=box.getBoundingClientRect();
+      offX=t.clientX-br.left-br.width/2;
+      offY=t.clientY-br.top-br.height/2;
+      dragging=true; e.preventDefault();
+    };
+    const move=(e)=>{
+      if(!dragging)return;
+      const t=e.touches?e.touches[0]:e;
+      const sr=stage.getBoundingClientRect();
+      const cx=(t.clientX-offX-sr.left)/sr.width;
+      const cy=(t.clientY-offY-sr.top)/sr.height;
+      const board=readBoardControls();
+      board.freePos={x:Math.max(0,Math.min(1,cx)),y:Math.max(0,Math.min(1,cy))};
+      boardState.freePos=board.freePos;
+      updatePosPickUI();
+      e.preventDefault();
+    };
+    const end=()=>{ dragging=false; };
+    box.addEventListener('mousedown',start); box.addEventListener('touchstart',start,{passive:false});
+    window.addEventListener('mousemove',move); window.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('mouseup',end); window.addEventListener('touchend',end);
+  }
   function renderBoardEditor(){
     const board=readBoardControls();
+    setTimeout(updatePosPickUI,0);
     const size=boardRenderSize(board);
     const vp=$('boardStageViewport');
     vp.style.aspectRatio=size.w+' / '+size.h;
@@ -2496,6 +2728,7 @@
         if(lb.position)savedBoard.position=lb.position;
         if(lb.size)savedBoard.size=lb.size;
         if(lb.noteSize)savedBoard.noteSize=lb.noteSize;
+        if(lb.surface)savedBoard.surface=lb.surface;
       }
     }
     const board=applyProjectDefaultsToBoard(savedBoard,ph,false);fillBoardControls(Object.assign({enabled:!(ph.boardData&&ph.boardData.enabled===false)},board));
@@ -2512,11 +2745,11 @@
   async function saveBoardEdits(){
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
     const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
-    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board));ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
     const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);
-    settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize};
+    settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
     $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。次の写真も同じ黒板の設定で開きます。');
   }
@@ -2530,7 +2763,7 @@
       const full=document.createElement('canvas');full.width=img.naturalWidth;full.height=img.naturalHeight;const ctx=full.getContext('2d');
       ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(img,0,0,full.width,full.height);
       const board=ph.boardData.board;const strokes=ph.boardData.strokes||[];
-      const boardCanvas=makeBoardCanvas(board,strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board));
+      const boardCanvas=makeBoardCanvas(board,strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);
       ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h);
       const editedBlob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の再作成に失敗しました。')),'image/jpeg',0.92));
       ph.editedBlob=editedBlob;ph.editedUpdatedAt=Date.now();
@@ -2698,6 +2931,7 @@
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
   $('projectForm').addEventListener('submit',saveProject);
   $('projectCoverType').addEventListener('change',()=>{ syncCoverToForm(); renderCoverEditor(); });
+  initPosPick();
   $('coverEdit').addEventListener('input',syncCoverToForm);
   $('coverEdit').addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();e.target.blur();}
@@ -2712,7 +2946,7 @@
     if(e.target.value!==limited)e.target.value=limited;
   });
   $('photoForm').addEventListener('submit',savePhoto);
-  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
+  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardSurface','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
   $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; renderBoardEditor(); });
   $('boardTemplate').addEventListener('change',()=>{
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);
@@ -2720,7 +2954,7 @@
     const current=readBoardControls();
     const preset=boardPreset(newKey,ph);
     preset.position=current.position;preset.size=current.size;preset.enabled=current.enabled;
-    preset.orient=current.orient;preset.noteSize=current.noteSize;
+    preset.orient=current.orient;preset.noteSize=current.noteSize;preset.surface=current.surface;preset.freePos=current.freePos;
     if(!GENERIC_TEMPLATES[newKey]&&!GENERIC_TEMPLATES[current.template]&&current.note)preset.note=current.note;
     fillBoardControls(preset);
     renderBoardEditor();
@@ -2783,12 +3017,24 @@
     }else if(settings.saveCameraCopy && photoDirectoryHandle && !await ensurePhotoDirectoryPermission()){
       alert('保存先フォルダへの書き込みを許可してください。');return;
     }
-    $('cameraInput').click();
+    if(settings.cameraMode==='inapp'){ await openCameraDialog(); }
+    else { $('cameraInput').click(); }
   });
   $('galleryBtn').addEventListener('click',()=>$('galleryInput').click());
   $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
   $('chooseBackupFolderBtn').addEventListener('click',chooseBackupDirectory);
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});
+  function updateCameraModeHint(){
+    const el=$('cameraModeHint'); if(!el)return;
+    el.textContent=($('cameraMode').value==='inapp')
+      ? '黒板を画面に重ねて位置を決めながら撮影できます。スマホ標準のカメラより画質が落ちたり、ズームや明るさの自動調整が効かない場合があります。'
+      : 'スマホのカメラアプリで撮影します。画質やズームは標準のままですが、撮影中に黒板は表示されません。';
+  }
+  $('cameraMode').addEventListener('change',async e=>{
+    settings.cameraMode=e.target.value; updateCameraModeHint();
+    await idbPut('settings',{key:'main',value:settings});
+  });
+  initInAppCamera();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);

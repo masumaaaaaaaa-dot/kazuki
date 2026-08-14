@@ -315,6 +315,19 @@
       }
       #camStage{top:0!important;bottom:0!important}
     }
+
+    /* カメラ横持ち：配置は変えず、操作文字・アイコンの向きだけ端末の横持ちに合わせる */
+    #cameraDialog .cam-turn-label{display:inline-block;transform-origin:center center;white-space:nowrap}
+    #cameraDialog.cam-sideways-controls .cam-turn-label,
+    #cameraDialog.cam-sideways-controls #camZoomLabel,
+    #cameraDialog.cam-sideways-controls #camShotCount{
+      transform:rotate(var(--cam-control-turn,90deg)) scale(.90);
+      transform-origin:center center;
+    }
+    #cameraDialog.cam-sideways-controls #camZoomLabel,
+    #cameraDialog.cam-sideways-controls #camShotCount{display:inline-block;white-space:nowrap}
+    #cameraDialog.cam-sideways-controls #camTopBar > div:first-child{visibility:hidden}
+
 </style>
 </head>
 <body>
@@ -485,39 +498,39 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 ab</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 ac</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
-        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
-        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:34px;width:38px;padding:5px;font-size:15px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">⟳</button>
-        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">横黒板</button>
-        <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0">黒板</button>
-        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">写真 自動</button>
-        <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">黒板なし</button>
+        <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto"><span class="cam-turn-label">黒板を選ぶ</span></button>
+        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto"><span class="cam-turn-label">黒板 小</span></button>
+        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:34px;width:38px;padding:5px;font-size:15px;border-radius:8px;border:0;background:rgba(255,255,255,.9)"><span class="cam-turn-label">⟳</span></button>
+        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)"><span class="cam-turn-label">横黒板</span></button>
+        <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0"><span class="cam-turn-label">黒板</span></button>
+        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)"><span class="cam-turn-label">写真 自動</span></button>
+        <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)"><span class="cam-turn-label">黒板なし</span></button>
       </div>
     </div>
     <div id="camTemplateSheet" style="display:none;position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.82);z-index:5;overflow:auto;padding:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#fff">
         <strong style="flex:1;font-size:14px">黒板を選ぶ</strong>
-        <button type="button" class="btn" id="camTemplateCloseBtn" style="background:rgba(255,255,255,.18);color:#fff">閉じる</button>
+        <button type="button" class="btn" id="camTemplateCloseBtn" style="background:rgba(255,255,255,.18);color:#fff"><span class="cam-turn-label">閉じる</span></button>
       </div>
       <div id="camTemplateGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div>
     </div>
     <div id="camBottomBar" style="position:absolute;left:0;right:0;bottom:0;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);transition:transform .18s ease">
       <div id="camSubBar" style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:8px">
-        <button type="button" class="btn" id="camZoomOutBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px">－</button>
+        <button type="button" class="btn" id="camZoomOutBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px"><span class="cam-turn-label">－</span></button>
         <span id="camZoomLabel" style="color:#fff;font-size:12.5px;min-width:44px;text-align:center">1.0倍</span>
-        <button type="button" class="btn" id="camZoomInBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px">＋</button>
-        <button type="button" class="btn" id="camFlashBtn" style="background:rgba(255,255,255,.18);color:#fff">ライト</button>
-        <button type="button" class="btn" id="camSwitchBtn" style="background:rgba(255,255,255,.18);color:#fff">切替</button>
+        <button type="button" class="btn" id="camZoomInBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px"><span class="cam-turn-label">＋</span></button>
+        <button type="button" class="btn" id="camFlashBtn" style="background:rgba(255,255,255,.18);color:#fff"><span class="cam-turn-label">ライト</span></button>
+        <button type="button" class="btn" id="camSwitchBtn" style="background:rgba(255,255,255,.18);color:#fff"><span class="cam-turn-label">切替</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
-        <button type="button" class="btn" id="camCloseBtn" style="background:rgba(255,255,255,.18);color:#fff">閉じる</button>
+        <button type="button" class="btn" id="camCloseBtn" style="background:rgba(255,255,255,.18);color:#fff"><span class="cam-turn-label">閉じる</span></button>
         <span id="camShotCount" style="color:#fff;font-size:12.5px;margin-left:8px"></span>
         <span style="flex:1"></span>
         <button type="button" id="camShutterBtn" aria-label="撮影" style="width:70px;height:70px;border-radius:50%;border:5px solid rgba(255,255,255,.9);background:#fff"></button>
         <span style="flex:1"></span>
-        <button type="button" class="btn" id="camHideUiBtn" title="ボタンを隠す" style="background:rgba(255,255,255,.18);color:#fff;min-width:64px">隠す</button>
+        <button type="button" class="btn" id="camHideUiBtn" title="ボタンを隠す" style="background:rgba(255,255,255,.18);color:#fff;min-width:64px"><span class="cam-turn-label">隠す</span></button>
       </div>
     </div>
   </div>
@@ -716,7 +729,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15ab';
+  const APP_VERSION='2026.08.15ac';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1034,7 +1047,7 @@
     if(!orient)return;
     const changed=camPhysical.orient!==orient || camPhysical.angle!==angle;
     camPhysical={orient,angle,at:Date.now()};
-    if(changed && $('cameraDialog')?.open) camRefreshOverlay();
+    if(changed && $('cameraDialog')?.open){ camApplyControlOrientation(); camRefreshOverlay(); }
   }
   try{ window.addEventListener('deviceorientation',camUpdatePhysicalFromSensor,true); }catch(e){}
   function camDeviceOrient(){
@@ -1049,6 +1062,21 @@
   let camTorchOn=false;
   let camZoom=1;
   let camPhotoOrient='auto';   // auto / land / port
+  function camSetButtonLabel(el,text){
+    if(!el)return;
+    const s=el.querySelector&&el.querySelector('.cam-turn-label');
+    if(s)s.textContent=text; else el.textContent=text;
+  }
+  function camApplyControlOrientation(){
+    const dlg=$('cameraDialog'); if(!dlg)return;
+    const land=camDeviceOrient()==='land';
+    dlg.classList.toggle('cam-sideways-controls',land);
+    let deg=90;
+    const a=camDeviceAngle();
+    if(a===90)deg=-90;
+    else if(a===270)deg=90;
+    dlg.style.setProperty('--cam-control-turn',deg+'deg');
+  }
   function camPreviewRotation(){
     const v=$('camVideo'), st=$('camStage');
     if(!v||!st||!v.videoWidth||!v.videoHeight)return 0;
@@ -1119,6 +1147,7 @@
     return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY,previewRotation:pr};
   }
   function camRefreshOverlay(){
+    camApplyControlOrientation();
     const v=$('camVideo'), ov=$('camBoardOverlay');
     if(!v||!ov)return;
     const board=camCurrentBoard();
@@ -1139,27 +1168,27 @@
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
     if(ob){
-      ob.textContent=((board.orient==='port')?'縦':'横')+'黒板';
+      camSetButtonLabel(ob,((board.orient==='port')?'縦':'横')+'黒板');
       ob.style.background='rgba(255,255,255,.9)';
       ob.style.color='#1a1d20';
       ob.title='押すたびに黒板が右へ90度回ります';
     }
     const sb=$('camSurfaceBtn');
     if(sb){ const white=board.surface==='white';
-      sb.textContent=white?'白板':'黒板';
+      camSetButtonLabel(sb,white?'白板':'黒板');
       sb.style.background=white?'#ffffff':'#33513f';
       sb.style.color=white?'#1f2a30':'#ffffff'; }
     const rb=$('camRotateBtn');
     if(rb)rb.style.background=(camSettings.rotate%360)?'#f5a524':'rgba(255,255,255,.9)';
     const szb=$('camSizeBtn');
-    if(szb)szb.textContent='黒板 '+({s:'小',m:'中',l:'大'}[board.size]||'小');
+    if(szb)camSetButtonLabel(szb,'黒板 '+({s:'小',m:'中',l:'大'}[board.size]||'小'));
     const po=$('camPhotoOrientBtn');
     if(po){
       const detected=camDeviceOrient()==='land'?'横':'縦';
-      po.textContent=camPhotoOrient==='auto'?('写真 自動・'+detected):('写真 '+({land:'横',port:'縦'}[camPhotoOrient]||'自動'));
+      camSetButtonLabel(po,camPhotoOrient==='auto'?('写真 自動・'+detected):('写真 '+({land:'横',port:'縦'}[camPhotoOrient]||'自動')));
       po.style.background=(camPhotoOrient==='auto')?'rgba(255,255,255,.9)':'#f5a524';
     }
-    const off=$('camBoardOffBtn'); if(off)off.textContent=board.enabled===false?'黒板を出す':'黒板なし';
+    const off=$('camBoardOffBtn'); if(off)camSetButtonLabel(off,board.enabled===false?'黒板を出す':'黒板なし');
   }
   function camRenderTemplateGrid(){
     const grid=$('camTemplateGrid'); if(!grid)return;
@@ -1248,7 +1277,7 @@
       const track=camStream.getVideoTracks()[0];
       const caps=track&&track.getCapabilities?track.getCapabilities():{};
       fb.dataset.torch=caps.torch?'1':'';
-      fb.textContent='ライト';
+      camSetButtonLabel(fb,'ライト');
       fb.style.background='rgba(255,255,255,.16)';
     }
     setTimeout(()=>{ if(window._applyCamUi)window._applyCamUi(); else camRefreshOverlay(); },150);
@@ -1263,6 +1292,8 @@
       if(key!==lastKey){ lastKey=key; camRefreshOverlay(); }
     },400);
     dlg.showModal();
+    camApplyControlOrientation();
+    setTimeout(camApplyControlOrientation,120);
   }
   function closeCameraDialog(){
     if(window._camWatch){clearInterval(window._camWatch);window._camWatch=null;}
@@ -1280,7 +1311,7 @@
       try{ v.load(); }catch(e){}
     }
     if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-    const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
+    const dlg=$('cameraDialog'); if(dlg){ dlg.classList.remove('cam-sideways-controls'); if(dlg.open)dlg.close(); }
     requestAnimationFrame(()=>{ if(v)v.style.visibility='visible'; });
   }
   function initInAppCamera(){
@@ -1338,7 +1369,7 @@
       const landscape=window.innerWidth>window.innerHeight;
       if(top){ top.style.opacity=camUiHidden?'0':'1'; top.style.pointerEvents=camUiHidden?'none':'auto'; }
       if(sub){ sub.style.display=camUiHidden?'none':(landscape?'grid':'flex'); }
-      if(btn)btn.textContent=camUiHidden?'出す':'隠す';
+      if(btn)camSetButtonLabel(btn,camUiHidden?'出す':'隠す');
       // 横画面は左右に操作パネル、縦画面は従来どおり上下に操作パネルを置く。
       setTimeout(()=>{
         if(st){
@@ -1379,11 +1410,11 @@
       const fb=$('camFlashBtn');
       fb.style.background=camTorchOn?'rgba(245,165,36,.95)':'rgba(255,255,255,.16)';
       fb.style.color=camTorchOn?'#20160a':'#fff';
-      fb.textContent=camTorchOn?'ライトON':'ライト';
+      camSetButtonLabel(fb,camTorchOn?'ライトON':'ライト');
     });
-    window.addEventListener('resize',()=>{ if($('cameraDialog').open){camApplyVideoLayout();camRefreshOverlay();} });
-    window.addEventListener('orientationchange',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},250); });
-    try{ if(screen.orientation) screen.orientation.addEventListener('change',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},200); }); }catch(e){}
+    window.addEventListener('resize',()=>{ if($('cameraDialog').open){camApplyControlOrientation();camApplyVideoLayout();camRefreshOverlay();} });
+    window.addEventListener('orientationchange',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyControlOrientation();camApplyVideoLayout();camRefreshOverlay();},250); });
+    try{ if(screen.orientation) screen.orientation.addEventListener('change',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyControlOrientation();camApplyVideoLayout();camRefreshOverlay();},200); }); }catch(e){}
     $('camSwitchBtn').addEventListener('click',async()=>{
       camFacing=(camFacing==='environment')?'user':'environment';
       if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }

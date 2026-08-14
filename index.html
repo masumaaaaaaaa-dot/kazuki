@@ -433,7 +433,8 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
-        <button type="button" id="camOrientBtn" title="押すたびに黒板が右へ90度回ります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">⟳ 黒板 横</button>
+        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:34px;width:38px;padding:5px;font-size:15px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">⟳</button>
+        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">横黒板</button>
         <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0">黒板</button>
         <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">黒板なし</button>
       </div>
@@ -571,20 +572,6 @@
         <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
       </div>
       <div style="margin-top:10px">
-        <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
-        <div class="board-quick" id="boardQuickBar">
-          <button type="button" class="bq" id="bqOrient"><span class="bq-l">向き</span><span class="bq-v">横</span></button>
-          <button type="button" class="bq" id="bqPosition"><span class="bq-l">位置</span><span class="bq-v">右下</span></button>
-          <button type="button" class="bq" id="bqSize"><span class="bq-l">大きさ</span><span class="bq-v">小</span></button>
-        </div>
-        <div class="cf-dup">
-          <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select>
-          <select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select>
-          <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由</option></select>
-          <select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select>
-        </div>
-      </div>
-      <div style="margin-top:10px">
         <label>黒板の選択（タップで選択・見た目のプレビュー付き）</label>
         <div class="mode-toggle" id="boardPickerTabs">
           <button type="button" class="btn tiny-btn active" data-tab="template">黒板テンプレート</button>
@@ -611,13 +598,27 @@
           <option value="free">自由設定</option>
         </select>
       </div>
+      <div style="margin-top:10px">
+        <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
+        <div class="board-quick" id="boardQuickBar">
+          <button type="button" class="bq" id="bqOrient"><span class="bq-l">向き</span><span class="bq-v">横</span></button>
+          <button type="button" class="bq" id="bqPosition"><span class="bq-l">位置</span><span class="bq-v">右下</span></button>
+          <button type="button" class="bq" id="bqSize"><span class="bq-l">大きさ</span><span class="bq-v">小</span></button>
+        </div>
+        <div class="cf-dup">
+          <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select>
+          <select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select>
+          <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由</option></select>
+          <select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select>
+        </div>
+      </div>
       <div id="posPickWrap" style="display:none;margin-top:10px">
-          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
+          <label id="posPickLabel">写真に貼ったときの仕上がり</label>
           <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
             <img id="posPickPhoto" style="width:100%;display:block" alt="" />
             <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
           </div>
-          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
+          <div class="hint" style="margin-top:6px" id="posPickHint"></div>
         </div>
       <div id="boardLegacyFields" class="grid two" style="margin-top:10px">
         <div><label>上段1 ラベル</label><input id="boardLabel1" /></div><div><label>上段1 文字</label><input id="boardValue1" /></div>
@@ -649,8 +650,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15d';
-  const APP_UPDATE_NOTE='カメラに黒板の回転ボタンを追加／板の色は緑・白の2種類に';
+  const APP_VERSION='2026.08.15e';
+  const APP_UPDATE_NOTE='回転アイコンを独立／仕上がり写真を常時表示／黒板の選択を上に移動';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -979,7 +980,7 @@
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
     if(ob){
-      ob.textContent='⟳ 黒板 '+((board.orient==='port')?'縦':'横');
+      ob.textContent=((board.orient==='port')?'縦':'横')+'黒板';
       ob.style.background='rgba(255,255,255,.9)';
       ob.style.color='#1a1d20';
       ob.title='押すたびに黒板が右へ90度回ります';
@@ -1093,11 +1094,13 @@
       camSettings.size=order[(i+1)%order.length];
       camRefreshOverlay();
     });
-    $('camOrientBtn').addEventListener('click',()=>{
+    const camRotate=()=>{
       camSettings.orientAuto=false;
       camSettings.orient=(camSettings.orient==='port')?'land':'port';
       camRefreshOverlay();
-    });
+    };
+    $('camOrientBtn').addEventListener('click',camRotate);
+    $('camRotateBtn').addEventListener('click',camRotate);
     $('camSurfaceBtn').addEventListener('click',()=>{camSettings.surface=(camSettings.surface==='white')?'chalk':'white';camRefreshOverlay()});
     $('camBoardOffBtn').addEventListener('click',()=>{camSettings.enabled=!camSettings.enabled;camRefreshOverlay()});
     $('camFlashBtn').addEventListener('click',async()=>{
@@ -2848,7 +2851,7 @@
   function updatePosPickUI(){
     const wrap=$('posPickWrap'); if(!wrap)return;
     const board=readBoardControls();
-    const on=board.position==='free' && board.enabled!==false;
+    const on=board.enabled!==false;      // 位置の指定に関わらず、いつでも確認できる
     wrap.style.display=on?'block':'none';
     if(!on)return;
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);
@@ -2856,8 +2859,15 @@
     const img=$('posPickPhoto');
     const url=getPhotoUrl({...ph,editedBlob:null});
     if(img.dataset.pid!==ph.id){ img.src=url; img.dataset.pid=ph.id; }
+    const free=board.position==='free';
+    const lab=$('posPickLabel');
+    if(lab)lab.textContent=free?'写真の上で、黒板を指で動かして位置を決めてください':'写真に貼ったときの仕上がり';
+    const hint=$('posPickHint');
+    if(hint)hint.textContent=free?'黒板をつかんで動かせます。位置は写真ごとに保存されます。':'「位置」を「自由」にすると、黒板を指で動かして置けます。';
     const draw=()=>{
       const stage=$('posPickStage'), box=$('posPickBoard');
+      box.style.cursor=free?'move':'default';
+      box.style.pointerEvents=free?'auto':'none';
       const sw=stage.clientWidth, sh=stage.clientHeight;
       if(!sw||!sh)return;
       const r=computeBoardRect(sw,sh,board.position,board.size||'m',boardAspect(board),board.freePos);

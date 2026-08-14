@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f766e" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>工事写真台帳</title>
@@ -27,20 +27,16 @@
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
     .app-shell{max-width:980px;margin:0 auto;min-height:100vh;padding-bottom:92px}
-    .topbar{position:sticky;top:0;z-index:20;color:#fff;padding:14px 14px 12px;box-shadow:0 2px 8px rgba(0,0,0,.18);
-      background:
-        radial-gradient(58% 46% at 22% 18%,rgba(255,255,255,.055),transparent 72%),
-        radial-gradient(46% 40% at 76% 78%,rgba(255,255,255,.042),transparent 74%),
-        radial-gradient(30% 60% at 52% 50%,rgba(255,255,255,.028),transparent 70%),
-        linear-gradient(140deg,#2b2f33,#212528 34%,#1a1d20 68%,#2b2f33);
-      border-bottom:1px solid rgba(255,255,255,.28)}
-    .topbar{overflow:hidden}
+    /* 上部バー：白（ライト）のときは白、黒（ダーク）のときは黒 */
+    .topbar{position:sticky;top:0;z-index:20;overflow:hidden;padding:14px 14px 12px;
+      background:#fff;color:#151b1e;border-bottom:1px solid #e2e6ea;box-shadow:0 1px 6px rgba(15,23,42,.07)}
+    html[data-theme="dark"] .topbar{background:#111417;color:#f2f5f7;border-bottom-color:#272c31;box-shadow:0 2px 8px rgba(0,0,0,.5)}
     .topbar-row{position:relative;z-index:1}
-    .topbar-art{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:88px;height:80px;opacity:.34;pointer-events:none}
+    .topbar-art{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:88px;height:80px;opacity:.2;pointer-events:none;color:inherit}
     .topbar-art svg{width:100%;height:100%}
     .topbar h1,.topbar .project-chip{max-width:calc(100% - 92px)}
-    .topbar h1{text-shadow:0 1px 2px rgba(0,0,0,.32)}
-    .topbar .project-chip{text-shadow:0 1px 2px rgba(0,0,0,.3)}
+    .topbar .project-chip{color:inherit;opacity:.72}
+    .install-btn{border-color:currentColor;color:inherit;background:transparent}
     .topbar-row{display:flex;align-items:center;gap:10px}
     .topbar h1{font-size:20px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .project-chip{font-size:12px;opacity:.93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw;margin-top:4px}
@@ -588,8 +584,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14k';
-  const APP_UPDATE_NOTE='上部のバーを黒で固定（テーマカラーの影響を受けません）';
+  const APP_VERSION='2026.08.14m';
+  const APP_UPDATE_NOTE='上部のバーを、白（ライト）のときは白、黒（ダーク）のときは黒に';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1614,7 +1610,7 @@
   function applyTheme(theme){
     const t=theme==='dark'?'dark':'light';
     document.documentElement.dataset.theme=t;
-    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.setAttribute('content',t==='dark'?'#0e1015':'#0f766e');
+    const meta=document.querySelector('meta[name="theme-color"]'); if(meta)meta.setAttribute('content',t==='dark'?'#111417':'#ffffff');
     const wrap=$('themeToggle'); if(wrap)wrap.querySelectorAll('button[data-theme]').forEach(b=>{
       const active=b.dataset.theme===t;
       b.classList.toggle('active',active);
@@ -2633,7 +2629,7 @@
   function setTopbarArt(name){
     const el=$('topbarArt'); if(!el)return;
     const art=TOPBAR_ART[name]||TOPBAR_ART.projects;
-    el.innerHTML=`<svg viewBox="0 0 64 60" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
+    el.innerHTML=`<svg viewBox="0 0 64 60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
   }
   function showPage(name){setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();}
 

@@ -561,14 +561,6 @@
           </div>
         </div>
         <div class="draw-hint" id="drawHint">指2本で黒板を拡大・移動できます</div>
-        <div id="posPickWrap" style="display:none;margin-top:10px">
-          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
-          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
-            <img id="posPickPhoto" style="width:100%;display:block" alt="" />
-            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
-          </div>
-          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
-        </div>
         <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。</div>
       </div>
       <div id="boardControlsCol">
@@ -577,6 +569,14 @@
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
         <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
       </div>
+      <div id="posPickWrap" style="display:none;margin-top:10px">
+          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
+          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
+            <img id="posPickPhoto" style="width:100%;display:block" alt="" />
+            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
+          </div>
+          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
+        </div>
       <div style="margin-top:10px">
         <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
         <div class="board-quick" id="boardQuickBar">
@@ -648,8 +648,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15a';
-  const APP_UPDATE_NOTE='黒板の設定をアイコンでコンパクトに／板の色を3種類に／カメラの向き判定を改善';
+  const APP_VERSION='2026.08.15b';
+  const APP_UPDATE_NOTE='傾きセンサーで黒板が自動で回るように／黒板（黒）をはっきりした黒に';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -929,15 +929,26 @@
   }
   let camSettings={template:null,size:null,orient:null,surface:null,enabled:true,orientAuto:true};
   // 端末を横に向けたら黒板も横向きにする
+  // 端末の傾き（重力の向き）から、いま横に構えているかを判断する
+  let camTiltOrient='';
+  function initCamTilt(){
+    if(window._camTiltInit)return; window._camTiltInit=true;
+    window.addEventListener('deviceorientation',(e)=>{
+      // gamma＝左右の傾き、beta＝前後の傾き
+      const g=e.gamma, be=e.beta;
+      if(g==null||be==null)return;
+      const next=(Math.abs(g)>38 && Math.abs(be)<58)?'land':'port';
+      if(next!==camTiltOrient){
+        camTiltOrient=next;
+        if($('cameraDialog')&&$('cameraDialog').open)camRefreshOverlay();
+      }
+    },true);
+  }
   function camDeviceOrient(){
-    const byScreen=(window.innerWidth>window.innerHeight)?'land':'port';
-    // 映像も画面も横長なら横向き。どちらかが縦なら縦向きにする
-    const v=$('camVideo');
-    if(v&&v.videoWidth&&v.videoHeight){
-      const byVideo=(v.videoWidth>=v.videoHeight)?'land':'port';
-      return (byVideo==='land'&&byScreen==='land')?'land':'port';
-    }
-    return byScreen;
+    // ①傾きセンサー（画面の回転ロック中でも効く）
+    if(camTiltOrient)return camTiltOrient;
+    // ②画面の縦横
+    return (window.innerWidth>window.innerHeight)?'land':'port';
   }
   let camTorchOn=false;
   function camCurrentBoard(){
@@ -984,10 +995,10 @@
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
     if(ob){
-      const mark=(board.orient==='port')?'▯':'▭';
-      ob.textContent=mark+(camSettings.orientAuto?'':'固定');
+      ob.textContent=(board.orient==='port')?'黒板 縦':'黒板 横';
       ob.style.background=camSettings.orientAuto?'rgba(255,255,255,.9)':'#f5a524';
-      ob.title=camSettings.orientAuto?'端末の向きに合わせて自動で回ります（押すと固定できます）':'向きを固定しています（押すと切り替え）';
+      ob.style.color='#1a1d20';
+      ob.title=camSettings.orientAuto?'端末の傾きに合わせて自動で回ります（押すと固定できます）':'向きを固定しています（押すと切り替え）';
     }
     const sb=$('camSurfaceBtn');
     if(sb){ const white=board.surface==='white';
@@ -1025,6 +1036,12 @@
   }
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
+    try{
+      if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+        try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+      }
+      initCamTilt();
+    }catch(e){ console.warn('傾きの検知を使えません',e); }
     try{
       camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}},audio:false});
     }catch(err){
@@ -2196,9 +2213,9 @@
   }
   // 向き・位置・大きさは、押すたびに切り替わる
   const BQ_DEFS={
-    bqOrient:{sel:'boardOrient',opts:[['land','横'],['port','縦']]},
+    bqOrient:{sel:'boardOrient',opts:[['land','横長'],['port','縦長']]},
     bqPosition:{sel:'boardPosition',opts:[['rb','右下'],['lb','左下'],['lt','左上'],['rt','右上'],['free','自由']]},
-    bqSize:{sel:'boardSize',opts:[['s','小'],['m','中'],['l','大']]},
+    bqSize:{sel:'boardSize',opts:[['s','小'],['m','中'],['l','大']]},   // 押すたびに 小→中→大
   };
   function updateQuickBar(){
     Object.entries(BQ_DEFS).forEach(([id,def])=>{
@@ -2223,7 +2240,7 @@
   const SURFACE_CYCLE=[
     {v:'chalk',label:'緑板',bg:'#33513f',fg:'#ffffff',bd:'#233a2c'},
     {v:'white',label:'白板',bg:'#ffffff',fg:'#1f2a30',bd:'#9aa7b0'},
-    {v:'black',label:'黒板',bg:'#2a2e33',fg:'#ffffff',bd:'#14171a'},
+    {v:'black',label:'黒板',bg:'#17191d',fg:'#ffffff',bd:'#000000'},
   ];
   function updateSurfaceToggleBtn(){
     const btn=$('surfaceToggleBtn'); if(!btn)return;
@@ -2528,7 +2545,7 @@
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
     const rand=createSeededRandom(((w*374761393)^(h*668265263))>>>0);
     const base=cx.createLinearGradient(0,0,w,h);
-    base.addColorStop(0,'#31353a'); base.addColorStop(0.45,'#2a2e33'); base.addColorStop(1,'#23272b');
+    base.addColorStop(0,'#22242a'); base.addColorStop(0.42,'#191b20'); base.addColorStop(1,'#121418');
     cx.fillStyle=base;cx.fillRect(0,0,w,h);
     cx.save();
     for(let i=0;i<14;i++){

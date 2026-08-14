@@ -284,7 +284,7 @@
         <p class="hint">写真を撮影・選択すると、そのまま自動保存されます。写真横の記入欄は空欄のままでよく、必要な写真だけ後から最大11行まで入力できます。</p>
         <div class="btn-row">
           <button class="btn primary" id="cameraBtn">📷 その場で撮影</button>
-          <button class="btn outline" id="galleryBtn">🖼 写真を選ぶ</button>
+          <button class="btn outline" id="galleryBtn">🏞️ 写真を選ぶ</button>
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
         <input type="file" id="galleryInput" accept="image/*" multiple hidden />
@@ -590,8 +590,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14q';
-  const APP_UPDATE_NOTE='Excelから「用語集」シートを除外';
+  const APP_VERSION='2026.08.14r';
+  const APP_UPDATE_NOTE='全体点検を実施／「写真を選ぶ」の絵文字が出ない端末があったため差し替え';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

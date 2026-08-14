@@ -730,8 +730,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.16a';
-  const APP_UPDATE_NOTE='アプリ内カメラを作り直しました。画面に見えているとおりに保存されます';
+  const APP_VERSION='2026.08.16b';
+  const APP_UPDATE_NOTE='スマホを横に構えると横長の写真で保存されるようになりました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1005,11 +1005,12 @@
   let camStream=null, camFacing='environment', camBoardPos={x:0.78,y:0.8};
   let camSettings={template:null,size:null,orient:null,surface:null,noteSize:null,enabled:true,rotate:0};
   let camTorchOn=false, camZoom=1;
-  // 写真の向き： auto=カメラ映像そのまま／land・land180=横／port・port180=縦
-  const CAM_PHOTO_MODES=['auto','land','land180','port','port180'];
-  const CAM_PHOTO_LABEL={auto:'写真 自動',land:'写真 横',land180:'写真 横↻',port:'写真 縦',port180:'写真 縦↻'};
+  // 写真の向き： auto=スマホの構え方に合わせる／land=横／port=縦
+  const CAM_PHOTO_MODES=['auto','land','port'];
+  const CAM_PHOTO_LABEL={auto:'写真 自動',land:'写真 横',port:'写真 縦'};
   let camPhotoMode='auto';
   let camRaf=0, camBoardObj=null, camBoardCanvas=null;
+  let camLensId='', camReorienting=false, camReorientTried={land:false,port:false};
   let camUiHidden=false, camDrag=null;
   const CAM_PREVIEW_MAX=1280;   // 画面表示用の解像度上限（描画を軽くするため。保存写真は原寸）
 
@@ -1048,22 +1049,23 @@
     return camBoardCanvas;
   }
 
-  // 保存する写真の回転角。「自動」はカメラ映像をそのまま使うので回転なし。
-  function camPhotoRotation(){
-    const v=$('camVideo');
-    if(!v||!v.videoWidth||!v.videoHeight)return 0;
-    if(camPhotoMode==='auto')return 0;
-    const streamLand=v.videoWidth>=v.videoHeight;
-    const wantLand=(camPhotoMode==='land'||camPhotoMode==='land180');
-    let rot=(streamLand===wantLand)?0:90;
-    if(camPhotoMode==='land180'||camPhotoMode==='port180')rot=(rot+180)%360;
-    return rot;
-  }
+  // スマホの構え方（画面が横長か縦長か）。縦固定を解除してあるので、これが実際の構え方と一致する。
+  function camScreenOrient(){ return (window.innerWidth>window.innerHeight)?'land':'port'; }
+  function camTargetOrient(){ return (camPhotoMode==='auto')?camScreenOrient():camPhotoMode; }
+  // 保存する写真の枠の大きさ。
+  // カメラ映像は必ず正しい向き（正立）で届くので、向きを変えるときに回してはいけない。
+  // 回すと中身が横倒しになるため、中央を切り出して目的の向きにする。
   function camFrameSize(){
     const v=$('camVideo');
     if(!v||!v.videoWidth||!v.videoHeight)return null;
-    const rot=camPhotoRotation(), swap=(rot===90||rot===270);
-    return {w:swap?v.videoHeight:v.videoWidth, h:swap?v.videoWidth:v.videoHeight, rot};
+    const vw=v.videoWidth, vh=v.videoHeight;
+    const wantLand=(camTargetOrient()==='land');
+    const srcLand=vw>=vh;
+    if(wantLand===srcLand)return {w:vw,h:vh};      // 向きが合っていれば切り出し不要（全画素そのまま）
+    const ta=vh/vw;                                // 目的の 幅÷高さ（縦横を入れ替えた比率）
+    let cw=vw, ch=Math.round(vw/ta);
+    if(ch>vh){ ch=vh; cw=Math.round(vh*ta); }
+    return {w:cw,h:ch};
   }
 
   // ★ここが唯一の描画処理。画面表示にも保存写真にも、まったく同じ計算を使う。
@@ -1082,17 +1084,13 @@
     cx.setTransform(1,0,0,1,0,0);
     cx.fillStyle='#000'; cx.fillRect(0,0,w,h);
     const vw=v.videoWidth, vh=v.videoHeight;
-    // ズームは映像の中央を切り出す。画面も写真も同じ切り出しなのでズレない。
+    // 映像の中央から、向きとズームに応じた範囲を切り出す。回転はしない。
+    // 画面も写真もこの同じ切り出しを使うので、見えているとおりに保存される。
     const z=Math.max(1,camZoom);
-    const sw=vw/z, sh=vh/z, sx=(vw-sw)/2, sy=(vh-sh)/2;
-    const swap=(fs.rot===90||fs.rot===270);
-    const dw=swap?h:w, dh=swap?w:h;
-    cx.save();
-    cx.translate(w/2,h/2);
-    if(fs.rot)cx.rotate(fs.rot*Math.PI/180);
-    try{ cx.drawImage(v,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh); }
-    catch(e){ cx.restore(); return null; }
-    cx.restore();
+    const sw=fs.w/z, sh=fs.h/z;
+    const sx=(vw-sw)/2, sy=(vh-sh)/2;
+    try{ cx.drawImage(v,sx,sy,sw,sh,0,0,w,h); }
+    catch(e){ return null; }
     if(withBoard){
       const board=camCurrentBoard();
       if(board.enabled!==false){
@@ -1178,8 +1176,7 @@
     if(szb)camSetButtonLabel(szb,'黒板 '+({s:'小',m:'中',l:'大'}[board.size]||'小'));
     const po=$('camPhotoOrientBtn');
     if(po){
-      const fs=camFrameSize();
-      const shape=fs?(fs.w>=fs.h?'横':'縦'):'';
+      const shape=(camTargetOrient()==='land')?'横':'縦';
       camSetButtonLabel(po,CAM_PHOTO_LABEL[camPhotoMode]+((camPhotoMode==='auto'&&shape)?('・'+shape):''));
       po.style.background=(camPhotoMode==='auto')?'rgba(255,255,255,.9)':'#f5a524';
       po.title='保存する写真の向き。見えている枠のかたちがそのまま写真になります';
@@ -1222,30 +1219,62 @@
   async function restoreAppPortrait(){ return false; }
   async function endCameraLandscapeMode(){ return false; }
 
+  // できるだけ広く写るレンズを探す（広角カメラがあればそれを使う）
+  async function camFindWideLens(){
+    try{
+      const devs=await navigator.mediaDevices.enumerateDevices();
+      const cams=devs.filter(d=>d.kind==='videoinput');
+      const back=cams.filter(d=>/back|rear|背面|環境/i.test(d.label||''));
+      const list=back.length?back:cams;
+      const wide=list.find(d=>/wide|超広角|広角|0\.5/i.test(d.label||'') && !/tele|望遠/i.test(d.label||''));
+      return wide?wide.deviceId:'';
+    }catch(e){ return ''; }
+  }
+  // 構え方に合わせた大きさを希望する。横に構えていれば横長の映像をもらえる機種が多い。
+  function camVideoConstraints(deviceId,orient){
+    const land=(orient||camScreenOrient())==='land';
+    const size=land?{width:{ideal:2560},height:{ideal:1920}}:{width:{ideal:1920},height:{ideal:2560}};
+    return deviceId?Object.assign({deviceId:{exact:deviceId}},size):Object.assign({facingMode:camFacing},size);
+  }
+  async function camApplyZoomFloor(stream){
+    try{
+      const tr=stream.getVideoTracks()[0];
+      const caps=tr.getCapabilities?tr.getCapabilities():{};
+      if(caps.zoom&&typeof caps.zoom.min==='number'){ await tr.applyConstraints({advanced:[{zoom:caps.zoom.min}]}); }
+    }catch(e){}
+  }
+  // 端末を回したとき、映像の向きが構え方と食い違っていたら取り直す。
+  // 取り直せれば切り出しなしの全画素で保存でき、駄目なら中央の切り出しで対応する。
+  async function camTryReorient(){
+    if(!camStream||camReorienting)return;
+    const v=$('camVideo'); if(!v||!v.videoWidth)return;
+    const want=camScreenOrient();
+    if((want==='land')===(v.videoWidth>=v.videoHeight))return;   // すでに合っている
+    if(camReorientTried[want])return;                            // 一度駄目だった向きは繰り返さない
+    camReorientTried[want]=true;
+    camReorienting=true;
+    try{
+      // 新しい映像が取れてから古いほうを止める（失敗しても映像が消えないように）
+      const ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(camLensId,want),audio:false});
+      const old=camStream;
+      camStream=ns;
+      v.srcObject=ns;
+      await v.play().catch(()=>{});
+      await camApplyZoomFloor(ns);
+      try{ old.getTracks().forEach(t=>t.stop()); }catch(e){}
+      if(camTorchOn)await camApplyTorch(true);
+    }catch(e){ console.warn('向きに合わせた取り直しに失敗しました',e); }
+    finally{ camReorienting=false; camUpdateButtons(); }
+  }
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
     // 二重に開いたときに古い映像が残らないよう、必ず後始末してから開く
     if(camStream){ try{camStream.getTracks().forEach(t=>t.stop());}catch(e){} camStream=null; }
+    camReorientTried={land:false,port:false}; camReorienting=false;
     try{
-      // できるだけ広く写るレンズを選ぶ（広角カメラがあればそれを使う）
-      let wideId='';
-      try{
-        const devs=await navigator.mediaDevices.enumerateDevices();
-        const cams=devs.filter(d=>d.kind==='videoinput');
-        const back=cams.filter(d=>/back|rear|背面|環境/i.test(d.label||''));
-        const list=back.length?back:cams;
-        const wide=list.find(d=>/wide|超広角|広角|0\.5/i.test(d.label||'') && !/tele|望遠/i.test(d.label||''));
-        if(wide)wideId=wide.deviceId;
-      }catch(e){}
-      const vcon=wideId
-        ? {deviceId:{exact:wideId},width:{ideal:2560},height:{ideal:1920}}
-        : {facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}};
-      camStream=await navigator.mediaDevices.getUserMedia({video:vcon,audio:false});
-      try{
-        const tr=camStream.getVideoTracks()[0];
-        const caps=tr.getCapabilities?tr.getCapabilities():{};
-        if(caps.zoom&&typeof caps.zoom.min==='number'){ await tr.applyConstraints({advanced:[{zoom:caps.zoom.min}]}); }
-      }catch(e){}
+      camLensId=await camFindWideLens();
+      camStream=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(camLensId),audio:false});
+      await camApplyZoomFloor(camStream);
     }catch(err){
       console.warn('カメラを使えません',err);
       // 確認ダイアログを出すと操作の有効時間が切れてカメラが開かなくなるため、
@@ -1411,17 +1440,23 @@
     };
     window._applyCamUi=applyCamUi;
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
-    window.addEventListener('resize',()=>{ if(dlg.open)applyCamUi(); });
-    window.addEventListener('orientationchange',()=>{ if(dlg.open)setTimeout(applyCamUi,250); });
-    try{
-      if(screen.orientation)screen.orientation.addEventListener('change',()=>{ if(dlg.open)setTimeout(applyCamUi,200); });
-    }catch(e){}
+    // 画面が回ったら、配置を組み直してから映像の向きも合わせにいく
+    let camOrientTimer=0;
+    const onOrientChange=()=>{
+      if(!dlg.open)return;
+      clearTimeout(camOrientTimer);
+      camOrientTimer=setTimeout(()=>{ applyCamUi(); camUpdateButtons(); camTryReorient(); },300);
+    };
+    window.addEventListener('resize',onOrientChange);
+    window.addEventListener('orientationchange',onOrientChange);
+    try{ if(screen.orientation)screen.orientation.addEventListener('change',onOrientChange); }catch(e){}
 
     $('camShutterBtn').addEventListener('click',async()=>{
       const v=$('camVideo');
       if(!v||!v.videoWidth){ alert('カメラの準備ができていません。少し待ってからもう一度押してください。'); return; }
       const shutter=$('camShutterBtn');
       if(shutter&&shutter.dataset.busy==='1')return;
+      if(camReorienting)return;   // 映像の取り直し中は撮らない
       if(shutter)shutter.dataset.busy='1';
       try{
         // 画面に出しているのと同じ描画で、黒板を含まない原寸の写真を作る。

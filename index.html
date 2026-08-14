@@ -593,8 +593,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14u';
-  const APP_UPDATE_NOTE='プライバシーポリシーのページを追加（設定から開けます）';
+  const APP_VERSION='2026.08.14v';
+  const APP_UPDATE_NOTE='アプリ情報を整備（Google Play申請の準備）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2914,6 +2914,13 @@
     $('welcomeDialog').close();
   });
   setTopbarArt('projects');
+  // ショートカットから開いたときに、そのページを表示する
+  try{
+    const _pg=new URLSearchParams(location.search).get('page');
+    if(_pg&&['projects','photos','output','settings'].includes(_pg)){
+      window.addEventListener('load',()=>setTimeout(()=>showPage(_pg),300));
+    }
+  }catch(e){}
   // 利用開始日を記録（将来の料金プラン変更時に、以前から使っている方を判別するため）
   async function recordFirstUse(){
     try{

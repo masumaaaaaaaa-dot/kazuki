@@ -137,6 +137,11 @@
     .board-note-editor textarea{display:block;width:100%;aspect-ratio:2.75/1;min-height:0;height:auto;resize:none;font-family:monospace;font-size:1.8em;font-weight:700;line-height:1.22;white-space:pre-wrap;overflow:auto}
     .board-note-status{font-size:12px;color:var(--muted);margin-top:5px;font-weight:400}
     .board-note-status.over{color:var(--danger);font-weight:800}
+    .draw-hint{display:none;margin-top:8px;text-align:center;font-size:12px;font-weight:700;color:var(--brand-ink);
+      background:color-mix(in srgb,var(--brand) 10%,#fff);border:1px solid color-mix(in srgb,var(--brand) 35%,#fff);
+      border-radius:8px;padding:6px 8px}
+    .draw-hint.show{display:block}
+    html[data-theme="dark"] .draw-hint{background:color-mix(in srgb,var(--brand) 16%,#1b211d);border-color:color-mix(in srgb,var(--brand) 40%,#1b211d)}
     .zoom-controls{display:flex;gap:6px;justify-content:center;margin-top:8px}
     .zoom-controls .btn{padding:7px 10px;font-size:12px}
     .mode-toggle{display:flex;gap:6px;margin-bottom:8px}
@@ -509,12 +514,13 @@
             <div id="boardFieldHotspots" class="board-hotspots"></div>
           </div>
         </div>
+        <div class="draw-hint" id="drawHint">指2本で黒板を拡大・移動できます</div>
         <div class="zoom-controls">
           <button type="button" class="btn tiny-btn outline" id="boardZoomOutBtn">－ 縮小</button>
           <button type="button" class="btn tiny-btn outline" id="boardZoomResetBtn">等倍に戻す</button>
           <button type="button" class="btn tiny-btn outline" id="boardZoomInBtn">＋ 拡大</button>
         </div>
-        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。黒板の大きさを変えると、手書きも同じ比率で拡大・縮小されます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。指2本のピンチ操作、または上のボタンで黒板を拡大して細かく書き込めます。</div>
+        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。</div>
       </div>
       <div id="boardControlsCol">
       <div class="tip-box" style="margin-top:10px">
@@ -584,8 +590,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14m';
-  const APP_UPDATE_NOTE='上部のバーを、白（ライト）のときは白、黒（ダーク）のときは黒に';
+  const APP_VERSION='2026.08.14n';
+  const APP_UPDATE_NOTE='手書き中だけ「指2本で黒板を拡大・移動できます」と案内を表示';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2444,6 +2450,7 @@
     boardState.projectInfoApplied=false;boardState.beforeApplySnapshot=null;setApplyProjectBtnState(false);
     const modeWrap=$('boardModeToggle'); if(modeWrap)modeWrap.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode==='text'));
     const toolBar=$('drawToolBar'); if(toolBar)toolBar.classList.remove('show');
+    const dHint=$('drawHint'); if(dHint)dHint.classList.remove('show');
     switchBoardPickerTab('template');
     renderMyBoardPicker();
     $('boardDialog').showModal();requestAnimationFrame(renderBoardEditor);
@@ -2698,6 +2705,7 @@
     $('drawMode').value = mode==='erase' ? 'erase' : 'draw';
     $('boardModeToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
     const toolBar=$('drawToolBar'); if(toolBar)toolBar.classList.toggle('show',mode!=='text');
+    const hint=$('drawHint'); if(hint)hint.classList.toggle('show',mode!=='text');
     renderBoardFieldHotspots();
   });
   $('drawColorSwatches').addEventListener('click',(e)=>{

@@ -421,14 +421,24 @@
   <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
     <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000"></video>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
-    <div style="position:absolute;left:0;right:0;top:0;padding:12px 14px;background:linear-gradient(180deg,rgba(0,0,0,.65),transparent);color:#fff;font-size:12.5px;line-height:1.6">
-      黒板をつかんで動かせます。位置はこのあとの写真に反映されます。
+    <div style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff">
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <select id="camTemplate" style="min-height:34px;padding:4px 6px;font-size:12px;border-radius:8px;border:0;flex:1 1 130px;min-width:0;max-width:46vw"></select>
+        <select id="camSize" style="min-height:34px;padding:4px 6px;font-size:12px;border-radius:8px;border:0;flex:0 0 auto;width:56px">
+          <option value="s">小</option><option value="m">中</option><option value="l">大</option>
+        </select>
+        <button type="button" id="camOrientBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">横</button>
+        <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0">黒板</button>
+        <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">黒板なし</button>
+      </div>
     </div>
     <div style="position:absolute;left:0;right:0;bottom:0;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);display:flex;align-items:center;gap:12px">
       <button type="button" class="btn" id="camCloseBtn" style="background:rgba(255,255,255,.16);color:#fff">閉じる</button>
       <span style="flex:1"></span>
       <button type="button" id="camShutterBtn" aria-label="撮影" style="width:74px;height:74px;border-radius:50%;border:5px solid rgba(255,255,255,.9);background:#fff"></button>
       <span style="flex:1"></span>
+      <button type="button" class="btn" id="camFlashBtn" style="background:rgba(255,255,255,.16);color:#fff">ライト</button>
       <button type="button" class="btn" id="camSwitchBtn" style="background:rgba(255,255,255,.16);color:#fff">切替</button>
     </div>
   </div>
@@ -563,7 +573,7 @@
       </div>
       <div class="grid two" style="margin-top:10px">
         <label class="check-row"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
-        <div><label>板の種類</label><select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select></div>
+        <div class="cf-dup"><select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select></div>
         <div><label>黒板の向き</label><select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select></div>
         <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由（指で動かす）</option></select></div>
         <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
@@ -572,6 +582,7 @@
         <label>黒板の選択（タップで選択・見た目のプレビュー付き）</label>
         <div class="mode-toggle" id="boardPickerTabs">
           <button type="button" class="btn tiny-btn active" data-tab="template">黒板テンプレート</button>
+          <button type="button" class="btn tiny-btn" id="surfaceToggleBtn" title="黒板／ホワイトボードの切り替え" style="flex:0 0 auto;min-width:52px;padding:6px 8px"></button>
           <button type="button" class="btn tiny-btn outline" data-tab="my">MY黒板</button>
         </div>
         <div class="tmpl-picker" id="boardTemplatePicker"></div>
@@ -624,8 +635,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14x';
-  const APP_UPDATE_NOTE='アプリ内カメラ／黒板の位置を指で調整／ホワイトボードを追加';
+  const APP_VERSION='2026.08.14y';
+  const APP_UPDATE_NOTE='カメラ画面で黒板を設定できるように／ライト対応／板の切り替えをボタン化';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -903,6 +914,58 @@
     const p=currentProject();
     return applyProjectDefaultsToBoard(base,{projectId:p?p.id:''},true);
   }
+  let camSettings={template:null,size:null,orient:null,surface:null,enabled:true};
+  let camTorchOn=false;
+  function camCurrentBoard(){
+    const board=camBoardData();
+    if(camSettings.template)board.template=camSettings.template;
+    if(camSettings.size)board.size=camSettings.size;
+    if(camSettings.orient)board.orient=camSettings.orient;
+    if(camSettings.surface)board.surface=camSettings.surface;
+    board.enabled=camSettings.enabled!==false;
+    if(camSettings.template&&camSettings.template!==camBoardData().template){
+      const p=currentProject();
+      const preset=boardPreset(camSettings.template,null);
+      preset.size=board.size;preset.orient=board.orient;preset.surface=board.surface;preset.enabled=board.enabled;
+      return applyProjectDefaultsToBoard(preset,{projectId:p?p.id:''},true);
+    }
+    return board;
+  }
+  function camRefreshOverlay(){
+    const v=$('camVideo'), ov=$('camBoardOverlay');
+    if(!v||!ov)return;
+    const board=camCurrentBoard();
+    if(board.enabled===false){ ov.style.display='none'; return; }
+    const cv=makeBoardCanvas(board,[]);
+    ov.src=cv.toDataURL('image/png');
+    ov.style.display='block';
+    const stage=v.getBoundingClientRect();
+    const ratio=board.size==='s'?0.34:board.size==='l'?0.6:0.46;
+    const w=Math.round(stage.width*ratio);
+    ov.style.width=w+'px';
+    const h=w*(cv.height/cv.width);
+    ov.style.left=Math.round(camBoardPos.x*stage.width-w/2)+'px';
+    ov.style.top=Math.round(camBoardPos.y*stage.height-h/2)+'px';
+    ov._place=camRefreshOverlay;
+    // ボタンの見た目を合わせる
+    const ob=$('camOrientBtn'); if(ob)ob.textContent=(board.orient==='port')?'縦':'横';
+    const sb=$('camSurfaceBtn');
+    if(sb){ const white=board.surface==='white';
+      sb.textContent=white?'白板':'黒板';
+      sb.style.background=white?'#ffffff':'#33513f';
+      sb.style.color=white?'#1f2a30':'#ffffff'; }
+    const off=$('camBoardOffBtn'); if(off)off.textContent=board.enabled===false?'黒板を出す':'黒板なし';
+  }
+  async function camApplyTorch(on){
+    try{
+      const track=camStream&&camStream.getVideoTracks()[0];
+      if(!track)return false;
+      const caps=track.getCapabilities?track.getCapabilities():{};
+      if(!caps.torch)return false;
+      await track.applyConstraints({advanced:[{torch:!!on}]});
+      return true;
+    }catch(e){ console.warn('ライトを切り替えられません',e); return false; }
+  }
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
@@ -913,23 +976,29 @@
       $('cameraInput').click(); return;
     }
     const v=$('camVideo'); v.srcObject=camStream; await v.play().catch(()=>{});
-    // 黒板の見本を重ねる
-    const board=camBoardData();
-    const cv=makeBoardCanvas(board,[]);
-    const ov=$('camBoardOverlay');
-    ov.src=cv.toDataURL('image/png');
-    ov.style.display=board.enabled===false?'none':'block';
-    const place=()=>{
-      const stage=v.getBoundingClientRect();
-      const ratio=board.size==='s'?0.34:board.size==='l'?0.6:0.46;
-      const w=Math.round(stage.width*ratio);
-      ov.style.width=w+'px';
-      const h=w*(cv.height/cv.width);
-      ov.style.left=Math.round(camBoardPos.x*stage.width-w/2)+'px';
-      ov.style.top=Math.round(camBoardPos.y*stage.height-h/2)+'px';
-    };
-    setTimeout(place,120);
-    ov.dataset.place='1'; ov._place=place;
+    // 黒板の選択肢を用意
+    const base=camBoardData();
+    if(!camSettings.template)camSettings.template=base.template;
+    if(!camSettings.size)camSettings.size=base.size||'s';
+    if(!camSettings.orient)camSettings.orient=base.orient||'land';
+    if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
+    const sel=$('camTemplate');
+    if(sel&&!sel.dataset.built){
+      sel.innerHTML=boardTemplateList().map(t=>`<option value="${t.key}">${escapeHtml(t.label)}</option>`).join('');
+      sel.dataset.built='1';
+    }
+    if(sel)sel.value=camSettings.template;
+    const sz=$('camSize'); if(sz)sz.value=camSettings.size;
+    camTorchOn=false;
+    const fb=$('camFlashBtn');
+    if(fb){
+      const track=camStream.getVideoTracks()[0];
+      const caps=track&&track.getCapabilities?track.getCapabilities():{};
+      fb.dataset.torch=caps.torch?'1':'';
+      fb.textContent='ライト';
+      fb.style.background='rgba(255,255,255,.16)';
+    }
+    setTimeout(camRefreshOverlay,150);
     dlg.showModal();
   }
   function closeCameraDialog(){
@@ -953,6 +1022,23 @@
     window.addEventListener('mouseup',end); window.addEventListener('touchend',end);
 
     $('camCloseBtn').addEventListener('click',closeCameraDialog);
+    $('camTemplate').addEventListener('change',e=>{camSettings.template=e.target.value;camRefreshOverlay()});
+    $('camSize').addEventListener('change',e=>{camSettings.size=e.target.value;camRefreshOverlay()});
+    $('camOrientBtn').addEventListener('click',()=>{camSettings.orient=(camSettings.orient==='port')?'land':'port';camRefreshOverlay()});
+    $('camSurfaceBtn').addEventListener('click',()=>{camSettings.surface=(camSettings.surface==='white')?'chalk':'white';camRefreshOverlay()});
+    $('camBoardOffBtn').addEventListener('click',()=>{camSettings.enabled=!camSettings.enabled;camRefreshOverlay()});
+    $('camFlashBtn').addEventListener('click',async()=>{
+      const next=!camTorchOn;
+      const ok=await camApplyTorch(next);
+      if(!ok){ alert('この端末では、撮影用のライトを操作できません。'); return; }
+      camTorchOn=next;
+      const fb=$('camFlashBtn');
+      fb.style.background=camTorchOn?'rgba(245,165,36,.95)':'rgba(255,255,255,.16)';
+      fb.style.color=camTorchOn?'#20160a':'#fff';
+      fb.textContent=camTorchOn?'ライトON':'ライト';
+    });
+    window.addEventListener('resize',()=>{ if($('cameraDialog').open)camRefreshOverlay(); });
+    window.addEventListener('orientationchange',()=>{ if($('cameraDialog').open)setTimeout(camRefreshOverlay,250); });
     $('camSwitchBtn').addEventListener('click',async()=>{
       camFacing=(camFacing==='environment')?'user':'environment';
       closeCameraDialog(); await openCameraDialog();
@@ -966,10 +1052,10 @@
       const blob=await new Promise(res=>cn.toBlob(res,'image/jpeg',0.9));
       closeCameraDialog();
       const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
-      await handleFiles([file],{saveDeviceCopy:true,boardPos:{...camBoardPos}});
+      await handleFiles([file],{saveDeviceCopy:true,boardPos:{...camBoardPos},camBoard:camCurrentBoard()});
     });
   }
-  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null}={}){
+  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
     const addedPhotos=[];
@@ -992,9 +1078,9 @@
         try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
         const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
         // アプリ内カメラで黒板の位置を決めていた場合は、その黒板を貼り付ける
-        if(boardPos){
+        if(boardPos&&(!camBoard||camBoard.enabled!==false)){
           try{
-            const board=camBoardData();
+            const board=camBoard||camBoardData();
             board.freePos=boardPos;
             board.position='free';
             const full=await loadImageElement(ph.blob);
@@ -1998,21 +2084,27 @@
     ];
   }
   const _templateThumbCache={};
-  function templateThumbDataUrl(key){
-    if(_templateThumbCache[key])return _templateThumbCache[key];
+  function templateThumbDataUrl(key,surfaceKind){
+    const sk=(surfaceKind==='white')?'white':'chalk';
+    const ck=key+'_'+sk;
+    if(_templateThumbCache[ck])return _templateThumbCache[ck];
     const c=document.createElement('canvas');c.width=240;c.height=160;
     const ctx=c.getContext('2d');
     let sampleData;
-    if(GENERIC_TEMPLATES[key]) sampleData={template:key,fields:{},note:'',note2:''};
-    else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:''}; }
+    if(GENERIC_TEMPLATES[key]) sampleData={template:key,fields:{},note:'',note2:'',surface:sk};
+    else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:'',surface:sk}; }
     drawBoardFace(ctx,240,160,sampleData);
     const url=c.toDataURL('image/png');
-    _templateThumbCache[key]=url;
+    _templateThumbCache[ck]=url;
     return url;
   }
   function buildTemplatePickerOnce(){
-    const wrap=$('boardTemplatePicker'); if(!wrap||wrap.dataset.built==='1')return;
-    wrap.innerHTML=boardTemplateList().map(t=>`<button type="button" class="tmpl-thumb-btn" data-tmpl="${t.key}"><img src="${templateThumbDataUrl(t.key)}" alt="" /><span>${escapeHtml(t.label)}</span></button>`).join('');
+    const wrap=$('boardTemplatePicker'); if(!wrap)return;
+    const surf=(readBoardControls().surface==='white')?'white':'chalk';
+    if(wrap.dataset.built==='1'&&wrap.dataset.surface===surf)return;
+    wrap.dataset.surface=surf;
+    wrap.dataset.built='';
+    wrap.innerHTML=boardTemplateList().map(t=>`<button type="button" class="tmpl-thumb-btn" data-tmpl="${t.key}"><img src="${templateThumbDataUrl(t.key,surf)}" alt="" /><span>${escapeHtml(t.label)}</span></button>`).join('');
     wrap.dataset.built='1';
     wrap.querySelectorAll('button[data-tmpl]').forEach(btn=>{
       btn.addEventListener('click',()=>{
@@ -2028,6 +2120,15 @@
   function renderTemplatePicker(selectedKey){
     buildTemplatePickerOnce();
     updateTemplatePickerActive(selectedKey);
+  }
+  function updateSurfaceToggleBtn(){
+    const btn=$('surfaceToggleBtn'); if(!btn)return;
+    const white=$('boardSurface').value==='white';
+    btn.textContent=white?'白板':'黒板';
+    btn.style.background=white?'#ffffff':'#33513f';
+    btn.style.color=white?'#1f2a30':'#ffffff';
+    btn.style.border='2px solid '+(white?'#9aa7b0':'#233a2c');
+    btn.title=white?'ホワイトボード（押すと黒板に戻ります）':'黒板（押すとホワイトボードに変わります）';
   }
   function switchBoardPickerTab(tabName){
     const tabsWrap=$('boardPickerTabs'); if(tabsWrap)tabsWrap.querySelectorAll('button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tabName));
@@ -2128,6 +2229,7 @@
     $('boardSize').value = data.size||'s';
     $('boardOrient').value = data.orient||'land';
     $('boardSurface').value = data.surface||'chalk';
+    updateSurfaceToggleBtn();
     boardState.freePos = data.freePos||null;
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
@@ -2931,6 +3033,16 @@
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
   $('projectForm').addEventListener('submit',saveProject);
   $('projectCoverType').addEventListener('change',()=>{ syncCoverToForm(); renderCoverEditor(); });
+  $('surfaceToggleBtn').addEventListener('click',()=>{
+    const sel=$('boardSurface');
+    sel.value=(sel.value==='white')?'chalk':'white';
+    updateSurfaceToggleBtn();
+    const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';   // サムネイルを作り直す
+    const mw=$('myBoardPicker'); if(mw)mw.dataset.surface='';
+    renderTemplatePicker($('boardTemplate').value);
+    renderMyBoardPicker();
+    renderBoardEditor();
+  });
   initPosPick();
   $('coverEdit').addEventListener('input',syncCoverToForm);
   $('coverEdit').addEventListener('keydown',e=>{

@@ -590,8 +590,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14n';
-  const APP_UPDATE_NOTE='手書き中だけ「指2本で黒板を拡大・移動できます」と案内を表示';
+  const APP_VERSION='2026.08.14p';
+  const APP_UPDATE_NOTE='Excel・PDFに必要な部品を自動で読み込むように修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1201,8 +1201,34 @@
   async function printLedger(){
     try{await buildPrint();await waitForPrintImages();setTimeout(()=>window.print(),120)}catch(e){setOutputStatus(e.message,'err');showPage('output')}
   }
+  // Excel・PDFに使う部品を読み込む（アプリ同梱を優先し、無ければネットから取得）
+  function loadScriptOnce(src){
+    return new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=src; s.async=true;
+      s.onload=()=>resolve(true);
+      s.onerror=()=>reject(new Error('読み込み失敗: '+src));
+      document.head.appendChild(s);
+    });
+  }
+  async function ensureLib(isReady,sources){
+    if(isReady())return true;
+    for(const src of sources){
+      try{ await loadScriptOnce(src); }catch(e){ console.warn(e.message); continue; }
+      if(isReady())return true;
+    }
+    return isReady();
+  }
+  const LIB_SRC={
+    jszip:['./lib/jszip.min.js','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'],
+    html2canvas:['./lib/html2canvas.min.js','https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'],
+    jspdf:['./lib/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'],
+  };
   async function exportPdf(){
-    if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){setOutputStatus('PDF保存の準備ができていません。アプリを開き直してもう一度お試しください。','err');return}
+    setOutputStatus('PDFの準備をしています…','ok');
+    const okH=await ensureLib(()=>typeof html2canvas!=='undefined',LIB_SRC.html2canvas);
+    const okJ=await ensureLib(()=>typeof window.jspdf!=='undefined',LIB_SRC.jspdf);
+    if(!okH||!okJ){setOutputStatus('PDF保存に必要な部品を読み込めませんでした。libフォルダがアップロードされているか、またはインターネットに接続しているかご確認ください。','err');return}
     setOutputStatus('PDFを作成中です…（写真の枚数によって少し時間がかかります）','ok');
     const root=$('printRoot');
     const prevCss=root.style.cssText;
@@ -1306,7 +1332,10 @@
     return relsXml.replace('</Relationships>',rel+'</Relationships>');
   }
   async function exportExcel(){
-    if(typeof JSZip==='undefined'){setOutputStatus('Excel出力の準備ができていません。アプリを開き直してもう一度お試しください。','err');return}
+    setOutputStatus('Excelの準備をしています…','ok');
+    if(!await ensureLib(()=>typeof JSZip!=='undefined',LIB_SRC.jszip)){
+      setOutputStatus('Excel出力に必要な部品を読み込めませんでした。libフォルダがアップロードされているか、またはインターネットに接続しているかご確認ください。','err');return;
+    }
     const p=currentProject(); const arr=currentPhotos();
     if(!p){setOutputStatus('現場を選択してください。','err');return}
     if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}

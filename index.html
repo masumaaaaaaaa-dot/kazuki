@@ -428,7 +428,7 @@
   <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
     <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000;will-change:transform"></video>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
-    <div style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff">
+    <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
       <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
@@ -447,12 +447,11 @@
       </div>
       <div id="camTemplateGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div>
     </div>
-    <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)">
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
-        <button type="button" class="btn" id="camZoomOutBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:46px;font-size:17px">－</button>
+    <div id="camBottomBar" style="position:absolute;left:0;right:0;bottom:0;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);transition:transform .18s ease">
+      <div id="camSubBar" style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:8px">
+        <button type="button" class="btn" id="camZoomOutBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px">－</button>
         <span id="camZoomLabel" style="color:#fff;font-size:12.5px;min-width:44px;text-align:center">1.0倍</span>
-        <button type="button" class="btn" id="camZoomInBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:46px;font-size:17px">＋</button>
-        <span style="width:10px"></span>
+        <button type="button" class="btn" id="camZoomInBtn" style="background:rgba(255,255,255,.18);color:#fff;min-width:44px;font-size:17px">＋</button>
         <button type="button" class="btn" id="camFlashBtn" style="background:rgba(255,255,255,.18);color:#fff">ライト</button>
         <button type="button" class="btn" id="camSwitchBtn" style="background:rgba(255,255,255,.18);color:#fff">切替</button>
       </div>
@@ -461,7 +460,7 @@
         <span style="flex:1"></span>
         <button type="button" id="camShutterBtn" aria-label="撮影" style="width:70px;height:70px;border-radius:50%;border:5px solid rgba(255,255,255,.9);background:#fff"></button>
         <span style="flex:1"></span>
-        <span style="min-width:64px"></span>
+        <button type="button" class="btn" id="camHideUiBtn" title="ボタンを隠す" style="background:rgba(255,255,255,.18);color:#fff;min-width:64px">隠す</button>
       </div>
     </div>
   </div>
@@ -660,8 +659,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15h';
-  const APP_UPDATE_NOTE='拡大時に黒板が消える問題を修正／写真の向きを手動でも選べるように';
+  const APP_VERSION='2026.08.15i';
+  const APP_UPDATE_NOTE='広角カメラに対応／ボタンを隠せるように／続けて撮影を廃止';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1056,7 +1055,26 @@
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
-      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}},audio:false});
+      // できるだけ広く写るレンズを選ぶ（広角カメラがあればそれを使う）
+      let wideId='';
+      try{
+        const devs=await navigator.mediaDevices.enumerateDevices();
+        const cams=devs.filter(d=>d.kind==='videoinput');
+        const back=cams.filter(d=>/back|rear|背面|環境/i.test(d.label||''));
+        const list=back.length?back:cams;
+        const wide=list.find(d=>/wide|超広角|広角|0\.5/i.test(d.label||'') && !/tele|望遠/i.test(d.label||''));
+        if(wide)wideId=wide.deviceId;
+      }catch(e){}
+      const vcon=wideId
+        ? {deviceId:{exact:wideId},width:{ideal:2560},height:{ideal:1920}}
+        : {facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}};
+      camStream=await navigator.mediaDevices.getUserMedia({video:vcon,audio:false});
+      // レンズがズームに対応していれば、いちばん広い側に寄せる
+      try{
+        const tr=camStream.getVideoTracks()[0];
+        const caps=tr.getCapabilities?tr.getCapabilities():{};
+        if(caps.zoom&&typeof caps.zoom.min==='number'){ await tr.applyConstraints({advanced:[{zoom:caps.zoom.min}]}); }
+      }catch(e){}
     }catch(err){
       console.warn('カメラを使えません',err);
       alert('カメラを使えませんでした。ブラウザのカメラ許可をご確認ください。\nスマホのカメラで撮影します。');
@@ -1071,7 +1089,13 @@
     if(!camSettings.orient)camSettings.orient=camDeviceOrient();
     if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
-    camTorchOn=false; camZoom=1; camApplyZoom(); camPhotoOrient='auto';
+    camTorchOn=false; camZoom=1; camPhotoOrient='auto';
+    // 画面がつままれて拡大していても、カメラは等倍から始める
+    try{
+      const vp=document.querySelector('meta[name="viewport"]');
+      if(vp)vp.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+    }catch(e){}
+    camApplyZoom();
     const fb=$('camFlashBtn');
     if(fb){
       const track=camStream.getVideoTracks()[0];
@@ -1095,6 +1119,10 @@
   }
   function closeCameraDialog(){
     if(window._camWatch){clearInterval(window._camWatch);window._camWatch=null;}
+    try{
+      const vp=document.querySelector('meta[name="viewport"]');
+      if(vp)vp.setAttribute('content','width=device-width,initial-scale=1,viewport-fit=cover');
+    }catch(e){}
     if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
     const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
   }
@@ -1139,6 +1167,17 @@
     });
     $('camSurfaceBtn').addEventListener('click',()=>{camSettings.surface=(camSettings.surface==='white')?'chalk':'white';camRefreshOverlay()});
     $('camBoardOffBtn').addEventListener('click',()=>{camSettings.enabled=!camSettings.enabled;camRefreshOverlay()});
+    // ボタンを隠して、黒板を画面の端まで置けるようにする
+    let camUiHidden=false;
+    const applyCamUi=()=>{
+      const top=$('camTopBar'), sub=$('camSubBar'), btn=$('camHideUiBtn');
+      if(top){ top.style.opacity=camUiHidden?'0':'1'; top.style.pointerEvents=camUiHidden?'none':'auto'; }
+      if(sub){ sub.style.display=camUiHidden?'none':'flex'; }
+      if(btn)btn.textContent=camUiHidden?'出す':'隠す';
+      setTimeout(camRefreshOverlay,60);
+    };
+    $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
+    $('cameraDialog').addEventListener('close',()=>{ camUiHidden=false; applyCamUi(); });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
       camPhotoOrient=(camPhotoOrient==='auto')?'land':(camPhotoOrient==='land')?'port':'auto';
       camRefreshOverlay();
@@ -1240,7 +1279,7 @@
       }
       // 撮影のときは、そのまま続けて撮れるように案内を出す
       if(saveDeviceCopy){
-        showActionToast(`${files.length}枚を保存しました`,'続けて撮影',()=>{ if(settings.cameraMode==='inapp')openCameraDialog(); else $('cameraInput').click(); },8);
+        showActionToast(`${files.length}枚を保存しました`,'',null,3);
       }else{
         showActionToast(`${files.length}枚を保存しました`,'',null,4);
       }

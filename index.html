@@ -395,6 +395,7 @@
         <div class="hint" style="margin-top:4px">使い始めた日：<strong id="firstUsedLabel" style="font-size:14px;color:var(--text)">-</strong></div>
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
+        <div class="hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
       </div>
       <div class="card">
         <h2>このアプリの出力形式</h2>
@@ -592,8 +593,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14t';
-  const APP_UPDATE_NOTE='「使い始めた日」を記録するようにしました（将来の料金プラン変更に備えて）';
+  const APP_VERSION='2026.08.14u';
+  const APP_UPDATE_NOTE='プライバシーポリシーのページを追加（設定から開けます）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

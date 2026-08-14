@@ -513,6 +513,7 @@
         <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0"><span class="cam-turn-label">黒板</span></button>
         <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
         <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
+        <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
       </div>
     </div>
     <div id="camTemplateSheet" style="display:none;position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.82);z-index:5;overflow:auto;padding:14px">
@@ -735,8 +736,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.16c';
-  const APP_UPDATE_NOTE='ダークモードでカメラの操作ボタンの文字が見えなかったのを修正';
+  const APP_VERSION='2026.08.16d';
+  const APP_UPDATE_NOTE='アプリ内カメラで広角レンズを選べるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1016,6 +1017,7 @@
   let camPhotoMode='auto';
   let camRaf=0, camBoardObj=null, camBoardCanvas=null;
   let camLensId='', camReorienting=false, camReorientTried={land:false,port:false};
+  let camLensList=[], camLensIndex=-1;
   let camUiHidden=false, camDrag=null;
   const CAM_PREVIEW_MAX=1280;   // 画面表示用の解像度上限（描画を軽くするため。保存写真は原寸）
 
@@ -1189,6 +1191,15 @@
     }
     const off=$('camBoardOffBtn');
     if(off)camSetButtonLabel(off,board.enabled===false?'黒板を出す':'黒板なし');
+    const lb=$('camLensBtn');
+    if(lb){
+      // レンズが複数ある機種でだけ出す
+      if(camLensList.length>1){
+        lb.style.display='';
+        camSetButtonLabel(lb,'レンズ '+((camLensIndex<0?0:camLensIndex)+1)+'/'+camLensList.length);
+      }else lb.style.display='none';
+      lb.style.color='#1a1d20';
+    }
     const z=$('camZoomLabel'); if(z)z.textContent=camZoom.toFixed(1)+'倍';
   }
   function camRenderTemplateGrid(){
@@ -1226,28 +1237,80 @@
   async function endCameraLandscapeMode(){ return false; }
 
   // できるだけ広く写るレンズを探す（広角カメラがあればそれを使う）
-  async function camFindWideLens(){
+  // レンズの一覧を読み込む。
+  // ※カメラの許可が下りるまで label は空文字になるため、必ず
+  //   getUserMedia が成功したあとに呼ぶこと（先に呼ぶと広角を選べません）。
+  async function camLoadLensList(){
     try{
       const devs=await navigator.mediaDevices.enumerateDevices();
       const cams=devs.filter(d=>d.kind==='videoinput');
       const back=cams.filter(d=>/back|rear|背面|環境/i.test(d.label||''));
-      const list=back.length?back:cams;
-      const wide=list.find(d=>/wide|超広角|広角|0\.5/i.test(d.label||'') && !/tele|望遠/i.test(d.label||''));
-      return wide?wide.deviceId:'';
-    }catch(e){ return ''; }
+      camLensList=(camFacing==='environment'&&back.length)?back:cams;
+    }catch(e){ camLensList=[]; }
+    const cur=camCurrentDeviceId();
+    camLensIndex=camLensList.findIndex(d=>d.deviceId===cur);
+  }
+  function camCurrentDeviceId(){
+    try{ return camStream.getVideoTracks()[0].getSettings().deviceId||''; }catch(e){ return ''; }
+  }
+  // いちばん広く写るレンズを探す。超広角を最優先、次に広角。望遠は除く。
+  function camPickWideIndex(){
+    const ultra=camLensList.findIndex(d=>/ultra|超広角|0\.5/i.test(d.label||''));
+    if(ultra>=0)return ultra;
+    return camLensList.findIndex(d=>/wide|広角/i.test(d.label||'') && !/tele|望遠/i.test(d.label||''));
   }
   // 構え方に合わせた大きさを希望する。横に構えていれば横長の映像をもらえる機種が多い。
+  // 比率は 4:3 を希望する。多くのスマホはセンサーが 4:3 で、16:9 を頼むと
+  // 上下を切り取った映像が返るため、画角がせまくなるのを避ける狙い。
   function camVideoConstraints(deviceId,orient){
     const land=(orient||camScreenOrient())==='land';
     const size=land?{width:{ideal:2560},height:{ideal:1920}}:{width:{ideal:1920},height:{ideal:2560}};
     return deviceId?Object.assign({deviceId:{exact:deviceId}},size):Object.assign({facingMode:camFacing},size);
   }
+  // レンズがズームに対応していれば、いちばん広い側へ寄せる（0.5倍相当になる機種もある）
   async function camApplyZoomFloor(stream){
     try{
       const tr=stream.getVideoTracks()[0];
       const caps=tr.getCapabilities?tr.getCapabilities():{};
-      if(caps.zoom&&typeof caps.zoom.min==='number'){ await tr.applyConstraints({advanced:[{zoom:caps.zoom.min}]}); }
+      if(!caps.zoom||typeof caps.zoom.min!=='number')return;
+      try{ await tr.applyConstraints({zoom:caps.zoom.min}); }
+      catch(e){ await tr.applyConstraints({advanced:[{zoom:caps.zoom.min}]}); }
     }catch(e){}
+  }
+  // レンズを切り替える。新しい映像が取れてから古いほうを止めるので、失敗しても映像は消えない。
+  async function camUseLens(i){
+    if(camReorienting||i<0||i>=camLensList.length)return false;
+    const d=camLensList[i];
+    if(!d||!d.deviceId)return false;
+    camReorienting=true;
+    try{
+      const ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(d.deviceId),audio:false});
+      const old=camStream;
+      camStream=ns;
+      const v=$('camVideo'); v.srcObject=ns; await v.play().catch(()=>{});
+      await camApplyZoomFloor(ns);
+      try{ if(old)old.getTracks().forEach(t=>t.stop()); }catch(e){}
+      camLensIndex=i; camLensId=d.deviceId;
+      camReorientTried={land:false,port:false};   // レンズが変わると映像の向きも変わりうる
+      if(camTorchOn)await camApplyTorch(true);
+      // 選んだレンズを覚えておき、次に開いたときも同じレンズで始める
+      try{
+        settings.camLensId=d.deviceId; settings.camLensLabel=d.label||'';
+        await idbPut('settings',{key:'main',value:settings});
+      }catch(e){}
+      return true;
+    }catch(e){ console.warn('レンズを切り替えられません',e); return false; }
+    finally{ camReorienting=false; camUpdateButtons(); }
+  }
+  // 開いた直後に、前回のレンズ→超広角→広角 の順で選ぶ
+  async function camSelectPreferredLens(){
+    if(camLensList.length<2)return;
+    let i=-1;
+    const savedId=settings.camLensId, savedLabel=settings.camLensLabel;
+    if(savedId)i=camLensList.findIndex(d=>d.deviceId===savedId);
+    if(i<0&&savedLabel)i=camLensList.findIndex(d=>d.label===savedLabel);  // 端末によってIDが変わるため
+    if(i<0)i=camPickWideIndex();
+    if(i>=0&&i!==camLensIndex)await camUseLens(i);
   }
   // 端末を回したとき、映像の向きが構え方と食い違っていたら取り直す。
   // 取り直せれば切り出しなしの全画素で保存でき、駄目なら中央の切り出しで対応する。
@@ -1278,9 +1341,11 @@
     if(camStream){ try{camStream.getTracks().forEach(t=>t.stop());}catch(e){} camStream=null; }
     camReorientTried={land:false,port:false}; camReorienting=false;
     try{
-      camLensId=await camFindWideLens();
-      camStream=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(camLensId),audio:false});
+      // まず既定のカメラで許可を取る。許可が下りて初めてレンズ名が読めるようになる。
+      camStream=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(''),audio:false});
       await camApplyZoomFloor(camStream);
+      await camLoadLensList();
+      await camSelectPreferredLens();
     }catch(err){
       console.warn('カメラを使えません',err);
       // 確認ダイアログを出すと操作の有効時間が切れてカメラが開かなくなるため、
@@ -1400,6 +1465,15 @@
     });
     // 保存する写真の向き。自動 → 横 → 横↻ → 縦 → 縦↻ の順に切り替わる。
     // 画面の枠がそのまま写真になるので、逆さまなら見た目で分かる。
+    $('camLensBtn').addEventListener('click',async()=>{
+      if(camLensList.length<2)return;
+      const start=(camLensIndex<0?0:camLensIndex);
+      // 切り替えられないレンズは飛ばして、次に使えるものへ
+      for(let n=1;n<=camLensList.length;n++){
+        if(await camUseLens((start+n)%camLensList.length))return;
+      }
+      alert('この端末では、これ以上レンズを切り替えられません。');
+    });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
       const i=CAM_PHOTO_MODES.indexOf(camPhotoMode);
       camPhotoMode=CAM_PHOTO_MODES[(i+1)%CAM_PHOTO_MODES.length];
@@ -1419,6 +1493,7 @@
     });
     $('camSwitchBtn').addEventListener('click',async()=>{
       camFacing=(camFacing==='environment')?'user':'environment';
+      camLensList=[]; camLensIndex=-1;   // 前後が変わるとレンズ一覧も変わる
       closeCameraDialog();
       await openCameraDialog();
     });
@@ -1468,7 +1543,7 @@
         // 画面に出しているのと同じ描画で、黒板を含まない原寸の写真を作る。
         // 黒板は handleFiles 側が同じ計算で貼るので、画面と仕上がりが必ず一致する。
         const shot=document.createElement('canvas');
-        if(!camDrawInto(shot,false,null))throw new Error('撮影画像を作成できませんでした');
+        if(!camDrawInto(shot,false,2560))throw new Error('撮影画像を作成できませんでした');
         const blob=await new Promise((res,rej)=>shot.toBlob(b=>b?res(b):rej(new Error('撮影画像を作成できませんでした')),'image/jpeg',0.92));
         // 撮影の合図。カメラは閉じず、そのまま続けて撮れる。
         try{

@@ -590,8 +590,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14p';
-  const APP_UPDATE_NOTE='Excel・PDFに必要な部品を自動で読み込むように修正';
+  const APP_VERSION='2026.08.14q';
+  const APP_UPDATE_NOTE='Excelから「用語集」シートを除外';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1360,6 +1360,27 @@
       for(const m of wbRels.matchAll(/Id="(rId\d+)"[^>]*Target="([^"]+)"/g)) relMap[m[1]]=m[2].replace(/^\/?xl\//,'').replace(/^\//,'');
       const sheetPath={};
       for(const m of wbXml.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="(rId\d+)"/g)){ if(relMap[m[2]])sheetPath[m[1]]='xl/'+relMap[m[2]]; }
+
+      // 使わないシート（用語集）は出力に含めない
+      const dropSheets=['用語集'];
+      let wbXmlOut=wbXml, wbRelsOut=wbRels;
+      for(const name of dropSheets){
+        const path=sheetPath[name]; if(!path)continue;
+        const sm=new RegExp(`<sheet[^>]*name="${name}"[^>]*r:id="(rId\\d+)"[^>]*/>`).exec(wbXmlOut);
+        if(!sm)continue;
+        const rid=sm[1];
+        wbXmlOut=wbXmlOut.replace(sm[0],'');
+        wbRelsOut=wbRelsOut.replace(new RegExp(`<Relationship[^>]*Id="${rid}"[^>]*/>`),'');
+        z.remove(path);
+        const relFile='xl/worksheets/_rels/'+path.split('/').pop()+'.rels';
+        if(z.file(relFile))z.remove(relFile);
+        let ct0=await z.file('[Content_Types].xml').async('string');
+        ct0=ct0.replace(new RegExp(`<Override PartName="/${path}"[^>]*/>`),'');
+        z.file('[Content_Types].xml',ct0);
+        delete sheetPath[name];
+      }
+      if(wbXmlOut!==wbXml)z.file('xl/workbook.xml',wbXmlOut);
+      if(wbRelsOut!==wbRels)z.file('xl/_rels/workbook.xml.rels',wbRelsOut);
 
       // 表紙へ書き込み
       const coverPath=sheetPath['表紙'];

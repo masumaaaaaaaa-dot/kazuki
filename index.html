@@ -479,6 +479,9 @@
         <div class="hint" style="margin-top:4px">使い始めた日：<strong id="firstUsedLabel" style="font-size:14px;color:var(--text)">-</strong></div>
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
+        <div class="hint" style="margin-top:14px">アプリ内カメラの写り方について相談するときは、下のボタンで調べた内容を見せてください。この端末がどのレンズを使えるかが分かります。</div>
+        <button class="btn outline full" id="camDiagBtn" style="margin-top:8px">カメラの対応状況を調べる</button>
+        <pre id="camDiagOut" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text)"></pre>
         <div class="hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
       </div>
       <div class="card">
@@ -736,8 +739,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.16d';
-  const APP_UPDATE_NOTE='アプリ内カメラで広角レンズを選べるようにしました';
+  const APP_VERSION='2026.08.16e';
+  const APP_UPDATE_NOTE='レンズの切り替えが戻せなくなる不具合を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1282,25 +1285,40 @@
     if(camReorienting||i<0||i>=camLensList.length)return false;
     const d=camLensList[i];
     if(!d||!d.deviceId)return false;
+    const prevId=camCurrentDeviceId();
+    const v=$('camVideo');
     camReorienting=true;
     try{
-      const ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(d.deviceId),audio:false});
-      const old=camStream;
+      // Android では複数のカメラを同時に開けないため、必ず古いほうを止めてから開く。
+      // （先に新しいほうを開こうとすると失敗し、切り替えられなくなります）
+      if(camStream){ try{camStream.getTracks().forEach(t=>t.stop());}catch(e){} camStream=null; }
+      let ns=null;
+      try{ ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(d.deviceId),audio:false}); }
+      catch(e){
+        console.warn('レンズを切り替えられません',e);
+        // 開けなかったときは元のレンズへ戻す。映像が消えたままにならないように。
+        try{ camStream=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(prevId),audio:false}); }
+        catch(e2){ try{ camStream=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(''),audio:false}); }catch(e3){} }
+        if(camStream){
+          v.srcObject=camStream; await v.play().catch(()=>{});
+          await camApplyZoomFloor(camStream);
+          if(camTorchOn)await camApplyTorch(true);
+        }
+        return false;
+      }
       camStream=ns;
-      const v=$('camVideo'); v.srcObject=ns; await v.play().catch(()=>{});
+      v.srcObject=ns; await v.play().catch(()=>{});
       await camApplyZoomFloor(ns);
-      try{ if(old)old.getTracks().forEach(t=>t.stop()); }catch(e){}
+      camZoom=1;                                  // レンズが変わったら拡大は等倍に戻す
       camLensIndex=i; camLensId=d.deviceId;
       camReorientTried={land:false,port:false};   // レンズが変わると映像の向きも変わりうる
       if(camTorchOn)await camApplyTorch(true);
-      // 選んだレンズを覚えておき、次に開いたときも同じレンズで始める
       try{
         settings.camLensId=d.deviceId; settings.camLensLabel=d.label||'';
         await idbPut('settings',{key:'main',value:settings});
       }catch(e){}
       return true;
-    }catch(e){ console.warn('レンズを切り替えられません',e); return false; }
-    finally{ camReorienting=false; camUpdateButtons(); }
+    }finally{ camReorienting=false; camUpdateButtons(); }
   }
   // 開いた直後に、前回のレンズ→超広角→広角 の順で選ぶ
   async function camSelectPreferredLens(){
@@ -1467,12 +1485,14 @@
     // 画面の枠がそのまま写真になるので、逆さまなら見た目で分かる。
     $('camLensBtn').addEventListener('click',async()=>{
       if(camLensList.length<2)return;
-      const start=(camLensIndex<0?0:camLensIndex);
-      // 切り替えられないレンズは飛ばして、次に使えるものへ
-      for(let n=1;n<=camLensList.length;n++){
-        if(await camUseLens((start+n)%camLensList.length))return;
-      }
-      alert('この端末では、これ以上レンズを切り替えられません。');
+      const next=((camLensIndex<0?0:camLensIndex)+1)%camLensList.length;
+      const ok=await camUseLens(next);
+      const d=camLensList[next]||{};
+      const name=String(d.label||'').replace(/\s*\(.*?\)\s*$/,'').slice(0,26);
+      try{
+        showActionToast(ok?`レンズ ${next+1}/${camLensList.length}${name?'：'+name:''}`
+                          :'このレンズには切り替えられませんでした','',null,3);
+      }catch(e){}
     });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
       const i=CAM_PHOTO_MODES.indexOf(camPhotoMode);
@@ -3724,6 +3744,38 @@
   $('galleryBtn').addEventListener('click',()=>$('galleryInput').click());
   document.addEventListener('visibilitychange',()=>{ if(document.hidden && $('cameraDialog')?.open) closeCameraDialog(); });
   window.addEventListener('pagehide',()=>{ if($('cameraDialog')?.open) closeCameraDialog(); });
+  // この端末でどのレンズが使えるか、実際に開いて調べて表示する（相談用）
+  $('camDiagBtn').addEventListener('click',async()=>{
+    const out=$('camDiagOut'); if(!out)return;
+    out.style.display='block'; out.textContent='調べています…（10秒ほどかかります）';
+    const L=[];
+    try{
+      // 名前を読むにはカメラの許可が必要なので、まず一度開いて閉じる
+      const s0=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      s0.getTracks().forEach(t=>t.stop());
+      await new Promise(r=>setTimeout(r,300));
+      const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+      L.push('見つかったカメラ：'+devs.length+'個');
+      for(let i=0;i<devs.length;i++){
+        const d=devs[i];
+        L.push('');
+        L.push('【'+(i+1)+'】'+(d.label||'(名前なし)'));
+        try{
+          const st=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:d.deviceId},width:{ideal:2560},height:{ideal:1920}},audio:false});
+          const tr=st.getVideoTracks()[0];
+          const g=tr.getSettings?tr.getSettings():{};
+          const c=tr.getCapabilities?tr.getCapabilities():{};
+          L.push('  映像の大きさ：'+(g.width||'?')+'x'+(g.height||'?'));
+          L.push('  最大の大きさ：'+((c.width&&c.width.max)||'?')+'x'+((c.height&&c.height.max)||'?'));
+          L.push('  ズーム：'+(c.zoom?(c.zoom.min+' 〜 '+c.zoom.max+'（今 '+(g.zoom!=null?g.zoom:'?')+'）'):'調整できません'));
+          L.push('  ライト：'+(c.torch?'使えます':'使えません'));
+          st.getTracks().forEach(t=>t.stop());
+        }catch(e){ L.push('  開けませんでした（'+((e&&e.name)||'原因不明')+'）'); }
+        await new Promise(r=>setTimeout(r,300));
+      }
+    }catch(e){ L.push('カメラを使えませんでした：'+((e&&e.name)||e)); }
+    out.textContent=L.join('\n');
+  });
   $('choosePhotoFolderBtn').addEventListener('click',choosePhotoDirectory);
   $('chooseBackupFolderBtn').addEventListener('click',chooseBackupDirectory);
   $('saveCameraCopy').addEventListener('change',async e=>{settings.saveCameraCopy=e.target.checked;await idbPut('settings',{key:'main',value:settings});});

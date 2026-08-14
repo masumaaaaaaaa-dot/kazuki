@@ -431,7 +431,7 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 u</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 y</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15u';
+  const APP_VERSION='2026.08.15y';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -995,10 +995,34 @@
   let camTorchOn=false;
   let camZoom=1;
   let camPhotoOrient='auto';   // auto / land / port
+  function camPreviewRotation(){
+    const v=$('camVideo');
+    if(!v||!v.videoWidth||!v.videoHeight)return 0;
+    const landscapeViewport=window.innerWidth>window.innerHeight;
+    if(!landscapeViewport || v.videoWidth>=v.videoHeight)return 0;
+    const a=camDeviceAngle();
+    return a===270?270:90;
+  }
+  function camApplyVideoLayout(){
+    const v=$('camVideo'), st=$('camStage'); if(!v||!st)return;
+    const rot=camPreviewRotation();
+    v.style.position='absolute';
+    v.style.left='50%'; v.style.top='50%';
+    v.style.transformOrigin='center center';
+    v.style.objectFit='contain';
+    if(rot===90||rot===270){
+      // 縦向きで届いたカメラ映像を、横画面用に90度回して表示する。
+      v.style.width=Math.max(1,st.clientHeight)+'px';
+      v.style.height=Math.max(1,st.clientWidth)+'px';
+    }else{
+      v.style.width='100%'; v.style.height='100%';
+    }
+    v.style.transform=`translate(-50%,-50%) rotate(${rot}deg) scale(${camZoom})`;
+    v.dataset.previewRotation=String(rot);
+  }
   function camApplyZoom(){
     const v=$('camVideo'); if(!v)return;
-    v.style.transform='scale('+camZoom+')';
-    v.style.transformOrigin='center center';
+    camApplyVideoLayout();
     const z=$('camZoomLabel'); if(z)z.textContent=camZoom.toFixed(1)+'倍';
     camRefreshOverlay();
   }
@@ -1024,13 +1048,15 @@
     const st=$('camStage'), v=$('camVideo'); if(!st||!v)return null;
     const sb=st.getBoundingClientRect();
     if(!sb.width||!sb.height)return null;
-    const vw=v.videoWidth||16, vh=v.videoHeight||9;
+    const rot=camPreviewRotation();
+    let vw=v.videoWidth||16, vh=v.videoHeight||9;
+    if(rot===90||rot===270){ const t=vw; vw=vh; vh=t; }
     const zoom=camZoom||1;
     const fit=Math.min(sb.width/vw, sb.height/vh);
     const drawW=vw*fit*zoom, drawH=vh*fit*zoom;
     const visW=Math.min(drawW, sb.width), visH=Math.min(drawH, sb.height);
     const offX=(sb.width-visW)/2, offY=(sb.height-visH)/2;
-    return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY};
+    return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY,previewRotation:rot};
   }
   function camRefreshOverlay(){
     const v=$('camVideo'), ov=$('camBoardOverlay');
@@ -1102,20 +1128,67 @@
       return true;
     }catch(e){ console.warn('ライトを切り替えられません',e); return false; }
   }
-  async function lockAppLandscape(){
-    // Android/PWAでは manifest の orientation 更新がすぐ反映されない場合があるため、
-    // アプリ側からも横画面を要求する。失敗しても撮影自体は続行する。
+  let camFullscreenOwned=false;
+  async function lockCameraLandscape(){
+    // カメラ表示中だけ横向きに固定する。Fullscreen後にも再度呼ぶ。
     try{
       if(screen.orientation && typeof screen.orientation.lock==='function'){
         await screen.orientation.lock('landscape');
         return true;
       }
-    }catch(e){ console.warn('横画面固定を適用できません',e); }
+    }catch(e){ console.warn('カメラの横画面固定を適用できません',e); }
     return false;
   }
-  async function openCameraDialog(){
-    // カメラは横向き専用。ユーザー操作直後にロック要求することでAndroidでも反映しやすくする。
-    await lockAppLandscape();
+  function beginCameraLandscapeGesture(){
+    // IMPORTANT: 撮影ボタンの click 直後（user activation が残っている間）に呼ぶ。
+    // Android ChromeではFullscreenを先に成立させると orientation.lock が通りやすい。
+    let fsPromise=Promise.resolve(false);
+    try{
+      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+        fsPromise=document.documentElement.requestFullscreen({navigationUI:'hide'}).then(()=>{
+          camFullscreenOwned=true;
+          return true;
+        }).catch(e=>{ console.warn('カメラ全画面を開始できません',e); return false; });
+      }
+    }catch(e){ console.warn('カメラ全画面を要求できません',e); }
+    // インストール済みPWA等ではFullscreen前でも通る場合があるので即時にも試す。
+    try{
+      if(screen.orientation && typeof screen.orientation.lock==='function'){
+        screen.orientation.lock('landscape').catch(()=>{});
+      }
+    }catch(e){}
+    return fsPromise.then(async()=>{
+      await lockCameraLandscape();
+      // 端末によって反映に少し時間が掛かるので、もう一度だけ適用する。
+      await new Promise(r=>setTimeout(r,80));
+      await lockCameraLandscape();
+      return true;
+    });
+  }
+  async function restoreAppPortrait(){
+    // 元のアプリ仕様は縦向き固定。カメラを閉じる時だけ必ず縦へ戻す。
+    try{
+      if(screen.orientation && typeof screen.orientation.lock==='function'){
+        await screen.orientation.lock('portrait-primary');
+        return true;
+      }
+    }catch(e){ console.warn('アプリの縦画面へ戻せません',e); }
+    return false;
+  }
+  async function endCameraLandscapeMode(){
+    // orientation.lock はFullscreen中の方が通りやすいので、退出前に縦へ戻す。
+    if(document.fullscreenElement){ await restoreAppPortrait(); }
+    if(camFullscreenOwned && document.fullscreenElement){
+      try{ await document.exitFullscreen(); }catch(e){ console.warn('カメラ全画面を解除できません',e); }
+    }
+    camFullscreenOwned=false;
+    // PWAではFullscreenでない状態でも通る場合があるため、最後にもう一度縦へ戻す。
+    await restoreAppPortrait();
+  }
+  async function openCameraDialog(landscapePrep){
+    // landscapePrep は撮影ボタンを押した瞬間に開始済み。
+    if(landscapePrep){ try{ await landscapePrep; }catch(e){} }
+    else await lockCameraLandscape();
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
       // できるだけ広く写るレンズを選ぶ（広角カメラがあればそれを使う）
@@ -1141,9 +1214,14 @@
     }catch(err){
       console.warn('カメラを使えません',err);
       alert('カメラを使えませんでした。ブラウザのカメラ許可をご確認ください。\nスマホのカメラで撮影します。');
+      await endCameraLandscapeMode();
       $('cameraInput').click(); return;
     }
     const v=$('camVideo'); v.srcObject=camStream; await v.play().catch(()=>{});
+    // 横画面で縦向きストリームが返る機種では、表示だけ90度回して横いっぱいに合わせる。
+    camApplyVideoLayout();
+    setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},120);
+    setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},350);
     // 黒板の選択肢を用意
     const base=camBoardData();
     if(!camSettings.template)camSettings.template=base.template;
@@ -1189,6 +1267,7 @@
     }catch(e){}
     if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
     const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
+    endCameraLandscapeMode();
   }
   function initInAppCamera(){
     const ov=$('camBoardOverlay'), v=$('camVideo');
@@ -1258,7 +1337,7 @@
     };
     window._applyCamUi=applyCamUi;
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
-    $('cameraDialog').addEventListener('close',()=>{ camUiHidden=false; applyCamUi(); });
+    $('cameraDialog').addEventListener('close',()=>{ camUiHidden=false; applyCamUi(); endCameraLandscapeMode(); });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
       camPhotoOrient=(camPhotoOrient==='auto')?'land':(camPhotoOrient==='land')?'port':'auto';
       camRefreshOverlay();
@@ -1275,12 +1354,14 @@
       fb.style.color=camTorchOn?'#20160a':'#fff';
       fb.textContent=camTorchOn?'ライトON':'ライト';
     });
-    window.addEventListener('resize',()=>{ if($('cameraDialog').open)camRefreshOverlay(); });
-    window.addEventListener('orientationchange',()=>{ if($('cameraDialog').open)setTimeout(camRefreshOverlay,250); });
-    try{ if(screen.orientation) screen.orientation.addEventListener('change',()=>{ if($('cameraDialog').open)setTimeout(camRefreshOverlay,200); }); }catch(e){}
+    window.addEventListener('resize',()=>{ if($('cameraDialog').open){camApplyVideoLayout();camRefreshOverlay();} });
+    window.addEventListener('orientationchange',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},250); });
+    try{ if(screen.orientation) screen.orientation.addEventListener('change',()=>{ if($('cameraDialog').open)setTimeout(()=>{camApplyVideoLayout();camRefreshOverlay();},200); }); }catch(e){}
     $('camSwitchBtn').addEventListener('click',async()=>{
       camFacing=(camFacing==='environment')?'user':'environment';
-      closeCameraDialog(); await openCameraDialog();
+      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+      const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
+      await openCameraDialog(Promise.resolve(true));
     });
     $('camShutterBtn').addEventListener('click',async()=>{
       const video=$('camVideo');
@@ -1348,16 +1429,18 @@
         }catch(e){}
         const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
 
-        // 写真を回転した場合、黒板の中心座標と黒板自体も同じ回転へ追従させる。
+        // プレビュー側ですでに90度回して見せている場合、その分は二重に座標変換しない。
         let pos={...camBoardPos};
         const shotBoard=camCurrentBoard();
-        if(rotation===90){
+        const previewRotation=Number(video.dataset.previewRotation||0)||0;
+        const delta=((rotation-previewRotation)%360+360)%360;
+        if(delta===90){
           pos={x:1-camBoardPos.y,y:camBoardPos.x};
           shotBoard.rotate=(((shotBoard.rotate||0)+90)%360);
-        }else if(rotation===270){
+        }else if(delta===270){
           pos={x:camBoardPos.y,y:1-camBoardPos.x};
           shotBoard.rotate=(((shotBoard.rotate||0)+270)%360);
-        }else if(rotation===180){
+        }else if(delta===180){
           pos={x:1-camBoardPos.x,y:1-camBoardPos.y};
           shotBoard.rotate=(((shotBoard.rotate||0)+180)%360);
         }
@@ -3507,15 +3590,20 @@
   window.addEventListener('resize',()=>{ if($('boardDialog').open) renderBoardEditor(); });
   window.addEventListener('orientationchange',()=>{ if($('boardDialog').open) setTimeout(renderBoardEditor,80); });
   $('cameraBtn').addEventListener('click',async()=>{
+    // 横向き固定に必要な user activation を失わないよう、最初の await より前に開始する。
+    const useInApp=settings.cameraMode==='inapp';
+    const landscapePrep=useInApp?beginCameraLandscapeGesture():null;
     settings.saveCameraCopy=$('saveCameraCopy').checked;
     await idbPut('settings',{key:'main',value:settings});
     if(settings.saveCameraCopy && !photoDirectoryHandle){
+      await endCameraLandscapeMode();
       await choosePhotoDirectory();
       return;
     }else if(settings.saveCameraCopy && photoDirectoryHandle && !await ensurePhotoDirectoryPermission()){
+      await endCameraLandscapeMode();
       alert('保存先フォルダへの書き込みを許可してください。');return;
     }
-    if(settings.cameraMode==='inapp'){ await openCameraDialog(); }
+    if(useInApp){ await openCameraDialog(landscapePrep); }
     else { $('cameraInput').click(); }
   });
   $('galleryBtn').addEventListener('click',()=>$('galleryInput').click());

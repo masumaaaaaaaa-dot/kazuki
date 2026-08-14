@@ -546,6 +546,40 @@
   </div>
 </dialog>
 
+
+<input type="file" id="boardImgInput" accept="image/*" style="display:none" />
+<dialog id="boardBuilderDialog">
+  <div class="dialog-head"><h3 id="boardBuilderTitle">黒板を作る</h3><button class="btn" type="button" id="boardBuilderCloseBtn">閉じる</button></div>
+  <div class="dialog-body">
+    <div class="hint">行を足して、上から順に並べます。作った黒板は黒板テンプレートの一覧に出て、いつでも選べます。</div>
+    <div style="margin-top:10px"><label>黒板の名前</label><input id="bbName" placeholder="例：下水道本管" /></div>
+
+    <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+      <strong style="flex:1;font-size:14px">行の内容</strong>
+      <span class="hint" id="bbRowCount" style="margin:0"></span>
+    </div>
+    <div id="bbRows" style="margin-top:6px"></div>
+    <div class="btn-row" style="margin-top:8px">
+      <button type="button" class="btn" id="bbAddField">＋ 項目の行</button>
+      <button type="button" class="btn" id="bbAddNote">＋ 記入欄</button>
+      <button type="button" class="btn" id="bbAddImage">＋ 豆図の枠</button>
+    </div>
+
+    <div style="margin-top:14px"><label>できあがり（縦向きにすると縦長で表示されます）</label>
+      <div style="border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg)">
+        <img id="bbPreview" alt="" style="width:100%;display:block;border-radius:6px" />
+      </div>
+    </div>
+    <div class="hint" style="margin-top:8px">※ 豆図の枠は、この黒板を使う写真ごとに「黒板編集」の画面から図を貼れます。</div>
+  </div>
+  <div class="dialog-foot">
+    <button class="btn danger" type="button" id="bbDeleteBtn" style="display:none">この黒板を削除</button>
+    <span style="flex:1"></span>
+    <button class="btn" type="button" id="bbCancelBtn">取消</button>
+    <button class="btn primary" type="button" id="bbSaveBtn">保存</button>
+  </div>
+</dialog>
+
 <dialog id="welcomeDialog">
   <div class="dialog-head"><h3>はじめての方へ</h3></div>
   <div class="dialog-body">
@@ -671,6 +705,7 @@
         <div class="tmpl-picker" id="myBoardPicker" style="display:none"></div>
         <div id="myBoardEmptyHint" class="hint" style="display:none">まだMY黒板はありません。黒板の内容を書き込んでから「＋ 今の黒板をMY黒板に保存」で登録すると、次回から選ぶだけで使えます。</div>
         <button type="button" class="btn outline full" id="saveMyBoardBtn" style="margin-top:8px">＋ 今の黒板をMY黒板に保存</button>
+        <button type="button" class="btn outline full" id="openBoardBuilderBtn" style="margin-top:6px">✏️ 黒板を自分で作る・直す</button>
         <select id="boardTemplate" style="display:none">
           <option value="tajima">工事件名・工事場所・施工者</option>
           <option value="work">工事名・工種・測点</option>
@@ -718,6 +753,7 @@
       <div id="boardNoteSizeRow" style="margin-top:10px"><label>記入欄の文字の大きさ</label><select id="boardNoteSize"><option value="s">小さめ（行数は多め）</option><option value="m" selected>標準</option><option value="l">大きめ（行数は少なめ）</option></select></div>
       <div id="boardLegacyNote" style="margin-top:10px"><label>黒板中央の文字（改行できます）</label><div class="board-note-editor"><textarea id="boardNote" rows="9" placeholder=""></textarea></div><div id="boardNoteStatus" class="board-note-status">行数の目安: 0 / 9 行</div><div class="hint" style="margin-top:4px">この入力枠は、黒板中央の書く枠に合わせた見え方です。「文字の大きさ」を大きめにすると、そのぶん書ける行数が減ります。長い行は自動で折り返され、枠に入りきらない分は上の「行数の目安」に赤字で表示されます。</div></div>
       <div id="boardGenericFields" style="margin-top:10px"></div>
+        <div id="boardImageSlots" style="display:none;margin-top:12px"></div>
       </div>
     </div>
     <div class="dialog-foot">
@@ -739,8 +775,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.16e';
-  const APP_UPDATE_NOTE='レンズの切り替えが戻せなくなる不具合を修正しました';
+  const APP_VERSION='2026.08.17a';
+  const APP_UPDATE_NOTE='黒板を自分で組み立てる機能と、豆図の貼り付けを追加しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -755,7 +791,7 @@
   let selectMode=false; const selectedPhotoIds=new Set();
   let myBoards = [];
   const objectUrls = new Map();
-  const boardState = { photoId:'', image:null, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
+  const boardState = { photoId:'', image:null, images:{}, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
 
   const today = () => new Date().toISOString().slice(0,10);
   const uid = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
@@ -1617,6 +1653,7 @@
             const board=camBoard||camBoardData();
             board.freePos=boardPos;
             board.position='free';
+            await ensureBoardImages(board);
             const full=await loadImageElement(ph.blob);
             const cv=document.createElement('canvas');cv.width=full.width;cv.height=full.height;
             const cx2=cv.getContext('2d');cx2.drawImage(full,0,0);
@@ -2531,13 +2568,13 @@
     ]}
   };
   function genericTemplateFieldList(key){
-    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    const t=genericTemplate(key); if(!t)return [];
     const list=[];
     t.rows.forEach((row,ri)=>{ if(row.parts)row.parts.forEach((p,pi)=>list.push({id:`r${ri}_${pi}`,label:p.label,ctxField:p.ctxField,placeholder:p.placeholder})); });
     return list;
   }
   function genericTemplateNoteKeys(key){
-    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    const t=genericTemplate(key); if(!t)return [];
     const list=t.rows.filter(r=>r.note).map(r=>r.note);
     if(t.sketch&&t.sketch.noteKey)list.push({key:t.sketch.noteKey,label:'',maxLines:t.sketch.maxLines||6});
     return list;
@@ -2545,7 +2582,7 @@
   function escapeAttr(s){return escapeHtml(s);}
   function boardPreset(name,ph){
     const c=boardContext(ph);
-    if(GENERIC_TEMPLATES[name]){
+    if(genericTemplate(name)){
       const fields={}; genericTemplateFieldList(name).forEach(f=>{fields[f.id]=f.ctxField?c[f.ctxField]:''});
       const extra={}; genericTemplateNoteKeys(name).forEach(n=>{extra[n.key]=''});
       return Object.assign({template:name,position:'rb',size:'s',fields},extra);
@@ -2559,7 +2596,7 @@
   }
   function applyProjectDefaultsToBoard(board,ph,force=false){
     const c=boardContext(ph);
-    if(board&&GENERIC_TEMPLATES[board.template]){
+    if(board&&genericTemplate(board.template)){
       const b=cloneBoardData(board); b.fields=b.fields||{};
       genericTemplateFieldList(b.template).forEach(f=>{ if(f.ctxField&&(force||!b.fields[f.id]))b.fields[f.id]=c[f.ctxField]; });
       return b;
@@ -2601,6 +2638,240 @@
     container.innerHTML=html;
     container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>renderBoardEditor()));
   }
+  // ---- 自分で組み立てた黒板（カスタム黒板）----
+  // 保存先は設定の中。データベースの版を上げずに済み、バックアップにも自動で含まれる。
+  function boardDefs(){ return Array.isArray(settings.boardDefs)?settings.boardDefs:[]; }
+  async function saveBoardDefs(list){
+    settings.boardDefs=list;
+    try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板の保存に失敗',e); }
+    for(const k of Object.keys(_templateThumbCache))delete _templateThumbCache[k];
+    const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
+  }
+  // テンプレートの実体を返す。組み込みの13種類と、自分で作った黒板の両方を扱う。
+  function genericTemplate(key){
+    if(GENERIC_TEMPLATES[key])return GENERIC_TEMPLATES[key];
+    if(typeof key==='string'&&key.indexOf('custom:')===0){
+      const d=boardDefs().find(b=>('custom:'+b.id)===key);
+      return d?d.def:null;
+    }
+    return null;
+  }
+
+  // ================= 黒板ビルダー（自分で黒板を組み立てる） =================
+  // 作った黒板は GENERIC_TEMPLATES と同じ形（rows の並び）で保存するので、
+  // 描画・直接入力・MY黒板・写真への貼り付けが、組み込みの黒板とまったく同じ仕組みで動く。
+  const BB_CTX=[['','自分で入力'],['projectName','工事名'],['projectAddress','工事場所'],
+                ['company','施工者'],['shotDate','撮影日'],['workType','工種'],['location','測点・場所']];
+  const BB_HEIGHT=[[1,'ふつう'],[1.6,'すこし高い'],[3,'高い'],[5,'とても高い']];
+  let bbState={id:'',name:'',rows:[],seq:0};
+
+  function bbNewKey(pre){ bbState.seq++; return pre+bbState.seq; }
+  function bbDefaultRows(){
+    return [
+      {t:'field',weight:1,parts:[{label:'工事名',ctxField:'projectName'}]},
+      {t:'field',weight:1,parts:[{label:'工種',ctxField:'workType'}]},
+      {t:'note',weight:4,key:bbNewKey('n'),label:''},
+      {t:'field',weight:1,parts:[{label:'施工者',ctxField:'company'}]}
+    ];
+  }
+  // ビルダーの行 → 描画が理解できるテンプレート定義
+  function bbToDef(){
+    return {label:bbState.name||'自作の黒板',rows:bbState.rows.map(r=>{
+      if(r.t==='note')return {weight:r.weight,note:{key:r.key,label:r.label||'',maxLines:Math.max(1,Math.round(r.weight*1.6))}};
+      if(r.t==='image')return {weight:r.weight,image:{key:r.key,label:r.label||'豆図'}};
+      return {weight:r.weight,parts:r.parts.map(p=>({label:p.label||'',ctxField:p.ctxField||null}))};
+    })};
+  }
+  function bbFromDef(def){
+    let seq=0;
+    const rows=(def.rows||[]).map(r=>{
+      seq++;
+      if(r.note)return {t:'note',weight:r.weight||1,key:r.note.key||('n'+seq),label:r.note.label||''};
+      if(r.image)return {t:'image',weight:r.weight||1,key:r.image.key||('i'+seq),label:r.image.label||'豆図'};
+      return {t:'field',weight:r.weight||1,parts:(r.parts||[]).map(p=>({label:p.label||'',ctxField:p.ctxField||''}))};
+    });
+    return {rows,seq:seq+100};
+  }
+  function bbRenderPreview(){
+    const img=$('bbPreview'); if(!img)return;
+    if(!bbState.rows.length){ img.removeAttribute('src'); return; }
+    const surf=(readBoardControls().surface==='white')?'white':'chalk';
+    const c=document.createElement('canvas'); c.width=600; c.height=400;
+    const data={template:'__bbpreview__',surface:surf,noteSize:'m',fields:{},images:{}};
+    // 見本の文字を入れて、実際の見え方に近づける
+    bbState.rows.forEach((r,ri)=>{
+      if(r.t==='field')r.parts.forEach((pp,pi)=>{ data.fields['r'+ri+'_'+pi]=pp.ctxField?'（自動）':''; });
+      if(r.t==='note')data[r.key]='';
+    });
+    const def=bbToDef();
+    const saved=GENERIC_TEMPLATES.__bbpreview__;
+    GENERIC_TEMPLATES.__bbpreview__=def;
+    try{ drawBoardFace(c.getContext('2d'),600,400,data); }catch(e){ console.warn(e); }
+    if(saved)GENERIC_TEMPLATES.__bbpreview__=saved; else delete GENERIC_TEMPLATES.__bbpreview__;
+    img.src=c.toDataURL('image/png');
+  }
+  function bbRenderRows(){
+    const wrap=$('bbRows'); if(!wrap)return;
+    const cnt=$('bbRowCount'); if(cnt)cnt.textContent=bbState.rows.length+'行';
+    wrap.innerHTML=bbState.rows.map((r,i)=>{
+      const heightSel=`<select data-bb="h" data-i="${i}">`+BB_HEIGHT.map(([v,l])=>`<option value="${v}"${Number(r.weight)===v?' selected':''}>${l}</option>`).join('')+`</select>`;
+      let body='';
+      if(r.t==='field'){
+        body=r.parts.map((p,pi)=>`<div style="display:flex;gap:6px;margin-top:4px">
+            <input data-bb="plabel" data-i="${i}" data-p="${pi}" value="${escapeAttr(p.label)}" placeholder="項目名" style="flex:1" />
+            <select data-bb="pctx" data-i="${i}" data-p="${pi}" style="flex:1">`+
+            BB_CTX.map(([v,l])=>`<option value="${v}"${(p.ctxField||'')===v?' selected':''}>${l}</option>`).join('')+
+            `</select>
+            ${r.parts.length>1?`<button type="button" class="btn danger" data-bb="delpart" data-i="${i}" data-p="${pi}" style="padding:6px 9px">×</button>`:''}
+          </div>`).join('')+
+          (r.parts.length<3?`<button type="button" class="btn" data-bb="addpart" data-i="${i}" style="margin-top:5px;padding:5px 9px;font-size:12px">＋ 横に項目を足す</button>`:'');
+      }else{
+        body=`<div style="margin-top:4px"><input data-bb="label" data-i="${i}" value="${escapeAttr(r.label)}" placeholder="${r.t==='image'?'図の名前（例：豆図）':'見出し（空欄でも可）'}" style="width:100%" /></div>`;
+      }
+      const kind=r.t==='field'?'項目の行':r.t==='note'?'記入欄':'豆図の枠';
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:9px;margin-bottom:7px;background:var(--card)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <strong style="flex:1;font-size:13px">${i+1}. ${kind}</strong>
+          <span style="font-size:12px;color:var(--muted)">高さ</span>${heightSel}
+          <button type="button" class="btn" data-bb="up" data-i="${i}" style="padding:6px 9px">↑</button>
+          <button type="button" class="btn" data-bb="down" data-i="${i}" style="padding:6px 9px">↓</button>
+          <button type="button" class="btn danger" data-bb="del" data-i="${i}" style="padding:6px 9px">削除</button>
+        </div>${body}</div>`;
+    }).join('') || '<div class="hint">下のボタンから行を足してください。</div>';
+
+    wrap.querySelectorAll('[data-bb]').forEach(el=>{
+      const i=Number(el.dataset.i), pi=Number(el.dataset.p), kind=el.dataset.bb;
+      const redraw=()=>{bbRenderRows();bbRenderPreview();};
+      if(kind==='h')el.addEventListener('change',()=>{bbState.rows[i].weight=Number(el.value);redraw();});
+      if(kind==='label')el.addEventListener('input',()=>{bbState.rows[i].label=el.value;bbRenderPreview();});
+      if(kind==='plabel')el.addEventListener('input',()=>{bbState.rows[i].parts[pi].label=el.value;bbRenderPreview();});
+      if(kind==='pctx')el.addEventListener('change',()=>{bbState.rows[i].parts[pi].ctxField=el.value;bbRenderPreview();});
+      if(kind==='addpart')el.addEventListener('click',()=>{bbState.rows[i].parts.push({label:'',ctxField:''});redraw();});
+      if(kind==='delpart')el.addEventListener('click',()=>{bbState.rows[i].parts.splice(pi,1);redraw();});
+      if(kind==='del')el.addEventListener('click',()=>{bbState.rows.splice(i,1);redraw();});
+      if(kind==='up')el.addEventListener('click',()=>{ if(i>0){const[x]=bbState.rows.splice(i,1);bbState.rows.splice(i-1,0,x);redraw();} });
+      if(kind==='down')el.addEventListener('click',()=>{ if(i<bbState.rows.length-1){const[x]=bbState.rows.splice(i,1);bbState.rows.splice(i+1,0,x);redraw();} });
+    });
+  }
+  function openBoardBuilder(editId){
+    const list=boardDefs();
+    const cur=editId?list.find(b=>b.id===editId):null;
+    if(cur){
+      const f=bbFromDef(cur.def);
+      bbState={id:cur.id,name:cur.name,rows:f.rows,seq:f.seq};
+      $('boardBuilderTitle').textContent='黒板を直す';
+      $('bbDeleteBtn').style.display='';
+    }else{
+      bbState={id:'',name:'',rows:[],seq:0};
+      bbState.rows=bbDefaultRows();
+      $('boardBuilderTitle').textContent='黒板を作る';
+      $('bbDeleteBtn').style.display='none';
+    }
+    $('bbName').value=bbState.name;
+    bbRenderRows(); bbRenderPreview();
+    $('boardBuilderDialog').showModal();
+  }
+  function initBoardBuilder(){
+    const dlg=$('boardBuilderDialog'); if(!dlg)return;
+    const close=()=>dlg.close();
+    $('boardBuilderCloseBtn').addEventListener('click',close);
+    $('bbCancelBtn').addEventListener('click',close);
+    $('bbName').addEventListener('input',e=>{bbState.name=e.target.value;bbRenderPreview();});
+    $('bbAddField').addEventListener('click',()=>{bbState.rows.push({t:'field',weight:1,parts:[{label:'',ctxField:''}]});bbRenderRows();bbRenderPreview();});
+    $('bbAddNote').addEventListener('click',()=>{bbState.rows.push({t:'note',weight:3,key:bbNewKey('n'),label:''});bbRenderRows();bbRenderPreview();});
+    $('bbAddImage').addEventListener('click',()=>{bbState.rows.push({t:'image',weight:3,key:bbNewKey('i'),label:'豆図'});bbRenderRows();bbRenderPreview();});
+    $('bbDeleteBtn').addEventListener('click',async()=>{
+      if(!bbState.id)return;
+      if(!confirm('この黒板を削除します。よろしいですか？\n（この黒板を使って保存済みの写真は、そのまま残ります）'))return;
+      await saveBoardDefs(boardDefs().filter(b=>b.id!==bbState.id));
+      close(); buildTemplatePickerOnce(); renderBoardEditor();
+    });
+    $('bbSaveBtn').addEventListener('click',async()=>{
+      const name=($('bbName').value||'').trim();
+      if(!name){alert('黒板の名前を入力してください。');return}
+      if(!bbState.rows.length){alert('行を1つ以上足してください。');return}
+      const list=boardDefs().slice();
+      const def=bbToDef(); def.label=name;
+      if(bbState.id){
+        const i=list.findIndex(b=>b.id===bbState.id);
+        if(i>=0)list[i]={...list[i],name,def,updatedAt:Date.now()};
+      }else{
+        bbState.id=uid('bdef');
+        list.push({id:bbState.id,name,def,createdAt:Date.now(),updatedAt:Date.now()});
+      }
+      await saveBoardDefs(list);
+      close();
+      const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
+      buildTemplatePickerOnce();
+      $('boardTemplate').value='custom:'+bbState.id;
+      renderBoardEditor();
+    });
+    $('openBoardBuilderBtn').addEventListener('click',()=>{
+      const cur=$('boardTemplate').value||'';
+      openBoardBuilder(cur.indexOf('custom:')===0?cur.slice(7):'');
+    });
+  }
+
+  // ---- 豆図を貼る／消す ----
+  // 黒板が持っている「図の枠」の一覧（自作の豆図枠＋既存テンプレートの略図欄）
+  function boardImageSlots(key){
+    const t=genericTemplate(key); if(!t)return [];
+    const list=[];
+    (t.rows||[]).forEach(r=>{ if(r.image)list.push({key:r.image.key,label:r.image.label||'豆図'}); });
+    if(t.sketch)list.push({key:'sketch',label:t.sketch.label||'略図'});
+    return list;
+  }
+  async function shrinkImageToDataUrl(file,maxSide,quality){
+    let bmp;
+    try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(_){ bmp=await createImageBitmap(file); }
+    const sc=Math.min(1,maxSide/Math.max(bmp.width,bmp.height));
+    const w=Math.max(1,Math.round(bmp.width*sc)),h=Math.max(1,Math.round(bmp.height*sc));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(bmp,0,0,w,h);
+    bmp.close&&bmp.close();
+    return c.toDataURL('image/jpeg',quality);
+  }
+  function pickBoardImage(slotKey){
+    const input=$('boardImgInput'); if(!input)return;
+    input.value='';
+    input.onchange=async()=>{
+      const f=input.files&&input.files[0]; if(!f)return;
+      try{
+        const url=await shrinkImageToDataUrl(f,900,0.75);
+        boardState.images=boardState.images||{};
+        boardState.images[slotKey]=url;
+        await ensureBoardImages({images:boardState.images});
+        renderBoardEditor();
+      }catch(e){ console.error(e); alert('この画像は読み込めませんでした。別の画像でお試しください。'); }
+    };
+    input.click();
+  }
+  function renderBoardImageUI(){
+    const box=$('boardImageSlots'); if(!box)return;
+    const key=$('boardTemplate').value;
+    const slots=boardImageSlots(key);
+    if(!slots.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='';
+    const imgs=boardState.images||{};
+    box.innerHTML='<label>豆図（図面などの画像を貼れます）</label>'+slots.map(sl=>{
+      const has=!!imgs[sl.key];
+      return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <div style="width:64px;height:44px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg);flex:0 0 auto">
+          ${has?`<img src="${imgs[sl.key]}" alt="" style="width:100%;height:100%;object-fit:contain" />`:''}
+        </div>
+        <span style="flex:1;font-size:13px">${escapeHtml(sl.label)}</span>
+        <button type="button" class="btn" data-bimg="${escapeAttr(sl.key)}">${has?'変える':'貼る'}</button>
+        ${has?`<button type="button" class="btn danger" data-bimgdel="${escapeAttr(sl.key)}">消す</button>`:''}
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-bimg]').forEach(b=>b.addEventListener('click',()=>pickBoardImage(b.dataset.bimg)));
+    box.querySelectorAll('[data-bimgdel]').forEach(b=>b.addEventListener('click',()=>{
+      if(boardState.images)delete boardState.images[b.dataset.bimgdel];
+      renderBoardEditor();
+    }));
+  }
+
+  function isCustomBoardKey(k){ return typeof k==='string'&&k.indexOf('custom:')===0; }
   function boardTemplateList(){
     return [
       {key:'tajima',label:'工事件名・工事場所・施工者'},
@@ -2616,7 +2887,7 @@
       {key:'dekigata_hyou',label:GENERIC_TEMPLATES.dekigata_hyou.label},
       {key:'kensa_kawa',label:GENERIC_TEMPLATES.kensa_kawa.label},
       {key:'free',label:'自由設定'}
-    ];
+    ].concat(boardDefs().map(b=>({key:'custom:'+b.id,label:b.name,custom:true})));
   }
   const _templateThumbCache={};
   function templateThumbDataUrl(key,surfaceKind){
@@ -2626,7 +2897,7 @@
     const c=document.createElement('canvas');c.width=240;c.height=160;
     const ctx=c.getContext('2d');
     let sampleData;
-    if(GENERIC_TEMPLATES[key]) sampleData={template:key,fields:{},note:'',note2:'',surface:sk};
+    if(genericTemplate(key)) sampleData={template:key,fields:{},note:'',note2:'',surface:sk};
     else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:'',surface:sk}; }
     drawBoardFace(ctx,240,160,sampleData);
     const url=c.toDataURL('image/png');
@@ -2796,16 +3067,17 @@
     updateSurfaceToggleBtn();
     updateQuickBar();
     boardState.freePos = data.freePos||null;
+    boardState.images = cloneBoardData(data.images||{});
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
     const sizeRow=$('boardNoteSizeRow');
     if(sizeRow){
-      const hasNote=GENERIC_TEMPLATES[data.template]
+      const hasNote=genericTemplate(data.template)
         ? genericTemplateNoteKeys(data.template).length>0
         : true;
       sizeRow.style.display=hasNote?'':'none';
     }
-    if(GENERIC_TEMPLATES[data.template]){
+    if(genericTemplate(data.template)){
       setLegacyFieldsVisible(false);
       renderGenericFieldsUI(data.template,data);
     }else{
@@ -2821,8 +3093,8 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null};
-    if(GENERIC_TEMPLATES[base.template]){
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null,images:cloneBoardData(boardState.images||{})};
+    if(genericTemplate(base.template)){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
       return Object.assign(base,{fields},extra);
@@ -3175,8 +3447,40 @@
     const bValueSize=fitFontSizePx(ctx,data.bottom&&data.bottom.value,valueMaxW,baseRowFont,minRowFont);
     ctx.font=CHALK_FONT_BOLD(bValueSize);ctx.fillText(data.bottom&&data.bottom.value||'',m.innerX+m.labelW+10,m.by+m.bottomH/2);ctx.restore();
   }
+  // ---- 豆図（黒板に貼る図の画像）----
+  // 黒板の描画は同期処理なので、貼る前に画像を読み込み済みにしておく必要がある。
+  const _boardImgCache=new Map();
+  function boardImageReady(src){
+    if(!src)return null;
+    const rec=_boardImgCache.get(src);
+    return (rec&&rec.ok)?rec.img:null;
+  }
+  // 黒板が持っている豆図をすべて読み込み終えるまで待つ。写真に貼る前などに必ず呼ぶこと。
+  function ensureBoardImages(board){
+    const imgs=(board&&board.images)||{};
+    const srcs=Object.keys(imgs).map(k=>imgs[k]).filter(Boolean);
+    return Promise.all(srcs.map(src=>new Promise(res=>{
+      const rec=_boardImgCache.get(src);
+      if(rec&&rec.ok)return res();
+      const img=new Image();
+      img.onload=()=>{_boardImgCache.set(src,{img,ok:true});res();};
+      img.onerror=()=>{_boardImgCache.set(src,{img,ok:false});res();};
+      img.src=src;
+    })));
+  }
+  // 枠の中に、縦横比を保ったまま豆図を収めて描く
+  function drawBoardImageInto(ctx,src,x,y,areaW,areaH){
+    const img=boardImageReady(src);
+    if(!img||areaW<4||areaH<4)return false;
+    const sc=Math.min(areaW/img.width,areaH/img.height);
+    const dw=img.width*sc,dh=img.height*sc;
+    ctx.save(); ctx.shadowBlur=0;
+    ctx.drawImage(img,x+(areaW-dw)/2,y+(areaH-dh)/2,dw,dh);
+    ctx.restore();
+    return true;
+  }
   function drawGenericBoardFace(ctx,w,h,data){
-    const t=GENERIC_TEMPLATES[data.template]; if(!t)return;
+    const t=genericTemplate(data.template); if(!t)return;
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
@@ -3210,6 +3514,19 @@
         const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.85),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
         ctx.font=CHALK_FONT_BOLD(fit.size);
         for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],innerX+padX,textTop+i*lineH);
+      }else if(g.row.image){
+        // 豆図の枠。画像が貼られていれば中に収めて描く
+        const key=g.row.image.key;
+        const padX=8,padY=6;
+        let top=g.y+padY;
+        if(g.row.image.label){
+          const lblSize=Math.max(11,Math.round(baseFont*0.85));
+          ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
+          ctx.fillText(g.row.image.label,innerX+padX,top);
+          top+=lblSize+4;
+        }
+        drawBoardImageInto(ctx,(data.images||{})[key],innerX+padX,top,
+          (rowRightX-innerX)-padX*2,Math.max(4,g.y+g.h-top-padY));
       }else if(g.row.parts){
         const parts=g.row.parts;
         const partW=(rowRightX-innerX)/parts.length;
@@ -3242,7 +3559,11 @@
       const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
       ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();
       ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
-      if(sketch.noteKey){
+      const sketchImg=(data.images||{})['sketch'];
+      if(sketchImg&&drawBoardImageInto(ctx,sketchImg,sketchColX+padX,sy+padY+lblSize+4,
+          (innerX+innerW)-sketchColX-padX*2,Math.max(4,ey-(sy+padY+lblSize+4)-padY))){
+        // 豆図を貼っているときは、同じ場所の文字は出さない
+      }else if(sketch.noteKey){
         const text=data[sketch.noteKey]||'';
         const maxLines=noteLinesScaled(sketch.maxLines||6,data.noteSize);
         const textTop=sy+padY+lblSize+4;
@@ -3258,7 +3579,7 @@
   }
   function drawBoardFace(ctx,w,h,data){
     setBoardSurface(data&&data.surface);   // 黒板／ホワイトボードの切り替え
-    if(data&&GENERIC_TEMPLATES[data.template]) return drawGenericBoardFace(ctx,w,h,data);
+    if(data&&genericTemplate(data.template)) return drawGenericBoardFace(ctx,w,h,data);
     return drawLegacyBoardFace(ctx,w,h,data);
   }
   function drawStrokesOnCtx(ctx,w,h,strokes){
@@ -3397,6 +3718,7 @@
     window.addEventListener('mouseup',end); window.addEventListener('touchend',end);
   }
   function renderBoardEditor(){
+    try{ renderBoardImageUI(); }catch(e){ console.warn(e); }
     const board=readBoardControls();
     setTimeout(updatePosPickUI,0);
     const size=boardRenderSize(board);
@@ -3408,7 +3730,7 @@
     base.width=size.w;base.height=size.h;draw.width=size.w;draw.height=size.h;
     const bctx=base.getContext('2d');bctx.clearRect(0,0,size.w,size.h);drawBoardFace(bctx,size.w,size.h,board);
     const dctx=draw.getContext('2d');dctx.clearRect(0,0,size.w,size.h);drawStrokesOnCtx(dctx,size.w,size.h,boardState.strokes);
-    if(GENERIC_TEMPLATES[board.template]){
+    if(genericTemplate(board.template)){
       const el=$('boardNoteGuide'); if(el)el.style.display='none';
     }else{
       renderBoardNoteGuide(board,w,boardState.displayH);
@@ -3446,12 +3768,14 @@
     const dHint=$('drawHint'); if(dHint)dHint.classList.remove('show');
     switchBoardPickerTab('template');
     renderMyBoardPicker();
-    $('boardDialog').showModal();requestAnimationFrame(renderBoardEditor);
+    $('boardDialog').showModal();
+    ensureBoardImages({images:boardState.images}).then(()=>requestAnimationFrame(renderBoardEditor));
+    requestAnimationFrame(renderBoardEditor);
   }
   async function saveBoardEdits(){
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
     const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
-    if(board.enabled!==false){const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+    if(board.enabled!==false){await ensureBoardImages(board);const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
     const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);
@@ -3505,7 +3829,7 @@
     return rects;
   }
   function genericFieldRects(w,h,key){
-    const t=GENERIC_TEMPLATES[key]; if(!t)return [];
+    const t=genericTemplate(key); if(!t)return [];
     const pad=Math.max(8,Math.round(w*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     const totalWeight=t.rows.reduce((s,r)=>s+(r.weight||1),0);
@@ -3533,7 +3857,7 @@
   function currentBoardFieldRects(){
     const board=readBoardControls();
     const w=boardState.displayW||760,h=boardState.displayH||Math.round(w*2/3);
-    if(GENERIC_TEMPLATES[board.template])return genericFieldRects(w,h,board.template);
+    if(genericTemplate(board.template))return genericFieldRects(w,h,board.template);
     return legacyFieldRects(w,h,board.noteSize);
   }
   function closeBoardInlineEditor(){ const el=$('boardInlineEditor'); if(el)el.remove(); }
@@ -3674,7 +3998,7 @@
     const preset=boardPreset(newKey,ph);
     preset.position=current.position;preset.size=current.size;preset.enabled=current.enabled;
     preset.orient=current.orient;preset.noteSize=current.noteSize;preset.surface=current.surface;preset.freePos=current.freePos;
-    if(!GENERIC_TEMPLATES[newKey]&&!GENERIC_TEMPLATES[current.template]&&current.note)preset.note=current.note;
+    if(!genericTemplate(newKey)&&!genericTemplate(current.template)&&current.note)preset.note=current.note;
     fillBoardControls(preset);
     renderBoardEditor();
   });
@@ -3790,6 +4114,7 @@
     await idbPut('settings',{key:'main',value:settings});
   });
   initInAppCamera();
+  initBoardBuilder();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);

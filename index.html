@@ -432,8 +432,8 @@
       <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
-        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">大きさ 小</button>
-        <button type="button" id="camOrientBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">横</button>
+        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
+        <button type="button" id="camOrientBtn" title="押すたびに黒板が右へ90度回ります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">⟳ 黒板 横</button>
         <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0">黒板</button>
         <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">黒板なし</button>
       </div>
@@ -578,7 +578,7 @@
           <button type="button" class="bq" id="bqSize"><span class="bq-l">大きさ</span><span class="bq-v">小</span></button>
         </div>
         <div class="cf-dup">
-          <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option><option value="black">黒板（黒）</option></select>
+          <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select>
           <select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select>
           <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由</option></select>
           <select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select>
@@ -649,8 +649,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15c';
-  const APP_UPDATE_NOTE='傾きの検知方法を変更／カメラの大きさをタップ切替／画面の並びを整理';
+  const APP_VERSION='2026.08.15d';
+  const APP_UPDATE_NOTE='カメラに黒板の回転ボタンを追加／板の色は緑・白の2種類に';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -931,35 +931,7 @@
   let camSettings={template:null,size:null,orient:null,surface:null,enabled:true,orientAuto:true};
   // 端末を横に向けたら黒板も横向きにする
   // 端末の傾き（重力の向き）から、いま横に構えているかを判断する
-  let camTiltOrient='';
-  function camSetTilt(next){
-    if(next && next!==camTiltOrient){
-      camTiltOrient=next;
-      if($('cameraDialog')&&$('cameraDialog').open)camRefreshOverlay();
-    }
-  }
-  function initCamTilt(){
-    if(window._camTiltInit)return; window._camTiltInit=true;
-    // ①重力の向きから判断（一番確実。カメラを下に向けても効きます）
-    window.addEventListener('devicemotion',(e)=>{
-      const g=e.accelerationIncludingGravity; if(!g)return;
-      const x=g.x, y=g.y;
-      if(x==null||y==null)return;
-      // 左右方向の重力が上下方向より強ければ、横に構えている
-      if(Math.abs(x)<1.5 && Math.abs(y)<1.5)return;   // 平置きのときは変えない
-      camSetTilt(Math.abs(x)>Math.abs(y)?'land':'port');
-    },true);
-    // ②重力が取れない端末向けの予備
-    window.addEventListener('deviceorientation',(e)=>{
-      const g=e.gamma, be=e.beta;
-      if(g==null||be==null)return;
-      camSetTilt(Math.abs(g)>Math.abs(be)?'land':'port');
-    },true);
-  }
   function camDeviceOrient(){
-    // ①傾きセンサー（画面の回転ロック中でも効く）
-    if(camTiltOrient)return camTiltOrient;
-    // ②画面の縦横
     return (window.innerWidth>window.innerHeight)?'land':'port';
   }
   let camTorchOn=false;
@@ -1007,10 +979,10 @@
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
     if(ob){
-      ob.textContent=(board.orient==='port')?'黒板 縦':'黒板 横';
-      ob.style.background=camSettings.orientAuto?'rgba(255,255,255,.9)':'#f5a524';
+      ob.textContent='⟳ 黒板 '+((board.orient==='port')?'縦':'横');
+      ob.style.background='rgba(255,255,255,.9)';
       ob.style.color='#1a1d20';
-      ob.title=camSettings.orientAuto?'端末の傾きに合わせて自動で回ります（押すと固定できます）':'向きを固定しています（押すと切り替え）';
+      ob.title='押すたびに黒板が右へ90度回ります';
     }
     const sb=$('camSurfaceBtn');
     if(sb){ const white=board.surface==='white';
@@ -1018,7 +990,7 @@
       sb.style.background=white?'#ffffff':'#33513f';
       sb.style.color=white?'#1f2a30':'#ffffff'; }
     const szb=$('camSizeBtn');
-    if(szb)szb.textContent='大きさ '+({s:'小',m:'中',l:'大'}[board.size]||'小');
+    if(szb)szb.textContent='黒板 '+({s:'小',m:'中',l:'大'}[board.size]||'小');
     const off=$('camBoardOffBtn'); if(off)off.textContent=board.enabled===false?'黒板を出す':'黒板なし';
   }
   function camRenderTemplateGrid(){
@@ -1051,15 +1023,6 @@
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
-      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
-        try{ await DeviceMotionEvent.requestPermission(); }catch(e){}
-      }
-      if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-        try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
-      }
-      initCamTilt();
-    }catch(e){ console.warn('傾きの検知を使えません',e); }
-    try{
       camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:2560},height:{ideal:1920}},audio:false});
     }catch(err){
       console.warn('カメラを使えません',err);
@@ -1071,7 +1034,8 @@
     const base=camBoardData();
     if(!camSettings.template)camSettings.template=base.template;
     if(!camSettings.size)camSettings.size=base.size||'s';
-    if(!camSettings.orient)camSettings.orient=base.orient||'land';
+    camSettings.orientAuto=false;
+    if(!camSettings.orient)camSettings.orient=camDeviceOrient();
     if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
     camTorchOn=false;
@@ -1130,9 +1094,8 @@
       camRefreshOverlay();
     });
     $('camOrientBtn').addEventListener('click',()=>{
-      if(camSettings.orientAuto){ camSettings.orientAuto=false; camSettings.orient='land'; }
-      else if(camSettings.orient==='land'){ camSettings.orient='port'; }
-      else { camSettings.orientAuto=true; }
+      camSettings.orientAuto=false;
+      camSettings.orient=(camSettings.orient==='port')?'land':'port';
       camRefreshOverlay();
     });
     $('camSurfaceBtn').addEventListener('click',()=>{camSettings.surface=(camSettings.surface==='white')?'chalk':'white';camRefreshOverlay()});
@@ -2261,7 +2224,6 @@
   const SURFACE_CYCLE=[
     {v:'chalk',label:'緑板',bg:'#33513f',fg:'#ffffff',bd:'#233a2c'},
     {v:'white',label:'白板',bg:'#ffffff',fg:'#1f2a30',bd:'#9aa7b0'},
-    {v:'black',label:'黒板',bg:'#17191d',fg:'#ffffff',bd:'#000000'},
   ];
   function updateSurfaceToggleBtn(){
     const btn=$('surfaceToggleBtn'); if(!btn)return;
@@ -2532,11 +2494,10 @@
   }
   // 板の種類（黒板／ホワイトボード）で色を切り替える
   let boardSurface='chalk';   // 'chalk' または 'white'
-  function setBoardSurface(kind){ boardSurface=(kind==='white'||kind==='black')?kind:'chalk'; }
+  function setBoardSurface(kind){ boardSurface=(kind==='white')?'white':'chalk'; }
   const SURFACE_COLORS={
     chalk:{ink:'rgba(250,250,245,0.97)',line:'rgba(255,255,255,0.72)',glow:'rgba(255,255,255,0.4)'},
     white:{ink:'rgba(28,32,36,0.96)',line:'rgba(60,66,72,0.55)',glow:'rgba(255,255,255,0)'},
-    black:{ink:'rgba(250,250,248,0.97)',line:'rgba(255,255,255,0.62)',glow:'rgba(255,255,255,0.3)'},
   };
   Object.defineProperty(window,'_bs',{get:()=>boardSurface});
   const CHALK_WHITE_GET=()=>SURFACE_COLORS[boardSurface].ink;
@@ -2558,29 +2519,6 @@
     rg.addColorStop(0,colorStart);rg.addColorStop(1,colorEnd);
     ctx.fillStyle=rg;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
     ctx.restore();
-  }
-  const _blackTextureCache={};
-  function getBlackboardTexture(w,h){
-    const key=w+'x'+h;
-    if(_blackTextureCache[key])return _blackTextureCache[key];
-    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
-    const rand=createSeededRandom(((w*374761393)^(h*668265263))>>>0);
-    const base=cx.createLinearGradient(0,0,w,h);
-    base.addColorStop(0,'#22242a'); base.addColorStop(0.42,'#191b20'); base.addColorStop(1,'#121418');
-    cx.fillStyle=base;cx.fillRect(0,0,w,h);
-    cx.save();
-    for(let i=0;i<14;i++){
-      cx.globalAlpha=0.02+rand()*0.045;
-      fillSoftEllipse(cx,rand()*w,rand()*h,w*(0.12+rand()*0.26),h*(0.07+rand()*0.18),rand()*Math.PI,'rgba(255,255,255,0.5)','rgba(255,255,255,0)');
-    }
-    cx.restore();
-    const edge=cx.createLinearGradient(0,0,0,h);
-    edge.addColorStop(0,'rgba(255,255,255,0.05)');
-    edge.addColorStop(0.08,'rgba(255,255,255,0)');
-    edge.addColorStop(1,'rgba(0,0,0,0.16)');
-    cx.fillStyle=edge;cx.fillRect(0,0,w,h);
-    _blackTextureCache[key]=c;
-    return c;
   }
   const _whiteTextureCache={};
   function getWhiteboardTexture(w,h){
@@ -2618,7 +2556,6 @@
   }
   function getChalkTexture(w,h){
     if(boardSurface==='white')return getWhiteboardTexture(w,h);
-    if(boardSurface==='black')return getBlackboardTexture(w,h);
     const key=w+'x'+h;
     if(_chalkTextureCache[key])return _chalkTextureCache[key];
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');

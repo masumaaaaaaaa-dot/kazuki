@@ -6,23 +6,63 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "background_color": "#f3f4f6",
   "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "lang": "ja",
   "dir": "ltr",
-  "categories": ["business", "productivity", "photo"],
+  "categories": [
+    "business",
+    "productivity",
+    "photo"
+  ],
   "prefer_related_applications": false,
   "icons": [
-    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
-    {"src":"icon-512-maskable.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "screenshots": [
-    {"src":"screenshots/1_photos.png","sizes":"824x1784","type":"image/png","form_factor":"narrow","label":"登録した写真の一覧"},
-    {"src":"screenshots/2_board.png","sizes":"824x1784","type":"image/png","form_factor":"narrow","label":"黒板の編集"},
-    {"src":"screenshots/3_output.png","sizes":"824x1784","type":"image/png","form_factor":"narrow","label":"A4・Excelでの出力"}
+    {
+      "src": "1_photos.png",
+      "sizes": "824x1784",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "登録した写真の一覧"
+    },
+    {
+      "src": "2_board.png",
+      "sizes": "824x1784",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "黒板の編集"
+    },
+    {
+      "src": "3_output.png",
+      "sizes": "824x1784",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A4・Excelでの出力"
+    }
   ],
   "shortcuts": [
     {
@@ -30,14 +70,24 @@
       "short_name": "撮影",
       "description": "選択中の現場に写真を追加します",
       "url": "./index.html?page=photos",
-      "icons": [{"src":"icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "A4出力",
       "short_name": "出力",
       "description": "印刷・PDF・Excelで出力します",
       "url": "./index.html?page=output",
-      "icons": [{"src":"icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

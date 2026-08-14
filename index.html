@@ -485,7 +485,7 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 z</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 aa</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -716,7 +716,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15z';
+  const APP_VERSION='2026.08.15aa';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1050,29 +1050,20 @@
   let camZoom=1;
   let camPhotoOrient='auto';   // auto / land / port
   function camPreviewRotation(){
-    const v=$('camVideo');
-    if(!v||!v.videoWidth||!v.videoHeight)return 0;
-    const landscapeViewport=window.innerWidth>window.innerHeight;
-    if(!landscapeViewport || v.videoWidth>=v.videoHeight)return 0;
-    const a=camDeviceAngle();
-    return a===270?270:90;
+    // Android/Chrome の video 要素は端末向きを見た目に反映して表示するため、
+    // ここで追加の90度回転を入れると二重回転になり、映像が横倒しになる。
+    return 0;
   }
   function camApplyVideoLayout(){
     const v=$('camVideo'), st=$('camStage'); if(!v||!st)return;
-    const rot=camPreviewRotation();
     v.style.position='absolute';
     v.style.left='50%'; v.style.top='50%';
     v.style.transformOrigin='center center';
     v.style.objectFit='contain';
-    if(rot===90||rot===270){
-      // 縦向きで届いたカメラ映像を、横画面用に90度回して表示する。
-      v.style.width=Math.max(1,st.clientHeight)+'px';
-      v.style.height=Math.max(1,st.clientWidth)+'px';
-    }else{
-      v.style.width='100%'; v.style.height='100%';
-    }
-    v.style.transform=`translate(-50%,-50%) rotate(${rot}deg) scale(${camZoom})`;
-    v.dataset.previewRotation=String(rot);
+    v.style.width='100%';
+    v.style.height='100%';
+    v.style.transform=`translate(-50%,-50%) scale(${camZoom})`;
+    v.dataset.previewRotation='0';
   }
   function camApplyZoom(){
     const v=$('camVideo'); if(!v)return;
@@ -1102,15 +1093,13 @@
     const st=$('camStage'), v=$('camVideo'); if(!st||!v)return null;
     const sb=st.getBoundingClientRect();
     if(!sb.width||!sb.height)return null;
-    const rot=camPreviewRotation();
-    let vw=v.videoWidth||16, vh=v.videoHeight||9;
-    if(rot===90||rot===270){ const t=vw; vw=vh; vh=t; }
+    const vw=v.videoWidth||16, vh=v.videoHeight||9;
     const zoom=camZoom||1;
     const fit=Math.min(sb.width/vw, sb.height/vh);
     const drawW=vw*fit*zoom, drawH=vh*fit*zoom;
     const visW=Math.min(drawW, sb.width), visH=Math.min(drawH, sb.height);
     const offX=(sb.width-visW)/2, offY=(sb.height-visH)/2;
-    return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY,previewRotation:rot};
+    return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY,previewRotation:0};
   }
   function camRefreshOverlay(){
     const v=$('camVideo'), ov=$('camBoardOverlay');

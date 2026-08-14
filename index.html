@@ -261,7 +261,61 @@
       #printRoot{display:block!important}
       .sheet{box-shadow:none;margin:0}
     }
-  </style>
+  
+
+    /* アプリ内カメラ：横画面では操作ボタンを左右へ配置して中央の映像を広くする */
+    @media (orientation: landscape){
+      #cameraDialog > div{display:block!important}
+      #camTopBar{
+        left:0!important;right:auto!important;top:0!important;bottom:0!important;
+        width:clamp(168px,25vw,220px)!important;
+        box-sizing:border-box!important;
+        padding:10px 8px!important;
+        background:linear-gradient(90deg,rgba(0,0,0,.90),rgba(0,0,0,.58),transparent)!important;
+        display:flex!important;flex-direction:column!important;justify-content:center!important;
+        overflow-y:auto!important;
+      }
+      #camTopBar > div:first-child{
+        font-size:10.5px!important;line-height:1.3!important;margin:0 0 7px!important;
+      }
+      #camTopBar > div:nth-child(2){
+        display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+        gap:6px!important;align-items:stretch!important;
+      }
+      #camTopBar button{
+        min-width:0!important;width:100%!important;min-height:38px!important;
+        padding:5px 4px!important;font-size:11px!important;line-height:1.15!important;
+      }
+      #camRotateBtn{width:100%!important}
+
+      #camBottomBar{
+        left:auto!important;right:0!important;top:0!important;bottom:0!important;
+        width:clamp(112px,18vw,154px)!important;
+        box-sizing:border-box!important;
+        padding:10px 8px!important;
+        padding-bottom:10px!important;
+        background:linear-gradient(270deg,rgba(0,0,0,.90),rgba(0,0,0,.58),transparent)!important;
+        display:flex!important;flex-direction:column!important;justify-content:center!important;gap:9px!important;
+      }
+      #camSubBar{
+        display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+        gap:6px!important;margin:0!important;align-items:center!important;
+      }
+      #camSubBar .btn{min-width:0!important;width:100%!important;padding:7px 3px!important;font-size:11px!important}
+      #camZoomLabel{grid-column:1 / -1!important;order:-1!important;min-width:0!important;font-size:11px!important}
+      #camBottomBar > div:last-child{
+        display:flex!important;flex-direction:column!important;align-items:center!important;gap:7px!important;
+      }
+      #camBottomBar > div:last-child > span[style*="flex:1"]{display:none!important}
+      #camCloseBtn,#camHideUiBtn{width:100%!important;min-width:0!important;padding:7px 4px!important}
+      #camShotCount{margin:0!important;font-size:11px!important;order:-1!important}
+      #camShutterBtn{
+        width:68px!important;height:68px!important;min-width:68px!important;min-height:68px!important;
+        flex:0 0 auto!important;margin:4px 0!important;
+      }
+      #camStage{top:0!important;bottom:0!important}
+    }
+</style>
 </head>
 <body>
 <div class="app-shell">
@@ -431,7 +485,7 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 y</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 z</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -662,7 +716,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15y';
+  const APP_VERSION='2026.08.15z';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1321,17 +1375,30 @@
     let camUiHidden=false;
     const applyCamUi=()=>{
       const top=$('camTopBar'), sub=$('camSubBar'), btn=$('camHideUiBtn'), st=$('camStage'), bot=$('camBottomBar');
+      const landscape=window.innerWidth>window.innerHeight;
       if(top){ top.style.opacity=camUiHidden?'0':'1'; top.style.pointerEvents=camUiHidden?'none':'auto'; }
-      if(sub){ sub.style.display=camUiHidden?'none':'flex'; }
+      if(sub){ sub.style.display=camUiHidden?'none':(landscape?'grid':'flex'); }
       if(btn)btn.textContent=camUiHidden?'出す':'隠す';
-      // 映像の範囲を、ボタンに重ならない位置にそろえる
+      // 横画面は左右に操作パネル、縦画面は従来どおり上下に操作パネルを置く。
       setTimeout(()=>{
         if(st){
-          const th=camUiHidden?0:(top?top.offsetHeight:0);
-          const bh=bot?bot.offsetHeight:0;
-          st.style.top=th+'px';
-          st.style.bottom=bh+'px';
+          if(landscape){
+            const lw=camUiHidden?0:(top?top.offsetWidth:0);
+            const rw=camUiHidden?0:(bot?bot.offsetWidth:0);
+            st.style.left=lw+'px';
+            st.style.right=rw+'px';
+            st.style.top='0px';
+            st.style.bottom='0px';
+          }else{
+            const th=camUiHidden?0:(top?top.offsetHeight:0);
+            const bh=camUiHidden?0:(bot?bot.offsetHeight:0);
+            st.style.left='0px';
+            st.style.right='0px';
+            st.style.top=th+'px';
+            st.style.bottom=bh+'px';
+          }
         }
+        camApplyVideoLayout();
         camRefreshOverlay();
       },40);
     };

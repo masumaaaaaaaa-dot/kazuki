@@ -662,8 +662,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15k';
-  const APP_UPDATE_NOTE='連続撮影できるように／横で撮れば横で保存／ボタンと黒板が重ならないように';
+  const APP_VERSION='2026.08.15m';
+  const APP_UPDATE_NOTE='画面で見えているとおりに保存されるよう修正（黒板の位置・向きのずれ解消）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1225,21 +1225,12 @@
       const sx=Math.round((video.videoWidth-sw)/2), sy=Math.round((video.videoHeight-sh)/2);
       cn.width=sw; cn.height=sh;
       cn.getContext('2d').drawImage(video,sx,sy,sw,sh,0,0,sw,sh);
-      // 端末を横に構えているのに映像が縦長のときは、写真を回して横長にそろえる
+      // 写真は、画面に映っているとおりの向きで保存する（余計な回転はしない）
       let shot=cn;
-      // 画面に映っている見た目の縦横に合わせる（回転ロック中でも正しく判定できます）
-      const vr0=camVideoRect();
-      let wantLand;
-      if(camPhotoOrient==='land')wantLand=true;
-      else if(camPhotoOrient==='port')wantLand=false;
-      else {
-        // 映像そのものが横長なら横向きの写真として保存する
-        const vvw=video.videoWidth, vvh=video.videoHeight;
-        wantLand=(vvw>=vvh);
-      }
-      const isLand=(cn.width>=cn.height);
       let rotated=0;
-      if(wantLand!==isLand){ shot=rotateCanvas(cn,90); rotated=90; }
+      const isLand=(cn.width>=cn.height);
+      if(camPhotoOrient==='land'&&!isLand){ shot=rotateCanvas(cn,90); rotated=90; }
+      else if(camPhotoOrient==='port'&&isLand){ shot=rotateCanvas(cn,90); rotated=90; }
       const blob=await new Promise(res=>shot.toBlob(res,'image/jpeg',0.9));
       // 撮影の合図（カメラは開いたままにして、続けて撮れるようにする）
       try{
@@ -1249,11 +1240,13 @@
         requestAnimationFrame(()=>{fl.style.opacity='0'; setTimeout(()=>fl.remove(),300)});
       }catch(e){}
       const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
-      // 写真を回した場合は、黒板の位置と向きも同じだけ回す
+      // 写真を右へ90度回した場合、黒板も同じように付いていく
+      // （元の位置 (x,y) は、回した後では (1-y, x) に移動します）
       let pos={...camBoardPos};
       const shotBoard=camCurrentBoard();
       if(rotated===90){
-        pos={x:1-camBoardPos.y, y:camBoardPos.x};
+        // 写真を右へ回したので、黒板の位置も同じ向きに移す
+        pos={x:camBoardPos.y, y:1-camBoardPos.x};
         shotBoard.rotate=(((shotBoard.rotate||0)+90)%360);
       }
       await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard,quiet:true});

@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15m';
+  const APP_VERSION='2026.08.15n';
   const APP_UPDATE_NOTE='画面で見えているとおりに保存されるよう修正（黒板の位置・向きのずれ解消）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1225,12 +1225,16 @@
       const sx=Math.round((video.videoWidth-sw)/2), sy=Math.round((video.videoHeight-sh)/2);
       cn.width=sw; cn.height=sh;
       cn.getContext('2d').drawImage(video,sx,sy,sw,sh,0,0,sw,sh);
-      // 写真は、画面に映っているとおりの向きで保存する（余計な回転はしない）
+      // 写真の保存向きを決める。
+      // 「自動」はカメラ画面を構えている向き（画面の縦横）に合わせる。
+      // Android Chrome などでは、横持ちでも video の生フレームが縦長のまま返ることがあるため、
+      // 必要なときだけ Canvas 側で90度回してから保存する。
       let shot=cn;
       let rotated=0;
+      const targetOrient=(camPhotoOrient==='auto')?camDeviceOrient():camPhotoOrient;
       const isLand=(cn.width>=cn.height);
-      if(camPhotoOrient==='land'&&!isLand){ shot=rotateCanvas(cn,90); rotated=90; }
-      else if(camPhotoOrient==='port'&&isLand){ shot=rotateCanvas(cn,90); rotated=90; }
+      if(targetOrient==='land'&&!isLand){ shot=rotateCanvas(cn,90); rotated=90; }
+      else if(targetOrient==='port'&&isLand){ shot=rotateCanvas(cn,90); rotated=90; }
       const blob=await new Promise(res=>shot.toBlob(res,'image/jpeg',0.9));
       // 撮影の合図（カメラは開いたままにして、続けて撮れるようにする）
       try{
@@ -1245,8 +1249,9 @@
       let pos={...camBoardPos};
       const shotBoard=camCurrentBoard();
       if(rotated===90){
-        // 写真を右へ回したので、黒板の位置も同じ向きに移す
-        pos={x:camBoardPos.y, y:1-camBoardPos.x};
+        // 写真を右へ90度回したときの座標変換： (x,y) → (1-y,x)
+        // これで、撮影画面で見えていた黒板の位置関係を保ったまま保存できる。
+        pos={x:1-camBoardPos.y, y:camBoardPos.x};
         shotBoard.rotate=(((shotBoard.rotate||0)+90)%360);
       }
       await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard,quiet:true});

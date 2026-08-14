@@ -173,6 +173,10 @@
     .myboard-tool{position:absolute;top:3px;right:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;z-index:2}
     .myboard-tool.second{right:29px}
     .myboard-del{position:absolute;top:3px;left:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;z-index:2}
+    .board-quick{display:flex;gap:7px}
+    .board-quick .bq{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+    .board-quick .bq-l{font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+    .board-quick .bq-v{font-size:14px;font-weight:800;color:var(--brand-ink)}
     .tiny-btn{padding:7px 10px;font-size:12px}
     .cover-edit-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:12px 10px;margin-bottom:12px}
     .cover-edit{background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:18px 14px 22px;font-size:13px;line-height:1.9;color:#111}
@@ -559,16 +563,11 @@
         <div class="draw-hint" id="drawHint">指2本で黒板を拡大・移動できます</div>
         <div id="posPickWrap" style="display:none;margin-top:10px">
           <label>写真の上で、黒板を指で動かして位置を決めてください</label>
-          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;touch-action:none">
+          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
             <img id="posPickPhoto" style="width:100%;display:block" alt="" />
-            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move"></div>
+            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
           </div>
           <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
-        </div>
-        <div class="zoom-controls">
-          <button type="button" class="btn tiny-btn outline" id="boardZoomOutBtn">－ 縮小</button>
-          <button type="button" class="btn tiny-btn outline" id="boardZoomResetBtn">等倍に戻す</button>
-          <button type="button" class="btn tiny-btn outline" id="boardZoomInBtn">＋ 拡大</button>
         </div>
         <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。</div>
       </div>
@@ -578,12 +577,19 @@
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
         <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
       </div>
-      <div class="grid two" style="margin-top:10px">
-        <label class="check-row"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
-        <div class="cf-dup"><select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select></div>
-        <div><label>黒板の向き</label><select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select></div>
-        <div><label>写真へ貼る位置</label><select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由（指で動かす）</option></select></div>
-        <div><label>写真へ貼る黒板の大きさ</label><select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select></div>
+      <div style="margin-top:10px">
+        <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
+        <div class="board-quick" id="boardQuickBar">
+          <button type="button" class="bq" id="bqOrient"><span class="bq-l">向き</span><span class="bq-v">横</span></button>
+          <button type="button" class="bq" id="bqPosition"><span class="bq-l">位置</span><span class="bq-v">右下</span></button>
+          <button type="button" class="bq" id="bqSize"><span class="bq-l">大きさ</span><span class="bq-v">小</span></button>
+        </div>
+        <div class="cf-dup">
+          <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option><option value="black">黒板（黒）</option></select>
+          <select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select>
+          <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由</option></select>
+          <select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select>
+        </div>
       </div>
       <div style="margin-top:10px">
         <label>黒板の選択（タップで選択・見た目のプレビュー付き）</label>
@@ -642,8 +648,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14z';
-  const APP_UPDATE_NOTE='カメラ：端末の向きに黒板が追従／黒板を画像で選択／仕上がりどおりの位置に表示';
+  const APP_VERSION='2026.08.15a';
+  const APP_UPDATE_NOTE='黒板の設定をアイコンでコンパクトに／板の色を3種類に／カメラの向き判定を改善';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -924,15 +930,14 @@
   let camSettings={template:null,size:null,orient:null,surface:null,enabled:true,orientAuto:true};
   // 端末を横に向けたら黒板も横向きにする
   function camDeviceOrient(){
-    // 画面の縦横を基準にする（端末の向き情報と食い違う機種があるため）
-    const bySize=(window.innerWidth>window.innerHeight)?'land':'port';
-    try{
-      const t=(screen.orientation&&screen.orientation.type)||'';
-      const byType=t.startsWith('landscape')?'land':t.startsWith('portrait')?'port':'';
-      // 両方が一致するときだけ、その向きを信頼する
-      if(byType&&byType===bySize)return byType;
-    }catch(e){}
-    return bySize;
+    const byScreen=(window.innerWidth>window.innerHeight)?'land':'port';
+    // 映像も画面も横長なら横向き。どちらかが縦なら縦向きにする
+    const v=$('camVideo');
+    if(v&&v.videoWidth&&v.videoHeight){
+      const byVideo=(v.videoWidth>=v.videoHeight)?'land':'port';
+      return (byVideo==='land'&&byScreen==='land')?'land':'port';
+    }
+    return byScreen;
   }
   let camTorchOn=false;
   function camCurrentBoard(){
@@ -979,8 +984,10 @@
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
     if(ob){
-      ob.textContent=camSettings.orientAuto?('自動('+(board.orient==='port'?'縦':'横')+')'):(board.orient==='port'?'縦':'横');
-      ob.title=camSettings.orientAuto?'端末の向きに合わせています（押すと手動に切り替え）':'手動で向きを指定しています（押すと切り替え）';
+      const mark=(board.orient==='port')?'▯':'▭';
+      ob.textContent=mark+(camSettings.orientAuto?'':'固定');
+      ob.style.background=camSettings.orientAuto?'rgba(255,255,255,.9)':'#f5a524';
+      ob.title=camSettings.orientAuto?'端末の向きに合わせて自動で回ります（押すと固定できます）':'向きを固定しています（押すと切り替え）';
     }
     const sb=$('camSurfaceBtn');
     if(sb){ const white=board.surface==='white';
@@ -1044,9 +1051,20 @@
       fb.style.background='rgba(255,255,255,.16)';
     }
     setTimeout(camRefreshOverlay,150);
+    // 端末を回したときに、映像の縦横の変化を拾って黒板を回す
+    if(window._camWatch)clearInterval(window._camWatch);
+    let lastKey='';
+    window._camWatch=setInterval(()=>{
+      const dlg=$('cameraDialog');
+      if(!dlg||!dlg.open){ clearInterval(window._camWatch); window._camWatch=null; return; }
+      const vv=$('camVideo');
+      const key=(vv.videoWidth||0)+'x'+(vv.videoHeight||0)+'_'+window.innerWidth+'x'+window.innerHeight;
+      if(key!==lastKey){ lastKey=key; camRefreshOverlay(); }
+    },400);
     dlg.showModal();
   }
   function closeCameraDialog(){
+    if(window._camWatch){clearInterval(window._camWatch);window._camWatch=null;}
     if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
     const dlg=$('cameraDialog'); if(dlg&&dlg.open)dlg.close();
   }
@@ -2176,14 +2194,44 @@
     buildTemplatePickerOnce();
     updateTemplatePickerActive(selectedKey);
   }
+  // 向き・位置・大きさは、押すたびに切り替わる
+  const BQ_DEFS={
+    bqOrient:{sel:'boardOrient',opts:[['land','横'],['port','縦']]},
+    bqPosition:{sel:'boardPosition',opts:[['rb','右下'],['lb','左下'],['lt','左上'],['rt','右上'],['free','自由']]},
+    bqSize:{sel:'boardSize',opts:[['s','小'],['m','中'],['l','大']]},
+  };
+  function updateQuickBar(){
+    Object.entries(BQ_DEFS).forEach(([id,def])=>{
+      const btn=$(id), sel=$(def.sel); if(!btn||!sel)return;
+      const hit=def.opts.find(o=>o[0]===sel.value);
+      btn.querySelector('.bq-v').textContent=hit?hit[1]:def.opts[0][1];
+    });
+  }
+  function initQuickBar(){
+    Object.entries(BQ_DEFS).forEach(([id,def])=>{
+      const btn=$(id); if(!btn)return;
+      btn.addEventListener('click',()=>{
+        const sel=$(def.sel);
+        const i=def.opts.findIndex(o=>o[0]===sel.value);
+        sel.value=def.opts[(i+1)%def.opts.length][0];
+        updateQuickBar();
+        sel.dispatchEvent(new Event('input',{bubbles:true}));
+        renderBoardEditor();
+      });
+    });
+  }
+  const SURFACE_CYCLE=[
+    {v:'chalk',label:'緑板',bg:'#33513f',fg:'#ffffff',bd:'#233a2c'},
+    {v:'white',label:'白板',bg:'#ffffff',fg:'#1f2a30',bd:'#9aa7b0'},
+    {v:'black',label:'黒板',bg:'#2a2e33',fg:'#ffffff',bd:'#14171a'},
+  ];
   function updateSurfaceToggleBtn(){
     const btn=$('surfaceToggleBtn'); if(!btn)return;
-    const white=$('boardSurface').value==='white';
-    btn.textContent=white?'白板':'黒板';
-    btn.style.background=white?'#ffffff':'#33513f';
-    btn.style.color=white?'#1f2a30':'#ffffff';
-    btn.style.border='2px solid '+(white?'#9aa7b0':'#233a2c');
-    btn.title=white?'ホワイトボード（押すと黒板に戻ります）':'黒板（押すとホワイトボードに変わります）';
+    const cur=SURFACE_CYCLE.find(s=>s.v===$('boardSurface').value)||SURFACE_CYCLE[0];
+    btn.textContent=cur.label;
+    btn.style.background=cur.bg; btn.style.color=cur.fg;
+    btn.style.border='2px solid '+cur.bd;
+    btn.title='板の色（押すと 緑 → 白 → 黒 の順に変わります）';
   }
   function switchBoardPickerTab(tabName){
     const tabsWrap=$('boardPickerTabs'); if(tabsWrap)tabsWrap.querySelectorAll('button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tabName));
@@ -2285,6 +2333,7 @@
     $('boardOrient').value = data.orient||'land';
     $('boardSurface').value = data.surface||'chalk';
     updateSurfaceToggleBtn();
+    updateQuickBar();
     boardState.freePos = data.freePos||null;
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
@@ -2445,10 +2494,11 @@
   }
   // 板の種類（黒板／ホワイトボード）で色を切り替える
   let boardSurface='chalk';   // 'chalk' または 'white'
-  function setBoardSurface(kind){ boardSurface=(kind==='white')?'white':'chalk'; }
+  function setBoardSurface(kind){ boardSurface=(kind==='white'||kind==='black')?kind:'chalk'; }
   const SURFACE_COLORS={
     chalk:{ink:'rgba(250,250,245,0.97)',line:'rgba(255,255,255,0.72)',glow:'rgba(255,255,255,0.4)'},
     white:{ink:'rgba(28,32,36,0.96)',line:'rgba(60,66,72,0.55)',glow:'rgba(255,255,255,0)'},
+    black:{ink:'rgba(250,250,248,0.97)',line:'rgba(255,255,255,0.62)',glow:'rgba(255,255,255,0.3)'},
   };
   Object.defineProperty(window,'_bs',{get:()=>boardSurface});
   const CHALK_WHITE_GET=()=>SURFACE_COLORS[boardSurface].ink;
@@ -2470,6 +2520,29 @@
     rg.addColorStop(0,colorStart);rg.addColorStop(1,colorEnd);
     ctx.fillStyle=rg;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
     ctx.restore();
+  }
+  const _blackTextureCache={};
+  function getBlackboardTexture(w,h){
+    const key=w+'x'+h;
+    if(_blackTextureCache[key])return _blackTextureCache[key];
+    const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
+    const rand=createSeededRandom(((w*374761393)^(h*668265263))>>>0);
+    const base=cx.createLinearGradient(0,0,w,h);
+    base.addColorStop(0,'#31353a'); base.addColorStop(0.45,'#2a2e33'); base.addColorStop(1,'#23272b');
+    cx.fillStyle=base;cx.fillRect(0,0,w,h);
+    cx.save();
+    for(let i=0;i<14;i++){
+      cx.globalAlpha=0.02+rand()*0.045;
+      fillSoftEllipse(cx,rand()*w,rand()*h,w*(0.12+rand()*0.26),h*(0.07+rand()*0.18),rand()*Math.PI,'rgba(255,255,255,0.5)','rgba(255,255,255,0)');
+    }
+    cx.restore();
+    const edge=cx.createLinearGradient(0,0,0,h);
+    edge.addColorStop(0,'rgba(255,255,255,0.05)');
+    edge.addColorStop(0.08,'rgba(255,255,255,0)');
+    edge.addColorStop(1,'rgba(0,0,0,0.16)');
+    cx.fillStyle=edge;cx.fillRect(0,0,w,h);
+    _blackTextureCache[key]=c;
+    return c;
   }
   const _whiteTextureCache={};
   function getWhiteboardTexture(w,h){
@@ -2507,6 +2580,7 @@
   }
   function getChalkTexture(w,h){
     if(boardSurface==='white')return getWhiteboardTexture(w,h);
+    if(boardSurface==='black')return getBlackboardTexture(w,h);
     const key=w+'x'+h;
     if(_chalkTextureCache[key])return _chalkTextureCache[key];
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
@@ -3090,14 +3164,17 @@
   $('projectCoverType').addEventListener('change',()=>{ syncCoverToForm(); renderCoverEditor(); });
   $('surfaceToggleBtn').addEventListener('click',()=>{
     const sel=$('boardSurface');
-    sel.value=(sel.value==='white')?'chalk':'white';
+    const i=SURFACE_CYCLE.findIndex(s=>s.v===sel.value);
+    sel.value=SURFACE_CYCLE[(i+1)%SURFACE_CYCLE.length].v;
     updateSurfaceToggleBtn();
+    updateQuickBar();
     const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';   // サムネイルを作り直す
     const mw=$('myBoardPicker'); if(mw)mw.dataset.surface='';
     renderTemplatePicker($('boardTemplate').value);
     renderMyBoardPicker();
     renderBoardEditor();
   });
+  initQuickBar();
   initPosPick();
   $('coverEdit').addEventListener('input',syncCoverToForm);
   $('coverEdit').addEventListener('keydown',e=>{
@@ -3149,9 +3226,6 @@
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
   $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
   const drawCanvas=$('boardDrawCanvas'); drawCanvas.addEventListener('pointerdown',onBoardPointerDown); drawCanvas.addEventListener('pointermove',onBoardPointerMove); ['pointerup','pointerleave','pointercancel'].forEach(ev=>drawCanvas.addEventListener(ev,onBoardPointerUp));
-  $('boardZoomInBtn').addEventListener('click',()=>{const vp=$('boardStageViewport');const r=vp.getBoundingClientRect();setBoardZoom(boardZoom.scale+0.6,r.left+r.width/2,r.top+r.height/2)});
-  $('boardZoomOutBtn').addEventListener('click',()=>{const vp=$('boardStageViewport');const r=vp.getBoundingClientRect();setBoardZoom(boardZoom.scale-0.6,r.left+r.width/2,r.top+r.height/2)});
-  $('boardZoomResetBtn').addEventListener('click',resetBoardZoom);
   $('boardModeToggle').addEventListener('click',(e)=>{
     const btn=e.target.closest('button[data-mode]'); if(!btn)return;
     closeBoardInlineEditor();

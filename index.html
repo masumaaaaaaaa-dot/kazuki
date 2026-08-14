@@ -424,14 +424,14 @@
   <button class="nav-btn" data-page="settings"><span>⚙️</span>設定</button>
 </nav>
 
-<dialog id="cameraDialog" style="width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;background:#000;touch-action:none;overscroll-behavior:contain">
+<dialog id="cameraDialog" style="width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;background:#000;touch-action:none;overscroll-behavior:contain;padding:0;border:0;margin:0">
   <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
     <div id="camStage" style="position:absolute;left:0;right:0;top:0;bottom:0;overflow:hidden;background:#000;transition:top .18s ease,bottom .18s ease">
       <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000;will-change:transform"></video>
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 s</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15r';
+  const APP_VERSION='2026.08.15s';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1019,20 +1019,13 @@
     return board;
   }
   // 画面上で映像が実際に映っている範囲（黒い余白を除いた部分）を求める
+  // 黒板の移動範囲は、内部のカメラ解像度ではなく、画面に実際に見えている撮影枠そのものを使う。
+  // 横持ち＋画面回転ロックの端末でも、左右端が必ず一致する。
   function camVideoRect(){
-    const v=$('camVideo'), st=$('camStage'); if(!v||!st)return null;
+    const st=$('camStage'); if(!st)return null;
     const sb=st.getBoundingClientRect();
-    const bw=v.offsetWidth||sb.width, bh=v.offsetHeight||sb.height;
-    if(!bw||!bh)return null;
-    const vw=v.videoWidth||16, vh=v.videoHeight||9;
-    // 拡大したぶんも含めた、いま映っている範囲
-    const scale=Math.min(bw/vw, bh/vh)*(camZoom||1);
-    let w=vw*scale, h=vh*scale;
-    // 枠からはみ出す分は、見えている部分だけを対象にする
-    const visW=Math.min(w, sb.width), visH=Math.min(h, sb.height);
-    const cx=sb.left+sb.width/2, cy=sb.top+sb.height/2;
-    return {left:cx-visW/2, top:cy-visH/2, width:visW, height:visH,
-            offX:(sb.width-visW)/2, offY:(sb.height-visH)/2};
+    if(!sb.width||!sb.height)return null;
+    return {left:sb.left,top:sb.top,width:sb.width,height:sb.height,offX:0,offY:0};
   }
   function camRefreshOverlay(){
     const v=$('camVideo'), ov=$('camBoardOverlay');
@@ -1047,8 +1040,10 @@
     const r=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspectRotated(board),camBoardPos);
     ov.style.width=Math.round(r.w)+'px';
     ov.style.height=Math.round(r.h)+'px';
-    ov.style.left=Math.round(vr.offX+r.x)+'px';
-    ov.style.top=Math.round(vr.offY+r.y)+'px';
+    const host=$('cameraDialog')?.firstElementChild;
+    const hr=host?host.getBoundingClientRect():{left:0,top:0};
+    ov.style.left=Math.round((vr.left-hr.left)+r.x)+'px';
+    ov.style.top=Math.round((vr.top-hr.top)+r.y)+'px';
     ov._place=camRefreshOverlay;
     // ボタンの見た目を合わせる
     const ob=$('camOrientBtn');
@@ -1185,16 +1180,15 @@
       offX=t.clientX-r.left; offY=t.clientY-r.top; drag=true; e.preventDefault();};
     const move=e=>{ if(!drag)return; const t=e.touches?e.touches[0]:e;
       const vr=camVideoRect(); if(!vr)return;
-      const board=camCurrentBoard();
-      const rect=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspectRotated(board),camBoardPos);
-      let x=t.clientX-vr.left-offX;
-      let y=t.clientY-vr.top-offY;
-      const maxX=Math.max(0,vr.width-rect.w);
-      const maxY=Math.max(0,vr.height-rect.h);
+      const or=ov.getBoundingClientRect();
+      const bw=or.width||ov.offsetWidth||1, bh=or.height||ov.offsetHeight||1;
+      const maxX=Math.max(0,vr.width-bw), maxY=Math.max(0,vr.height-bh);
+      // 指でつかんだ場所を保ったまま、見えている撮影枠の内側へ直接クランプする。
+      let x=t.clientX-offX-vr.left;
+      let y=t.clientY-offY-vr.top;
       x=Math.max(0,Math.min(maxX,x));
       y=Math.max(0,Math.min(maxY,y));
-      camBoardPos={x:maxX?x/maxX:0,
-                   y:maxY?y/maxY:0};
+      camBoardPos={x:maxX?x/maxX:0,y:maxY?y/maxY:0};
       if(ov._place)ov._place(); e.preventDefault();};
     const end=()=>{drag=false};
     ov.addEventListener('mousedown',start); ov.addEventListener('touchstart',start,{passive:false});

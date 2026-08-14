@@ -650,8 +650,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15e';
-  const APP_UPDATE_NOTE='回転アイコンを独立／仕上がり写真を常時表示／黒板の選択を上に移動';
+  const APP_VERSION='2026.08.15f';
+  const APP_UPDATE_NOTE='⟳で黒板そのものを90度回転／位置の切り替えが仕上がり写真に反映';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -929,7 +929,7 @@
     const p=currentProject();
     return applyProjectDefaultsToBoard(base,{projectId:p?p.id:''},true);
   }
-  let camSettings={template:null,size:null,orient:null,surface:null,enabled:true,orientAuto:true};
+  let camSettings={template:null,size:null,orient:null,surface:null,enabled:true,orientAuto:true,rotate:0};
   // 端末を横に向けたら黒板も横向きにする
   // 端末の傾き（重力の向き）から、いま横に構えているかを判断する
   function camDeviceOrient(){
@@ -943,10 +943,11 @@
     board.orient=camSettings.orientAuto?camDeviceOrient():(camSettings.orient||'land');
     if(camSettings.surface)board.surface=camSettings.surface;
     board.enabled=camSettings.enabled!==false;
+    board.rotate=camSettings.rotate||0;
     if(camSettings.template&&camSettings.template!==camBoardData().template){
       const p=currentProject();
       const preset=boardPreset(camSettings.template,null);
-      preset.size=board.size;preset.orient=board.orient;preset.surface=board.surface;preset.enabled=board.enabled;
+      preset.size=board.size;preset.orient=board.orient;preset.surface=board.surface;preset.enabled=board.enabled;preset.rotate=board.rotate;
       return applyProjectDefaultsToBoard(preset,{projectId:p?p.id:''},true);
     }
     return board;
@@ -966,12 +967,12 @@
     if(!v||!ov)return;
     const board=camCurrentBoard();
     if(board.enabled===false){ ov.style.display='none'; return; }
-    const cv=makeBoardCanvas(board,[]);
+    const cv=makeBoardCanvasRotated(board,[]);
     ov.src=cv.toDataURL('image/png');
     ov.style.display='block';
     const vr=camVideoRect(); if(!vr)return;
     // 写真に貼るときと同じ計算で、仕上がりどおりの大きさ・位置にする
-    const r=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspect(board),camBoardPos);
+    const r=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspectRotated(board),camBoardPos);
     ov.style.width=Math.round(r.w)+'px';
     ov.style.height=Math.round(r.h)+'px';
     ov.style.left=Math.round(vr.offX+r.x)+'px';
@@ -990,6 +991,8 @@
       sb.textContent=white?'白板':'黒板';
       sb.style.background=white?'#ffffff':'#33513f';
       sb.style.color=white?'#1f2a30':'#ffffff'; }
+    const rb=$('camRotateBtn');
+    if(rb)rb.style.background=(camSettings.rotate%360)?'#f5a524':'rgba(255,255,255,.9)';
     const szb=$('camSizeBtn');
     if(szb)szb.textContent='黒板 '+({s:'小',m:'中',l:'大'}[board.size]||'小');
     const off=$('camBoardOffBtn'); if(off)off.textContent=board.enabled===false?'黒板を出す':'黒板なし';
@@ -1094,13 +1097,17 @@
       camSettings.size=order[(i+1)%order.length];
       camRefreshOverlay();
     });
-    const camRotate=()=>{
+    // ⟳ は黒板の絵そのものを右へ90度回す
+    $('camRotateBtn').addEventListener('click',()=>{
+      camSettings.rotate=((camSettings.rotate||0)+90)%360;
+      camRefreshOverlay();
+    });
+    // 縦横のボタンは、黒板の形（縦長／横長）を切り替える
+    $('camOrientBtn').addEventListener('click',()=>{
       camSettings.orientAuto=false;
       camSettings.orient=(camSettings.orient==='port')?'land':'port';
       camRefreshOverlay();
-    };
-    $('camOrientBtn').addEventListener('click',camRotate);
-    $('camRotateBtn').addEventListener('click',camRotate);
+    });
     $('camSurfaceBtn').addEventListener('click',()=>{camSettings.surface=(camSettings.surface==='white')?'chalk':'white';camRefreshOverlay()});
     $('camBoardOffBtn').addEventListener('click',()=>{camSettings.enabled=!camSettings.enabled;camRefreshOverlay()});
     $('camFlashBtn').addEventListener('click',async()=>{
@@ -1163,8 +1170,8 @@
             const full=await loadImageElement(ph.blob);
             const cv=document.createElement('canvas');cv.width=full.width;cv.height=full.height;
             const cx2=cv.getContext('2d');cx2.drawImage(full,0,0);
-            const bc=makeBoardCanvas(board,[]);
-            const r=computeBoardRect(full.width,full.height,'free',board.size||'m',boardAspect(board),boardPos);
+            const bc=makeBoardCanvasRotated(board,[]);
+            const r=computeBoardRect(full.width,full.height,'free',board.size||'m',boardAspectRotated(board),boardPos);
             cx2.drawImage(bc,r.x,r.y,r.w,r.h);
             ph.editedBlob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
             ph.boardData={board,strokes:[]};
@@ -2394,7 +2401,7 @@
     if(position==='lt'){x=margin;y=margin}
     if(position==='rt'){x=w-bw-margin;y=margin}
     // 指で動かして決めた位置があれば、そちらを使う（写真に対する割合で保持）
-    if(free&&typeof free.x==='number'&&typeof free.y==='number'){
+    if(position==='free'&&free&&typeof free.x==='number'&&typeof free.y==='number'){
       x=free.x*w-bw/2; y=free.y*h-bh/2;
       x=Math.max(margin,Math.min(w-bw-margin,x));
       y=Math.max(margin,Math.min(h-bh-margin,y));
@@ -2802,6 +2809,30 @@
   }
   function drawStrokesOnCtx(ctx,w,h,strokes){
     (strokes||[]).forEach(st=>{const pts=st.points||[];if(!pts.length)return;ctx.save();const isErase=st.mode==='erase';ctx.globalCompositeOperation=isErase?'destination-out':'source-over';ctx.strokeStyle=st.color||'#fff';const eraseMul=isErase?2.6:1;ctx.lineWidth=(st.width||4)*eraseMul*(Math.min(w,h)/600);ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();pts.forEach((p,i)=>{const x=p.x*w,y=p.y*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();ctx.restore()});
+  }
+  // 黒板の絵を、指定した角度だけ右回りに回す
+  function rotateCanvas(src,deg){
+    const d=((deg%360)+360)%360;
+    if(!d)return src;
+    const swap=(d===90||d===270);
+    const out=document.createElement('canvas');
+    out.width=swap?src.height:src.width;
+    out.height=swap?src.width:src.height;
+    const cx=out.getContext('2d');
+    cx.translate(out.width/2,out.height/2);
+    cx.rotate(d*Math.PI/180);
+    cx.drawImage(src,-src.width/2,-src.height/2);
+    return out;
+  }
+  function makeBoardCanvasRotated(board,strokes,width,height){
+    const cv=makeBoardCanvas(board,strokes,width,height);
+    return rotateCanvas(cv,(board&&board.rotate)||0);
+  }
+  // 回転を含めた縦横の比率
+  function boardAspectRotated(board){
+    const a=boardAspect(board);
+    const d=(((board&&board.rotate)||0)%360+360)%360;
+    return (d===90||d===270)?(1/a):a;
   }
   function makeBoardCanvas(board,strokes,width,height){
     if(width==null||height==null){const s=boardRenderSize(board);width=s.w;height=s.h;}

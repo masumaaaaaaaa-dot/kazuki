@@ -662,8 +662,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15p';
-  const APP_UPDATE_NOTE='アプリ内カメラの写真を横向き初期設定にし、保存前後の2段階で横長を強制確認';
+  const APP_VERSION='2026.08.15q';
+  const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -994,7 +994,7 @@
   }
   let camTorchOn=false;
   let camZoom=1;
-  let camPhotoOrient='land';   // land / port / auto（アプリ内カメラは横写真を初期値にする）
+  let camPhotoOrient='auto';   // auto / land / port
   function camApplyZoom(){
     const v=$('camVideo'); if(!v)return;
     v.style.transform='scale('+camZoom+')';
@@ -1139,7 +1139,7 @@
     if(!camSettings.orient)camSettings.orient=camDeviceOrient();
     if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
-    camTorchOn=false; camZoom=1; camPhotoOrient='land';
+    camTorchOn=false; camZoom=1; camPhotoOrient='auto';
     try{ const c1=$('camShotCount'); if(c1)c1.textContent=currentPhotos().length+'枚'; }catch(e){}
     // 画面がつままれて拡大していても、カメラは等倍から始める
     try{
@@ -1182,11 +1182,17 @@
     if(!ov)return;
     let drag=false,offX=0,offY=0;
     const start=e=>{const t=e.touches?e.touches[0]:e;const r=ov.getBoundingClientRect();
-      offX=t.clientX-r.left-r.width/2; offY=t.clientY-r.top-r.height/2; drag=true; e.preventDefault();};
+      offX=t.clientX-r.left; offY=t.clientY-r.top; drag=true; e.preventDefault();};
     const move=e=>{ if(!drag)return; const t=e.touches?e.touches[0]:e;
       const vr=camVideoRect(); if(!vr)return;
-      camBoardPos={x:Math.max(0,Math.min(1,(t.clientX-offX-vr.left)/vr.width)),
-                   y:Math.max(0,Math.min(1,(t.clientY-offY-vr.top)/vr.height))};
+      const board=camCurrentBoard();
+      const rect=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspectRotated(board),camBoardPos);
+      let x=t.clientX-vr.left-offX;
+      let y=t.clientY-vr.top-offY;
+      x=Math.max(0,Math.min(Math.max(0,vr.width-rect.w),x));
+      y=Math.max(0,Math.min(Math.max(0,vr.height-rect.h),y));
+      camBoardPos={x:(x+rect.w/2)/vr.width,
+                   y:(y+rect.h/2)/vr.height};
       if(ov._place)ov._place(); e.preventDefault();};
     const end=()=>{drag=false};
     ov.addEventListener('mousedown',start); ov.addEventListener('touchstart',start,{passive:false});
@@ -1240,7 +1246,7 @@
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
     $('cameraDialog').addEventListener('close',()=>{ camUiHidden=false; applyCamUi(); });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
-      camPhotoOrient=(camPhotoOrient==='land')?'port':(camPhotoOrient==='port')?'auto':'land';
+      camPhotoOrient=(camPhotoOrient==='auto')?'land':(camPhotoOrient==='land')?'port':'auto';
       camRefreshOverlay();
     });
     $('camZoomInBtn').addEventListener('click',()=>{ camZoom=Math.min(4,Math.round((camZoom+0.5)*10)/10); camApplyZoom(); });
@@ -1262,20 +1268,6 @@
       camFacing=(camFacing==='environment')?'user':'environment';
       closeCameraDialog(); await openCameraDialog();
     });
-
-    // 最終的な写真の縦横をピクセル寸法で保証する。
-    // センサーや画面回転ロックの状態に関係なく、targetOrient と違えば必ず90度回転する。
-    function camEnsureCanvasOrientation(src,targetOrient){
-      const actual=(src.width>=src.height)?'land':'port';
-      if(actual===targetOrient)return {canvas:src,rotation:0};
-      let deg=90;
-      if(targetOrient==='land'){
-        const a=camDeviceAngle();
-        if(a===270)deg=270;
-      }
-      return {canvas:rotateCanvas(src,deg),rotation:deg};
-    }
-
     $('camShutterBtn').addEventListener('click',async()=>{
       const video=$('camVideo');
       if(!video.videoWidth){alert('カメラの準備ができていません。少し待ってからもう一度押してください。');return}
@@ -1317,14 +1309,20 @@
           cn=crop;
         }
 
-        // 「横」を初期値にし、保存直前にピクセル寸法まで確認して向きを保証する。
-        // 「自動」に切り替えた場合だけ端末の物理向きを使う。
+        // 保存方向はシャッターを押した瞬間の端末の物理向きを使用する。
         const targetOrient=(camPhotoOrient==='auto')?camDeviceOrient():camPhotoOrient;
-        const fixed=camEnsureCanvasOrientation(cn,targetOrient);
-        const shot=fixed.canvas;
-        const rotation=fixed.rotation;
-        if(targetOrient==='land' && shot.width<shot.height)throw new Error('横写真への変換に失敗しました');
-        if(targetOrient==='port' && shot.height<shot.width)throw new Error('縦写真への変換に失敗しました');
+        const srcOrient=(cn.width>=cn.height)?'land':'port';
+        let rotation=0;
+        if(srcOrient!==targetOrient){
+          if(targetOrient==='land'){
+            const a=camDeviceAngle();
+            rotation=(a===270)?270:90;
+          }else{
+            // 縦指定で元画像が横長の場合。一般的な背面カメラの向きに合わせて右90度。
+            rotation=90;
+          }
+        }
+        const shot=rotation?rotateCanvas(cn,rotation):cn;
         const blob=await new Promise((res,rej)=>shot.toBlob(b=>b?res(b):rej(new Error('撮影画像を作成できませんでした')),'image/jpeg',0.92));
 
         // 撮影の合図。カメラは閉じず、そのまま連続撮影できる。
@@ -1349,7 +1347,7 @@
           pos={x:1-camBoardPos.x,y:1-camBoardPos.y};
           shotBoard.rotate=(((shotBoard.rotate||0)+180)%360);
         }
-        await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard,quiet:true,forceOrient:targetOrient});
+        await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard,quiet:true});
         try{ const c1=$('camShotCount'); if(c1)c1.textContent=currentPhotos().length+'枚'; }catch(e){}
       }catch(err){
         console.error(err);
@@ -1359,7 +1357,7 @@
       }
     });
   }
-  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null,quiet=false,forceOrient=null}={}){
+  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null,quiet=false}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
     const addedPhotos=[];
@@ -1368,26 +1366,19 @@
     try{
       let deviceSaved=0; let deviceSaveFailed=false;
       for(const file of files){
-        let workFile=file;
-        // アプリ内カメラから来た写真は、登録処理の入口でももう一度縦横を検査する。
-        // ここで二重チェックすることで、ブラウザ側の画像デコード差異があっても向きを崩さない。
-        if(forceOrient){
-          try{ workFile=await normalizePhotoFileOrientation(file,forceOrient); }
-          catch(e){ console.warn('写真向きの最終補正に失敗',e); }
-        }
         if(saveDeviceCopy && settings.saveCameraCopy){
           try{
-            await saveOriginalToPhone(workFile);
+            await saveOriginalToPhone(file);
             deviceSaved++;
           }catch(err){
             console.warn('スマホ写真フォルダへの保存に失敗',err);
             deviceSaveFailed=true;
           }
         }
-        const blob=await compressImage(workFile,1800,1400,.86);
+        const blob=await compressImage(file,1800,1400,.86);
         let shotDate=today();
         try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
-        const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:workFile.name||file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
+        const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
         // アプリ内カメラで黒板の位置を決めていた場合は、その黒板を貼り付ける
         if(boardPos&&(!camBoard||camBoard.enabled!==false)){
           try{
@@ -1506,22 +1497,6 @@
     }
     downloadBlob(blob,filename);
     alert('保存先が未設定のため、ダウンロードフォルダへ保存しました。');
-  }
-
-  async function normalizePhotoFileOrientation(file,targetOrient){
-    let bmp;
-    try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(_){ bmp=await createImageBitmap(file); }
-    try{
-      const actual=(bmp.width>=bmp.height)?'land':'port';
-      if(actual===targetOrient)return file;
-      const src=document.createElement('canvas'); src.width=bmp.width; src.height=bmp.height;
-      src.getContext('2d').drawImage(bmp,0,0);
-      const rotated=rotateCanvas(src,90);
-      const outBlob=await new Promise((res,rej)=>rotated.toBlob(b=>b?res(b):rej(new Error('向き補正画像を作れませんでした')),'image/jpeg',0.92));
-      const check=(rotated.width>=rotated.height)?'land':'port';
-      if(check!==targetOrient)throw new Error('向き補正後の寸法が一致しません');
-      return new File([outBlob],file.name||`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
-    }finally{ bmp.close?.(); }
   }
 
   async function compressImage(file,maxW,maxH,quality){
@@ -2634,21 +2609,23 @@
     const ratio=size==='s'?0.38:size==='l'?0.68:0.53;
     const ar=aspect||(2/3);   // 高さ÷幅
     const margin=Math.max(12,Math.round(Math.min(w,h)*0.018));
+    const freePad=0;          // 自由配置では端まで置けるようにする
+    const pad=position==='free'?freePad:margin;
     // 横向きの黒板を回転させたのと同じ大きさになるよう、長い辺を基準にする
     const longSide=w*ratio;
     let bw,bh;
     if(ar>1){ bh=longSide; bw=bh/ar; } else { bw=longSide; bh=bw*ar; }
-    if(bw>w-margin*2){bw=w-margin*2;bh=bw*ar}
-    if(bh>h-margin*2){bh=h-margin*2;bw=bh/ar}
-    let x=margin,y=h-bh-margin;
-    if(position==='rb'){x=w-bw-margin;y=h-bh-margin}
-    if(position==='lt'){x=margin;y=margin}
-    if(position==='rt'){x=w-bw-margin;y=margin}
+    if(bw>w-pad*2){bw=w-pad*2;bh=bw*ar}
+    if(bh>h-pad*2){bh=h-pad*2;bw=bh/ar}
+    let x=pad,y=h-bh-pad;
+    if(position==='rb'){x=w-bw-pad;y=h-bh-pad}
+    if(position==='lt'){x=pad;y=pad}
+    if(position==='rt'){x=w-bw-pad;y=pad}
     // 指で動かして決めた位置があれば、そちらを使う（写真に対する割合で保持）
     if(position==='free'&&free&&typeof free.x==='number'&&typeof free.y==='number'){
       x=free.x*w-bw/2; y=free.y*h-bh/2;
-      x=Math.max(margin,Math.min(w-bw-margin,x));
-      y=Math.max(margin,Math.min(h-bh-margin,y));
+      x=Math.max(0,Math.min(Math.max(0,w-bw),x));
+      y=Math.max(0,Math.min(Math.max(0,h-bh),y));
     }
     return{x,y,w:bw,h:bh};
   }

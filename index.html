@@ -175,6 +175,9 @@
     .myboard-del{position:absolute;top:3px;left:3px;background:rgba(15,23,42,.65);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;z-index:2}
     .board-quick{display:flex;gap:7px}
     .board-quick .bq{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+    html[data-theme="dark"] .board-quick .bq{background:#20252c;border-color:#3a424c}
+    html[data-theme="dark"] .board-quick .bq-l{color:#9fb0bd}
+    html[data-theme="dark"] .board-quick .bq-v{color:#ffffff}
     .board-quick .bq-l{font-size:10.5px;color:var(--muted);letter-spacing:.04em}
     .board-quick .bq-v{font-size:14px;font-weight:800;color:var(--brand-ink)}
     .tiny-btn{padding:7px 10px;font-size:12px}
@@ -429,9 +432,7 @@
       <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
-        <select id="camSize" style="min-height:34px;padding:4px 6px;font-size:12px;border-radius:8px;border:0;flex:0 0 auto;width:56px">
-          <option value="s">小</option><option value="m">中</option><option value="l">大</option>
-        </select>
+        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">大きさ 小</button>
         <button type="button" id="camOrientBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">横</button>
         <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0">黒板</button>
         <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9)">黒板なし</button>
@@ -569,14 +570,6 @@
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
         <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
       </div>
-      <div id="posPickWrap" style="display:none;margin-top:10px">
-          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
-          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
-            <img id="posPickPhoto" style="width:100%;display:block" alt="" />
-            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
-          </div>
-          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
-        </div>
       <div style="margin-top:10px">
         <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="boardEnabled" checked /> 黒板を表示する</label>
         <div class="board-quick" id="boardQuickBar">
@@ -618,6 +611,14 @@
           <option value="free">自由設定</option>
         </select>
       </div>
+      <div id="posPickWrap" style="display:none;margin-top:10px">
+          <label>写真の上で、黒板を指で動かして位置を決めてください</label>
+          <div id="posPickStage" style="position:relative;background:#111;border-radius:10px;overflow:hidden;max-width:280px;margin:0 auto">
+            <img id="posPickPhoto" style="width:100%;display:block" alt="" />
+            <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
+          </div>
+          <div class="hint" style="margin-top:6px">黒板をつかんで動かせます。位置は写真ごとに保存されます。</div>
+        </div>
       <div id="boardLegacyFields" class="grid two" style="margin-top:10px">
         <div><label>上段1 ラベル</label><input id="boardLabel1" /></div><div><label>上段1 文字</label><input id="boardValue1" /></div>
         <div><label>上段2 ラベル</label><input id="boardLabel2" /></div><div><label>上段2 文字</label><input id="boardValue2" /></div>
@@ -648,8 +649,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15b';
-  const APP_UPDATE_NOTE='傾きセンサーで黒板が自動で回るように／黒板（黒）をはっきりした黒に';
+  const APP_VERSION='2026.08.15c';
+  const APP_UPDATE_NOTE='傾きの検知方法を変更／カメラの大きさをタップ切替／画面の並びを整理';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -931,17 +932,28 @@
   // 端末を横に向けたら黒板も横向きにする
   // 端末の傾き（重力の向き）から、いま横に構えているかを判断する
   let camTiltOrient='';
+  function camSetTilt(next){
+    if(next && next!==camTiltOrient){
+      camTiltOrient=next;
+      if($('cameraDialog')&&$('cameraDialog').open)camRefreshOverlay();
+    }
+  }
   function initCamTilt(){
     if(window._camTiltInit)return; window._camTiltInit=true;
+    // ①重力の向きから判断（一番確実。カメラを下に向けても効きます）
+    window.addEventListener('devicemotion',(e)=>{
+      const g=e.accelerationIncludingGravity; if(!g)return;
+      const x=g.x, y=g.y;
+      if(x==null||y==null)return;
+      // 左右方向の重力が上下方向より強ければ、横に構えている
+      if(Math.abs(x)<1.5 && Math.abs(y)<1.5)return;   // 平置きのときは変えない
+      camSetTilt(Math.abs(x)>Math.abs(y)?'land':'port');
+    },true);
+    // ②重力が取れない端末向けの予備
     window.addEventListener('deviceorientation',(e)=>{
-      // gamma＝左右の傾き、beta＝前後の傾き
       const g=e.gamma, be=e.beta;
       if(g==null||be==null)return;
-      const next=(Math.abs(g)>38 && Math.abs(be)<58)?'land':'port';
-      if(next!==camTiltOrient){
-        camTiltOrient=next;
-        if($('cameraDialog')&&$('cameraDialog').open)camRefreshOverlay();
-      }
+      camSetTilt(Math.abs(g)>Math.abs(be)?'land':'port');
     },true);
   }
   function camDeviceOrient(){
@@ -1005,6 +1017,8 @@
       sb.textContent=white?'白板':'黒板';
       sb.style.background=white?'#ffffff':'#33513f';
       sb.style.color=white?'#1f2a30':'#ffffff'; }
+    const szb=$('camSizeBtn');
+    if(szb)szb.textContent='大きさ '+({s:'小',m:'中',l:'大'}[board.size]||'小');
     const off=$('camBoardOffBtn'); if(off)off.textContent=board.enabled===false?'黒板を出す':'黒板なし';
   }
   function camRenderTemplateGrid(){
@@ -1037,6 +1051,9 @@
   async function openCameraDialog(){
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
+      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
+        try{ await DeviceMotionEvent.requestPermission(); }catch(e){}
+      }
       if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
         try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
       }
@@ -1057,7 +1074,6 @@
     if(!camSettings.orient)camSettings.orient=base.orient||'land';
     if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
-    const sz=$('camSize'); if(sz)sz.value=camSettings.size;
     camTorchOn=false;
     const fb=$('camFlashBtn');
     if(fb){
@@ -1107,7 +1123,12 @@
       $('camTemplateSheet').style.display='block';
     });
     $('camTemplateCloseBtn').addEventListener('click',()=>{ $('camTemplateSheet').style.display='none'; });
-    $('camSize').addEventListener('change',e=>{camSettings.size=e.target.value;camRefreshOverlay()});
+    $('camSizeBtn').addEventListener('click',()=>{
+      const order=['s','m','l'];
+      const i=order.indexOf(camSettings.size||'s');
+      camSettings.size=order[(i+1)%order.length];
+      camRefreshOverlay();
+    });
     $('camOrientBtn').addEventListener('click',()=>{
       if(camSettings.orientAuto){ camSettings.orientAuto=false; camSettings.orient='land'; }
       else if(camSettings.orient==='land'){ camSettings.orient='port'; }

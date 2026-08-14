@@ -431,7 +431,7 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 s</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 t</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15s';
+  const APP_VERSION='2026.08.15t';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1018,14 +1018,19 @@
     }
     return board;
   }
-  // 画面上で映像が実際に映っている範囲（黒い余白を除いた部分）を求める
-  // 黒板の移動範囲は、内部のカメラ解像度ではなく、画面に実際に見えている撮影枠そのものを使う。
-  // 横持ち＋画面回転ロックの端末でも、左右端が必ず一致する。
+  // 画面上で映像が実際に見えている範囲（黒い余白を除いた部分）を求める。
+  // 左右の限界はそのまま保ちつつ、上下は実際の写真の見えている高さに合わせる。
   function camVideoRect(){
-    const st=$('camStage'); if(!st)return null;
+    const st=$('camStage'), v=$('camVideo'); if(!st||!v)return null;
     const sb=st.getBoundingClientRect();
     if(!sb.width||!sb.height)return null;
-    return {left:sb.left,top:sb.top,width:sb.width,height:sb.height,offX:0,offY:0};
+    const vw=v.videoWidth||16, vh=v.videoHeight||9;
+    const zoom=camZoom||1;
+    const fit=Math.min(sb.width/vw, sb.height/vh);
+    const drawW=vw*fit*zoom, drawH=vh*fit*zoom;
+    const visW=Math.min(drawW, sb.width), visH=Math.min(drawH, sb.height);
+    const offX=(sb.width-visW)/2, offY=(sb.height-visH)/2;
+    return {left:sb.left+offX,top:sb.top+offY,width:visW,height:visH,offX,offY};
   }
   function camRefreshOverlay(){
     const v=$('camVideo'), ov=$('camBoardOverlay');

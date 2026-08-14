@@ -12,14 +12,12 @@
   <style>
     :root{
       --brand:#0f766e; --brand2:#115e59; --brand-ink:#0f766e; --accent:#f59e0b; --bg:#f3f4f6;
-      --bar1:#5f736b; --bar2:#566a62; --bar3:#4d6159;
       --card:#fff; --text:#172033; --muted:#64748b; --line:#d7dee7; --danger:#b42318;
       --shadow:0 5px 18px rgba(15,23,42,.09);
       color-scheme:light;
     }
     html[data-theme="dark"]{
       --brand:#14b8a6; --brand2:#0f766e; --brand-ink:#14b8a6; --accent:#f59e0b; --bg:#0e1015;
-      --bar1:#5f736b; --bar2:#566a62; --bar3:#4d6159;
       --card:#1a1d24; --text:#e7ebf2; --muted:#98a3b5; --line:#2b3140; --danger:#ff6b6b;
       --shadow:0 5px 18px rgba(0,0,0,.5);
       color-scheme:dark;
@@ -34,7 +32,7 @@
         radial-gradient(58% 46% at 22% 18%,rgba(255,255,255,.055),transparent 72%),
         radial-gradient(46% 40% at 76% 78%,rgba(255,255,255,.042),transparent 74%),
         radial-gradient(30% 60% at 52% 50%,rgba(255,255,255,.028),transparent 70%),
-        linear-gradient(140deg,var(--bar1),var(--bar2) 34%,var(--bar3) 68%,var(--bar1));
+        linear-gradient(140deg,#2b2f33,#212528 34%,#1a1d20 68%,#2b2f33);
       border-bottom:1px solid rgba(255,255,255,.28)}
     .topbar{overflow:hidden}
     .topbar-row{position:relative;z-index:1}
@@ -83,24 +81,24 @@
     .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
 
     /* テーマカラー（設定で切り替え。既定は「標準」＝これまでの色） */
-    html[data-color="green"]{--brand:#33513f;--brand2:#22362c;--brand-ink:#2c4636;--accent:#e0a83c;--bar1:#4d6b58;--bar2:#42604d;--bar3:#2f4a3b}
+    html[data-color="green"]{--brand:#33513f;--brand2:#22362c;--brand-ink:#2c4636;--accent:#e0a83c}
     html[data-theme="dark"][data-color="green"]{--brand:#6fae87;--brand2:#4f8163;--brand-ink:#8cc7a2;--accent:#e0a83c}
-    html[data-color="navy"]{--brand:#1f3a5f;--brand2:#152a46;--brand-ink:#1f3a5f;--accent:#e8a33d;--bar1:#3a5c8d;--bar2:#2f4e79;--bar3:#1d3557}
+    html[data-color="navy"]{--brand:#1f3a5f;--brand2:#152a46;--brand-ink:#1f3a5f;--accent:#e8a33d}
     html[data-theme="dark"][data-color="navy"]{--brand:#7aa8d8;--brand2:#456d9c;--brand-ink:#9cc3e8;--accent:#e8a33d}
-    html[data-color="sumi"]{--brand:#3b4a52;--brand2:#26333a;--brand-ink:#37474f;--accent:#d98c2b;--bar1:#5a6b74;--bar2:#4d5d66;--bar3:#37474f}
+    html[data-color="sumi"]{--brand:#3b4a52;--brand2:#26333a;--brand-ink:#37474f;--accent:#d98c2b}
     html[data-theme="dark"][data-color="sumi"]{--brand:#8fa5b0;--brand2:#5d747f;--brand-ink:#a9bcc5;--accent:#d98c2b}
-    html[data-color="brown"]{--brand:#6b4a2f;--brand2:#4b3320;--brand-ink:#6b4a2f;--accent:#d99b3d;--bar1:#8a6544;--bar2:#75543a;--bar3:#523a26}
+    html[data-color="brown"]{--brand:#6b4a2f;--brand2:#4b3320;--brand-ink:#6b4a2f;--accent:#d99b3d}
     html[data-theme="dark"][data-color="brown"]{--brand:#c39a72;--brand2:#8d6a4a;--brand-ink:#d6b294;--accent:#d99b3d}
     /* ここから明るい色 */
-    html[data-color="sky"]{--brand:#0ea5e9;--brand2:#0284c7;--brand-ink:#0369a1;--accent:#f59e0b;--bar1:#3aa7d8;--bar2:#2b93c4;--bar3:#136d99}
+    html[data-color="sky"]{--brand:#0ea5e9;--brand2:#0284c7;--brand-ink:#0369a1;--accent:#f59e0b}
     html[data-theme="dark"][data-color="sky"]{--brand:#38bdf8;--brand2:#0ea5e9;--brand-ink:#7dd3fc;--accent:#f59e0b}
-    html[data-color="orange"]{--brand:#f97316;--brand2:#ea580c;--brand-ink:#c2410c;--accent:#0ea5e9;--bar1:#ef8b3f;--bar2:#e07727;--bar3:#b45309}
+    html[data-color="orange"]{--brand:#f97316;--brand2:#ea580c;--brand-ink:#c2410c;--accent:#0ea5e9}
     html[data-theme="dark"][data-color="orange"]{--brand:#fb923c;--brand2:#ea580c;--brand-ink:#fdba74;--accent:#38bdf8}
-    html[data-color="lime"]{--brand:#16a34a;--brand2:#15803d;--brand-ink:#15803d;--accent:#f59e0b;--bar1:#41ad64;--bar2:#349a56;--bar3:#1c7038}
+    html[data-color="lime"]{--brand:#16a34a;--brand2:#15803d;--brand-ink:#15803d;--accent:#f59e0b}
     html[data-theme="dark"][data-color="lime"]{--brand:#4ade80;--brand2:#22c55e;--brand-ink:#86efac;--accent:#f59e0b}
-    html[data-color="violet"]{--brand:#7c3aed;--brand2:#6d28d9;--brand-ink:#6d28d9;--accent:#f59e0b;--bar1:#8c6ce0;--bar2:#7a58d1;--bar3:#5b2fae}
+    html[data-color="violet"]{--brand:#7c3aed;--brand2:#6d28d9;--brand-ink:#6d28d9;--accent:#f59e0b}
     html[data-theme="dark"][data-color="violet"]{--brand:#a78bfa;--brand2:#8b5cf6;--brand-ink:#c4b5fd;--accent:#f59e0b}
-    html[data-color="rose"]{--brand:#e11d48;--brand2:#be123c;--brand-ink:#be123c;--accent:#0ea5e9;--bar1:#e0566f;--bar2:#cf3d59;--bar3:#a1153b}
+    html[data-color="rose"]{--brand:#e11d48;--brand2:#be123c;--brand-ink:#be123c;--accent:#0ea5e9}
     html[data-theme="dark"][data-color="rose"]{--brand:#fb7185;--brand2:#e11d48;--brand-ink:#fda4af;--accent:#38bdf8}
     .color-picker{display:flex;gap:9px;flex-wrap:wrap}
     .color-swatch{width:56px;height:56px;border-radius:12px;border:2px solid transparent;position:relative;padding:0;overflow:hidden}
@@ -590,8 +588,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.14j';
-  const APP_UPDATE_NOTE='テーマカラーに合わせて上部のバーの色も変わるように';
+  const APP_VERSION='2026.08.14k';
+  const APP_UPDATE_NOTE='上部のバーを黒で固定（テーマカラーの影響を受けません）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

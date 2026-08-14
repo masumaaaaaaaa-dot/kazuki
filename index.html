@@ -426,7 +426,7 @@
 
 <dialog id="cameraDialog" style="width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;background:#000;touch-action:none;overscroll-behavior:contain">
   <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
-    <div id="camStage" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;background:#000">
+    <div id="camStage" style="position:absolute;left:0;right:0;top:0;bottom:0;overflow:hidden;background:#000;transition:top .18s ease,bottom .18s ease">
       <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000;will-change:transform"></video>
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
@@ -459,6 +459,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <button type="button" class="btn" id="camCloseBtn" style="background:rgba(255,255,255,.18);color:#fff">閉じる</button>
+        <span id="camShotCount" style="color:#fff;font-size:12.5px;margin-left:8px"></span>
         <span style="flex:1"></span>
         <button type="button" id="camShutterBtn" aria-label="撮影" style="width:70px;height:70px;border-radius:50%;border:5px solid rgba(255,255,255,.9);background:#fff"></button>
         <span style="flex:1"></span>
@@ -661,8 +662,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15j';
-  const APP_UPDATE_NOTE='拡大しても黒板がずれない／写真の向きの保存を修正';
+  const APP_VERSION='2026.08.15k';
+  const APP_UPDATE_NOTE='連続撮影できるように／横で撮れば横で保存／ボタンと黒板が重ならないように';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1093,6 +1094,7 @@
     if(!camSettings.surface)camSettings.surface=base.surface||'chalk';
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
     camTorchOn=false; camZoom=1; camPhotoOrient='auto';
+    try{ const c1=$('camShotCount'); if(c1)c1.textContent=currentPhotos().length+'枚'; }catch(e){}
     // 画面がつままれて拡大していても、カメラは等倍から始める
     try{
       const vp=document.querySelector('meta[name="viewport"]');
@@ -1107,7 +1109,7 @@
       fb.textContent='ライト';
       fb.style.background='rgba(255,255,255,.16)';
     }
-    setTimeout(camRefreshOverlay,150);
+    setTimeout(()=>{ if(window._applyCamUi)window._applyCamUi(); else camRefreshOverlay(); },150);
     // 端末を回したときに、映像の縦横の変化を拾って黒板を回す
     if(window._camWatch)clearInterval(window._camWatch);
     let lastKey='';
@@ -1173,12 +1175,22 @@
     // ボタンを隠して、黒板を画面の端まで置けるようにする
     let camUiHidden=false;
     const applyCamUi=()=>{
-      const top=$('camTopBar'), sub=$('camSubBar'), btn=$('camHideUiBtn');
+      const top=$('camTopBar'), sub=$('camSubBar'), btn=$('camHideUiBtn'), st=$('camStage'), bot=$('camBottomBar');
       if(top){ top.style.opacity=camUiHidden?'0':'1'; top.style.pointerEvents=camUiHidden?'none':'auto'; }
       if(sub){ sub.style.display=camUiHidden?'none':'flex'; }
       if(btn)btn.textContent=camUiHidden?'出す':'隠す';
-      setTimeout(camRefreshOverlay,60);
+      // 映像の範囲を、ボタンに重ならない位置にそろえる
+      setTimeout(()=>{
+        if(st){
+          const th=camUiHidden?0:(top?top.offsetHeight:0);
+          const bh=bot?bot.offsetHeight:0;
+          st.style.top=th+'px';
+          st.style.bottom=bh+'px';
+        }
+        camRefreshOverlay();
+      },40);
     };
+    window._applyCamUi=applyCamUi;
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
     $('cameraDialog').addEventListener('close',()=>{ camUiHidden=false; applyCamUi(); });
     $('camPhotoOrientBtn').addEventListener('click',()=>{
@@ -1220,12 +1232,22 @@
       let wantLand;
       if(camPhotoOrient==='land')wantLand=true;
       else if(camPhotoOrient==='port')wantLand=false;
-      else wantLand=(window.innerWidth>window.innerHeight);
+      else {
+        // 映像そのものが横長なら横向きの写真として保存する
+        const vvw=video.videoWidth, vvh=video.videoHeight;
+        wantLand=(vvw>=vvh);
+      }
       const isLand=(cn.width>=cn.height);
       let rotated=0;
       if(wantLand!==isLand){ shot=rotateCanvas(cn,90); rotated=90; }
       const blob=await new Promise(res=>shot.toBlob(res,'image/jpeg',0.9));
-      closeCameraDialog();
+      // 撮影の合図（カメラは開いたままにして、続けて撮れるようにする）
+      try{
+        const fl=document.createElement('div');
+        fl.style.cssText='position:absolute;inset:0;background:#fff;z-index:9;pointer-events:none;transition:opacity .25s';
+        $('cameraDialog').firstElementChild.appendChild(fl);
+        requestAnimationFrame(()=>{fl.style.opacity='0'; setTimeout(()=>fl.remove(),300)});
+      }catch(e){}
       const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
       // 写真を回した場合は、黒板の位置と向きも同じだけ回す
       let pos={...camBoardPos};
@@ -1234,10 +1256,15 @@
         pos={x:1-camBoardPos.y, y:camBoardPos.x};
         shotBoard.rotate=(((shotBoard.rotate||0)+90)%360);
       }
-      await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard});
+      await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard,quiet:true});
+      // 撮った枚数を画面に出す
+      try{
+        const n=currentPhotos().length;
+        const c1=$('camShotCount'); if(c1)c1.textContent=n+'枚';
+      }catch(e){}
     });
   }
-  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null}={}){
+  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null,quiet=false}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
     const addedPhotos=[];
@@ -1285,7 +1312,8 @@
         if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
       }
       // 撮影のときは、そのまま続けて撮れるように案内を出す
-      if(saveDeviceCopy){
+      if(quiet){ /* カメラを開いたままなので、お知らせは出さない */ }
+      else if(saveDeviceCopy){
         showActionToast(`${files.length}枚を保存しました`,'',null,3);
       }else{
         showActionToast(`${files.length}枚を保存しました`,'',null,4);

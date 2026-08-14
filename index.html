@@ -431,7 +431,7 @@
     </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 t</span></div>
+      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。 <span id="camPosFixLabel" style="opacity:.72">位置修正版 u</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板を選ぶ</button>
         <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto">黒板 小</button>
@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15t';
+  const APP_VERSION='2026.08.15u';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1102,7 +1102,20 @@
       return true;
     }catch(e){ console.warn('ライトを切り替えられません',e); return false; }
   }
+  async function lockAppLandscape(){
+    // Android/PWAでは manifest の orientation 更新がすぐ反映されない場合があるため、
+    // アプリ側からも横画面を要求する。失敗しても撮影自体は続行する。
+    try{
+      if(screen.orientation && typeof screen.orientation.lock==='function'){
+        await screen.orientation.lock('landscape');
+        return true;
+      }
+    }catch(e){ console.warn('横画面固定を適用できません',e); }
+    return false;
+  }
   async function openCameraDialog(){
+    // カメラは横向き専用。ユーザー操作直後にロック要求することでAndroidでも反映しやすくする。
+    await lockAppLandscape();
     const dlg=$('cameraDialog'); if(!dlg)return;
     try{
       // できるだけ広く写るレンズを選ぶ（広角カメラがあればそれを使う）
@@ -3672,6 +3685,11 @@
     maybeShowWelcome();
   }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
 })();
+
+  // ホーム画面のアイコンから起動した場合も、最初の操作で横向き固定を再要求する。
+  // Screen Orientation APIはユーザー操作が必要な端末があるため、最初のタップでも実行する。
+  document.addEventListener('pointerdown',()=>{ lockAppLandscape(); },{once:true,passive:true});
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) lockAppLandscape(); });
 </script>
 </body>
 </html>

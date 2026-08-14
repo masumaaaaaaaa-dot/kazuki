@@ -662,7 +662,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15q';
+  const APP_VERSION='2026.08.15r';
   const APP_UPDATE_NOTE='アプリ内カメラを作り直し、横向き撮影の自動判定と保存方向を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1189,10 +1189,12 @@
       const rect=computeBoardRect(vr.width,vr.height,'free',board.size||'m',boardAspectRotated(board),camBoardPos);
       let x=t.clientX-vr.left-offX;
       let y=t.clientY-vr.top-offY;
-      x=Math.max(0,Math.min(Math.max(0,vr.width-rect.w),x));
-      y=Math.max(0,Math.min(Math.max(0,vr.height-rect.h),y));
-      camBoardPos={x:(x+rect.w/2)/vr.width,
-                   y:(y+rect.h/2)/vr.height};
+      const maxX=Math.max(0,vr.width-rect.w);
+      const maxY=Math.max(0,vr.height-rect.h);
+      x=Math.max(0,Math.min(maxX,x));
+      y=Math.max(0,Math.min(maxY,y));
+      camBoardPos={x:maxX?x/maxX:0,
+                   y:maxY?y/maxY:0};
       if(ov._place)ov._place(); e.preventDefault();};
     const end=()=>{drag=false};
     ov.addEventListener('mousedown',start); ov.addEventListener('touchstart',start,{passive:false});
@@ -2621,9 +2623,10 @@
     if(position==='rb'){x=w-bw-pad;y=h-bh-pad}
     if(position==='lt'){x=pad;y=pad}
     if(position==='rt'){x=w-bw-pad;y=pad}
-    // 指で動かして決めた位置があれば、そちらを使う（写真に対する割合で保持）
+    // 指で動かして決めた位置があれば、そちらを使う（左上基準の割合で保持）
     if(position==='free'&&free&&typeof free.x==='number'&&typeof free.y==='number'){
-      x=free.x*w-bw/2; y=free.y*h-bh/2;
+      x=free.x*Math.max(0,w-bw);
+      y=free.y*Math.max(0,h-bh);
       x=Math.max(0,Math.min(Math.max(0,w-bw),x));
       y=Math.max(0,Math.min(Math.max(0,h-bh),y));
     }
@@ -3137,18 +3140,23 @@
     const start=(e)=>{
       const t=e.touches?e.touches[0]:e;
       const br=box.getBoundingClientRect();
-      offX=t.clientX-br.left-br.width/2;
-      offY=t.clientY-br.top-br.height/2;
+      offX=t.clientX-br.left;
+      offY=t.clientY-br.top;
       dragging=true; e.preventDefault();
     };
     const move=(e)=>{
       if(!dragging)return;
       const t=e.touches?e.touches[0]:e;
       const sr=stage.getBoundingClientRect();
-      const cx=(t.clientX-offX-sr.left)/sr.width;
-      const cy=(t.clientY-offY-sr.top)/sr.height;
       const board=readBoardControls();
-      board.freePos={x:Math.max(0,Math.min(1,cx)),y:Math.max(0,Math.min(1,cy))};
+      const rect=computeBoardRect(stage.clientWidth,stage.clientHeight,'free',board.size||'m',boardAspect(board),board.freePos);
+      let x=t.clientX-sr.left-offX;
+      let y=t.clientY-sr.top-offY;
+      const maxX=Math.max(0,stage.clientWidth-rect.w);
+      const maxY=Math.max(0,stage.clientHeight-rect.h);
+      x=Math.max(0,Math.min(maxX,x));
+      y=Math.max(0,Math.min(maxY,y));
+      board.freePos={x:maxX?x/maxX:0,y:maxY?y/maxY:0};
       boardState.freePos=board.freePos;
       updatePosPickUI();
       e.preventDefault();

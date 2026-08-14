@@ -426,7 +426,9 @@
 
 <dialog id="cameraDialog" style="width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;background:#000;touch-action:none;overscroll-behavior:contain">
   <div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000">
-    <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000;will-change:transform"></video>
+    <div id="camStage" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;background:#000">
+      <video id="camVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:contain;background:#000;will-change:transform"></video>
+    </div>
     <img id="camBoardOverlay" alt="" style="position:absolute;left:0;top:0;width:120px;pointer-events:auto;touch-action:none;cursor:move;display:none" />
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
       <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。位置はこのあとの写真に反映されます。</div>
@@ -659,8 +661,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.15i';
-  const APP_UPDATE_NOTE='広角カメラに対応／ボタンを隠せるように／続けて撮影を廃止';
+  const APP_VERSION='2026.08.15j';
+  const APP_UPDATE_NOTE='拡大しても黒板がずれない／写真の向きの保存を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -952,6 +954,7 @@
     v.style.transform='scale('+camZoom+')';
     v.style.transformOrigin='center center';
     const z=$('camZoomLabel'); if(z)z.textContent=camZoom.toFixed(1)+'倍';
+    camRefreshOverlay();
   }
   function camCurrentBoard(){
     const board=camBoardData();
@@ -971,19 +974,19 @@
   }
   // 画面上で映像が実際に映っている範囲（黒い余白を除いた部分）を求める
   function camVideoRect(){
-    const v=$('camVideo'); if(!v)return null;
-    // 拡大の影響を受けない、本来の表示サイズを使う
-    const bw=v.offsetWidth||v.getBoundingClientRect().width;
-    const bh=v.offsetHeight||v.getBoundingClientRect().height;
+    const v=$('camVideo'), st=$('camStage'); if(!v||!st)return null;
+    const sb=st.getBoundingClientRect();
+    const bw=v.offsetWidth||sb.width, bh=v.offsetHeight||sb.height;
     if(!bw||!bh)return null;
     const vw=v.videoWidth||16, vh=v.videoHeight||9;
-    const scale=Math.min(bw/vw, bh/vh);
-    const w=vw*scale, h=vh*scale;
-    const box=v.getBoundingClientRect();
-    // 画面上の左上（拡大しても中心は動かないので、中心から求める）
-    const cx=box.left+box.width/2, cy=box.top+box.height/2;
-    return {left:cx-w/2, top:cy-h/2, width:w, height:h,
-            offX:(bw-w)/2, offY:(bh-h)/2};
+    // 拡大したぶんも含めた、いま映っている範囲
+    const scale=Math.min(bw/vw, bh/vh)*(camZoom||1);
+    let w=vw*scale, h=vh*scale;
+    // 枠からはみ出す分は、見えている部分だけを対象にする
+    const visW=Math.min(w, sb.width), visH=Math.min(h, sb.height);
+    const cx=sb.left+sb.width/2, cy=sb.top+sb.height/2;
+    return {left:cx-visW/2, top:cy-visH/2, width:visW, height:visH,
+            offX:(sb.width-visW)/2, offY:(sb.height-visH)/2};
   }
   function camRefreshOverlay(){
     const v=$('camVideo'), ov=$('camBoardOverlay');
@@ -1217,17 +1220,21 @@
       let wantLand;
       if(camPhotoOrient==='land')wantLand=true;
       else if(camPhotoOrient==='port')wantLand=false;
-      else wantLand=vr0 ? (vr0.width>=vr0.height) : (window.innerWidth>window.innerHeight);
+      else wantLand=(window.innerWidth>window.innerHeight);
       const isLand=(cn.width>=cn.height);
       let rotated=0;
       if(wantLand!==isLand){ shot=rotateCanvas(cn,90); rotated=90; }
       const blob=await new Promise(res=>shot.toBlob(res,'image/jpeg',0.9));
       closeCameraDialog();
       const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
-      // 写真を回した場合は、黒板の位置も同じだけ回す
+      // 写真を回した場合は、黒板の位置と向きも同じだけ回す
       let pos={...camBoardPos};
-      if(rotated===90){ pos={x:1-camBoardPos.y, y:camBoardPos.x}; }
-      await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:camCurrentBoard()});
+      const shotBoard=camCurrentBoard();
+      if(rotated===90){
+        pos={x:1-camBoardPos.y, y:camBoardPos.x};
+        shotBoard.rotate=(((shotBoard.rotate||0)+90)%360);
+      }
+      await handleFiles([file],{saveDeviceCopy:true,boardPos:pos,camBoard:shotBoard});
     });
   }
   async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null}={}){

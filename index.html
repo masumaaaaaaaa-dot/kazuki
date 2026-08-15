@@ -56,18 +56,27 @@
     .btn.outline.active{background:var(--brand);color:#fff;border-color:var(--brand)}
     .empty{padding:28px 12px;text-align:center;color:var(--muted);border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa}
     .project-item,.photo-item{background:#fff;border:1px solid #dfe5ec;border-radius:12px;padding:11px;margin-bottom:9px}
-    .project-item.active{border:2px solid var(--brand);background:#f0fdfa}
+    /* 選択中でも枠の太さは変えない（変えるとカードの大きさがずれる） */
+    .project-item{border-width:1.5px;padding:9px 10px;margin-bottom:7px}
+    .project-item.active{border:1.5px solid var(--brand);background:#f0fdfa}
     .item-head{display:flex;align-items:flex-start;gap:9px}.item-main{flex:1;min-width:0}.item-title{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+    /* 現場カード：どの現場も同じ形・同じ位置になるように整える */
+    .item-title-row{display:flex;align-items:center;gap:7px;min-width:0}
+    .item-title-row .item-title{min-width:0}
+    .item-title-row .badge{flex:0 0 auto}
+    .project-item .item-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.45}
+    .project-item .photo-actions{margin-top:8px;gap:4px}
+    .project-item .photo-actions .btn{padding:5px 9px;font-size:11.5px}
     .badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;background:#eef2f5;background:color-mix(in srgb,var(--brand) 12%,#fff);color:var(--brand-ink);font-weight:700}
     .photo-item{display:grid;grid-template-columns:116px 1fr;gap:10px}
     .thumb{width:116px;height:104px;border-radius:8px;object-fit:contain;background:#eef1f5;border:1px solid #cbd5e1}
     .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
-    /* 現場の並べ替え矢印。他の操作ボタンとは別に、現場名の右へ縦に並べる */
-    .item-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;margin-left:8px}
-    .order-btns{display:flex;flex-direction:column;gap:4px}
-    .order-btn{width:38px;height:32px;padding:0;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
-    .order-btn:disabled{opacity:.32;cursor:default}
+    /* 現場の並べ替え矢印。他の操作ボタンとは分けて、現場名の右に横並びで置く。
+       横並びにすると文字の高さに収まるので、カードの高さが変わらない。 */
+    .order-btns{display:flex;gap:5px;flex:0 0 auto;align-self:flex-start;margin-left:6px}
+    .order-btn{width:36px;height:30px;padding:0;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+    .order-btn:disabled{opacity:.3;cursor:default}
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid #cbd5e1;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:max(5px,env(safe-area-inset-bottom))}
     .nav-btn{border:0;background:#fff;padding:9px 2px 6px;color:#64748b;font-size:11px}.nav-btn span{display:block;font-size:21px;line-height:1.1;margin-bottom:3px}.nav-btn.active{color:var(--brand-ink);font-weight:800}
     dialog{border:0;border-radius:15px;padding:0;width:min(94vw,620px);max-height:90vh;box-shadow:0 24px 70px rgba(0,0,0,.28)}dialog::backdrop{background:rgba(15,23,42,.55)}
@@ -787,7 +796,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18c';
+  const APP_VERSION='2026.08.18d';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -885,14 +894,12 @@
     host.innerHTML=projects.map((p,i)=>{
       const count=photos.filter(x=>x.projectId===p.id).length;
       return `<div class="project-item ${p.id===currentProjectId?'active':''}" data-id="${p.id}">
-        <div class="item-head"><div class="item-main"><div class="item-title">${escapeHtml(p.name)}</div>
-        <div class="item-sub">${escapeHtml(p.address||'住所未入力')}<br>${count}枚｜${escapeHtml(p.company||'会社名未入力')}</div></div>
-        <div class="item-side">
-          ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}
-          <div class="order-btns">
-            <button class="btn order-btn" data-action="up-project" data-id="${p.id}" title="1つ上へ移動" aria-label="1つ上へ移動" ${i===0?'disabled':''}>↑</button>
-            <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>
-          </div>
+        <div class="item-head"><div class="item-main">
+          <div class="item-title-row"><span class="item-title">${escapeHtml(p.name)}</span>${p.id===currentProjectId?'<span class="badge">選択中</span>':''}</div>
+          <div class="item-sub">${escapeHtml(p.address||'住所未入力')}　|　${count}枚　|　${escapeHtml(p.company||'会社名未入力')}</div></div>
+        <div class="order-btns">
+          <button class="btn order-btn" data-action="up-project" data-id="${p.id}" title="1つ上へ移動" aria-label="1つ上へ移動" ${i===0?'disabled':''}>↑</button>
+          <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>
         </div></div>
         <div class="photo-actions">
           <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>

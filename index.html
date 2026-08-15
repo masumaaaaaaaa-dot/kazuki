@@ -288,10 +288,11 @@
         gap:6px!important;align-items:stretch!important;
       }
       #camTopBar button{
-        min-width:0!important;width:100%!important;min-height:38px!important;
-        padding:5px 4px!important;font-size:11px!important;line-height:1.15!important;
+        min-width:0!important;width:100%!important;min-height:40px!important;height:40px!important;
+        padding:5px 4px!important;font-size:12.5px!important;line-height:1.15!important;
       }
-      #camRotateBtn{width:100%!important}
+      /* ⟳ は文字ではなく絵柄なので、横向きで文字が小さくなっても縮めない */
+      #camRotateBtn .cam-turn-label{font-size:25px!important;line-height:1!important}
 
       #camBottomBar{
         left:auto!important;right:0!important;top:0!important;bottom:0!important;
@@ -516,7 +517,7 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button type="button" id="camTemplateBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板を選ぶ</span></button>
         <button type="button" id="camSizeBtn" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板 小</span></button>
-        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:44px;width:54px;padding:6px;font-size:28px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">⟳</span></button>
+        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20;display:inline-flex;align-items:center;justify-content:center;line-height:1"><span class="cam-turn-label" style="font-size:25px;line-height:1;font-weight:400">⟳</span></button>
         <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
         <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800"><span class="cam-turn-label">黒板</span></button>
         <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
@@ -781,8 +782,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.17e';
-  const APP_UPDATE_NOTE='カメラ画面の文字を太く、回転マークを大きくしました';
+  const APP_VERSION='2026.08.17f';
+  const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

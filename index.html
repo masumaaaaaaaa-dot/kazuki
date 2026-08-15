@@ -89,6 +89,9 @@
       box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100vw - 24px)}
     .undo-toast .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
+    /* あと何秒で戻せなくなるかの表示 */
+    .undo-toast .count{flex:0 0 auto;min-width:40px;text-align:center;font-weight:800;font-size:12.5px;
+      color:#facc15;background:rgba(250,204,21,.14);border-radius:999px;padding:4px 8px;white-space:nowrap}
 
     /* テーマカラー（設定で切り替え。既定は「標準」＝これまでの色） */
     html[data-color="green"]{--brand:#33513f;--brand2:#22362c;--brand-ink:#2c4636;--accent:#e0a83c}
@@ -709,8 +712,14 @@
             <div id="boardFieldHotspots" class="board-hotspots"></div>
           </div>
         </div>
-        <div class="draw-hint" id="drawHint">指2本で黒板を拡大・移動できます</div>
-        <div class="inline-note">「黒板に直接入力」モードでは、黒板の書きたい場所をタップするとその場で文字を打ち込めます（下の入力欄からも同じように編集できます）。「手書き」「消しゴム」モードに切り替えると、指で黒板に直接書き込み・消しゴムができます。色・太さは手書き時に上のボタンで選べます。スマホを横向きにすると黒板が大きく表示され、手書きしやすくなります。</div>
+        <div class="draw-hint" id="drawHint">この枠の中で指2本を広げると、黒板だけが大きくなります（写真は変わりません）</div>
+        <div class="inline-note">
+          <strong>文字を入れる</strong>…「黒板に直接入力」にして、書きたいマスをタップすると、その場で打ち込めます（下の入力欄からでも同じです）。<br>
+          <strong>手書きする</strong>…「手書き」に切り替えると、指で黒板になぞり書きできます。色と太さは上のボタンで選べます。書いたものは「消しゴム」で消せます。<br>
+          <strong>細かいところを書くとき</strong>…この枠の中で指2本を広げると、黒板だけが大きく表示され、指1本でずらせます。<u>あくまで表示を拡大しているだけで、写真に貼られる黒板の大きさや位置は変わりません</u>。指2本でつまめば元に戻ります。<br>
+          <strong>もっと大きく見たいとき</strong>…スマホを横向きにすると、黒板が画面いっぱいに表示されて手書きしやすくなります。<br>
+          ※写真に貼るときの黒板の大きさは「大きさ」、位置は「位置」で決めます。
+        </div>
       </div>
       <div id="boardControlsCol">
       <div class="tip-box" style="margin-top:10px">
@@ -799,7 +808,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18e';
+  const APP_VERSION='2026.08.18f';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1874,8 +1883,18 @@
   let undoState=null;
   function clearUndo(){
     if(undoState&&undoState.timer)clearTimeout(undoState.timer);
+    if(undoState&&undoState.tick)clearInterval(undoState.tick);
     const el=$('undoToast'); if(el)el.remove();
     undoState=null;
+  }
+  // バナーの残り時間を1秒ごとに表示する。あと何秒で戻せなくなるかが分かるように。
+  function startUndoCountdown(el,seconds,withCount){
+    const cd=el.querySelector('.count');
+    if(!cd||!withCount)return null;
+    let left=seconds;
+    const paint=()=>{ cd.textContent=left+'秒'; };
+    paint();
+    return setInterval(()=>{ left=Math.max(0,left-1); paint(); },1000);
   }
   function showActionToast(message,actionLabel,onAction,seconds=6){
     clearUndo();
@@ -1895,13 +1914,14 @@
     clearUndo();
     const el=document.createElement('div');
     el.className='undo-toast'; el.id='undoToast';
-    el.innerHTML=`<span class="msg"></span><button type="button">元に戻す</button>`;
+    el.innerHTML=`<span class="msg"></span><span class="count" aria-live="polite"></span><button type="button">元に戻す</button>`;
     el.querySelector('.msg').textContent=message;
     el.querySelector('button').addEventListener('click',async()=>{
       const fn=onUndo; clearUndo(); await fn();
     });
     document.body.appendChild(el);
-    undoState={timer:setTimeout(()=>clearUndo(),seconds*1000)};
+    const tick=startUndoCountdown(el,seconds,true);
+    undoState={timer:setTimeout(()=>clearUndo(),seconds*1000),tick};
   }
   // 削除を取り消したとき、元の順番の位置へ戻す
   async function restorePhotosAtOriginalOrder(snapshots){

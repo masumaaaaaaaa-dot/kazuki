@@ -586,7 +586,27 @@
 </dialog>
 
 
-<input type="file" id="boardImgInput" accept="image/*" style="display:none" />
+
+<dialog id="imgAdjustDialog">
+  <div class="dialog-head"><h3>豆図の大きさ・位置</h3><button class="btn" type="button" id="imgAdjCloseBtn">閉じる</button></div>
+  <div class="dialog-body">
+    <div class="hint">指2本を広げると大きく、指1本でずらせます。枠の中に見えているとおりに黒板へ入ります。</div>
+    <div id="imgAdjStage" style="margin-top:10px;position:relative;width:100%;background:#33513f;border:2px solid rgba(255,255,255,.85);border-radius:6px;overflow:hidden;touch-action:none">
+      <canvas id="imgAdjCanvas" style="width:100%;display:block"></canvas>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button type="button" class="btn" id="imgAdjZoomOut" style="flex:1;font-size:20px">−</button>
+      <span id="imgAdjZoomLabel" style="flex:1;text-align:center;align-self:center;font-weight:800">1.0倍</span>
+      <button type="button" class="btn" id="imgAdjZoomIn" style="flex:1;font-size:20px">＋</button>
+    </div>
+    <button type="button" class="btn outline full" id="imgAdjResetBtn" style="margin-top:8px">元に戻す（等倍・中央）</button>
+  </div>
+  <div class="dialog-foot">
+    <span style="flex:1"></span>
+    <button class="btn primary" type="button" id="imgAdjOkBtn">決定</button>
+  </div>
+</dialog>
+
 <dialog id="boardBuilderDialog">
   <div class="dialog-head"><h3 id="boardBuilderTitle">黒板を作る</h3><button class="btn" type="button" id="boardBuilderCloseBtn">閉じる</button></div>
   <div class="dialog-body">
@@ -819,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19g';
-  const APP_UPDATE_NOTE='黒板編集の動きを軽くし、設定のボタンの見た目をそろえました';
+  const APP_VERSION='v161';
+  const APP_UPDATE_NOTE='豆図を枠いっぱいに広げたり、指で大きさと位置を変えられるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -835,7 +855,7 @@
   let selectMode=false; const selectedPhotoIds=new Set();
   let myBoards = [];
   const objectUrls = new Map();
-  const boardState = { photoId:'', image:null, images:{}, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
+  const boardState = { photoId:'', image:null, images:{}, imageFits:{}, imageAdjusts:{}, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
 
   const today = () => new Date().toISOString().slice(0,10);
   const uid = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
@@ -3123,10 +3143,17 @@
     return c.toDataURL('image/jpeg',quality);
   }
   function pickBoardImage(slotKey){
-    const input=$('boardImgInput'); if(!input)return;
-    input.value='';
+    // ファイルを選ぶ欄は、黒板の画面の「中」に作る。
+    // 画面の外に置くと、この画面を開いている間はブラウザが反応しない。
+    const host=$('boardDialog')||document.body;
+    const input=document.createElement('input');
+    input.type='file'; input.accept='image/*';
+    input.style.cssText='position:fixed;left:-9999px;width:1px;height:1px;opacity:0';
+    host.appendChild(input);
+    const cleanup=()=>{ setTimeout(()=>{ if(input.parentNode)input.remove(); },0); };
     input.onchange=async()=>{
-      const f=input.files&&input.files[0]; if(!f)return;
+      const f=input.files&&input.files[0];
+      if(!f){ cleanup(); return; }
       try{
         const url=await shrinkImageToDataUrl(f,900,0.75);
         boardState.images=boardState.images||{};
@@ -3134,7 +3161,9 @@
         await ensureBoardImages({images:boardState.images});
         renderBoardEditor();
       }catch(e){ console.error(e); alert('この画像は読み込めませんでした。別の画像でお試しください。'); }
+      cleanup();
     };
+    input.addEventListener('cancel',cleanup);
     input.click();
   }
   function renderBoardImageUI(){
@@ -3144,25 +3173,150 @@
     if(!slots.length){ box.style.display='none'; box.innerHTML=''; return; }
     box.style.display='';
     const imgs=boardState.images||{};
+    const fits=boardState.imageFits||{};
     box.innerHTML='<label>豆図（図面などの画像を貼れます）</label>'+slots.map(sl=>{
       const has=!!imgs[sl.key];
-      return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <div style="width:64px;height:44px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg);flex:0 0 auto">
-          ${has?`<img src="${imgs[sl.key]}" alt="" style="width:100%;height:100%;object-fit:contain" />`:''}
+      const fill=(fits[sl.key]==='fill');
+      return `<div style="margin-top:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:64px;height:44px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg);flex:0 0 auto">
+            ${has?`<img src="${imgs[sl.key]}" alt="" style="width:100%;height:100%;object-fit:${fill?'cover':'contain'}" />`:''}
+          </div>
+          <span style="flex:1;font-size:13px">${escapeHtml(sl.label)}</span>
+          <button type="button" class="btn" data-bimg="${escapeAttr(sl.key)}">${has?'変える':'貼る'}</button>
+          ${has?`<button type="button" class="btn danger" data-bimgdel="${escapeAttr(sl.key)}">消す</button>`:''}
         </div>
-        <span style="flex:1;font-size:13px">${escapeHtml(sl.label)}</span>
-        <button type="button" class="btn" data-bimg="${escapeAttr(sl.key)}">${has?'変える':'貼る'}</button>
-        ${has?`<button type="button" class="btn danger" data-bimgdel="${escapeAttr(sl.key)}">消す</button>`:''}
+        ${has?`<div class="btn-row" style="margin-top:5px">
+          <button type="button" class="btn${fill?'':' primary'}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fit" style="flex:1">収める</button>
+          <button type="button" class="btn${fill?' primary':''}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fill" style="flex:1">枠を埋める</button>
+          <button type="button" class="btn" data-bimgadj="${escapeAttr(sl.key)}" style="flex:1">大きさ・位置</button>
+        </div>`:''}
       </div>`;
     }).join('');
     box.querySelectorAll('[data-bimg]').forEach(b=>b.addEventListener('click',()=>pickBoardImage(b.dataset.bimg)));
     box.querySelectorAll('[data-bimgdel]').forEach(b=>b.addEventListener('click',()=>{
       if(boardState.images)delete boardState.images[b.dataset.bimgdel];
+      if(boardState.imageFits)delete boardState.imageFits[b.dataset.bimgdel];
+      if(boardState.imageAdjusts)delete boardState.imageAdjusts[b.dataset.bimgdel];
       renderBoardEditor();
     }));
+    box.querySelectorAll('[data-bimgfit]').forEach(b=>b.addEventListener('click',()=>{
+      boardState.imageFits=boardState.imageFits||{};
+      boardState.imageFits[b.dataset.bimgfit]=b.dataset.mode;
+      renderBoardEditor();
+    }));
+    box.querySelectorAll('[data-bimgadj]').forEach(b=>b.addEventListener('click',()=>openImageAdjust(b.dataset.bimgadj)));
   }
 
   function isCustomBoardKey(k){ return typeof k==='string'&&k.indexOf('custom:')===0; }
+
+  // ---- 豆図の大きさ・位置を指で調整する ----
+  let imgAdjState={key:'',zoom:1,x:.5,y:.5,fit:'fit',src:'',ratio:1.5};
+  const imgAdjPointers=new Map();
+  let imgAdjPrevDist=null, imgAdjPrevMid=null;
+
+  function imgAdjDraw(){
+    const cv=$('imgAdjCanvas'); if(!cv)return;
+    const stage=$('imgAdjStage'); if(!stage)return;
+    const w=Math.max(200,stage.clientWidth||320);
+    const h=Math.round(w/imgAdjState.ratio);
+    if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+    cv.style.height=h+'px';
+    const ctx=cv.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle='#33513f'; ctx.fillRect(0,0,w,h);
+    drawBoardImageInto(ctx,imgAdjState.src,0,0,w,h,imgAdjState.fit,
+      {zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y});
+    const lb=$('imgAdjZoomLabel'); if(lb)lb.textContent=imgAdjState.zoom.toFixed(1)+'倍';
+  }
+  function imgAdjSetZoom(z){
+    imgAdjState.zoom=Math.max(1,Math.min(5,Math.round(z*10)/10));
+    imgAdjDraw();
+  }
+  function imgAdjPan(dx,dy){
+    const cv=$('imgAdjCanvas'); if(!cv)return;
+    // 動かした量を、見せる位置の割合に置き換える
+    imgAdjState.x=Math.max(0,Math.min(1,imgAdjState.x-dx/Math.max(1,cv.width)));
+    imgAdjState.y=Math.max(0,Math.min(1,imgAdjState.y-dy/Math.max(1,cv.height)));
+    imgAdjDraw();
+  }
+  // 豆図の枠のおおよその縦横比（テンプレートによって変わる）
+  function imgAdjSlotRatio(key){
+    const t=genericTemplate($('boardTemplate').value);
+    if(!t)return 1.5;
+    if(key==='sketch'&&t.sketch){
+      const total=(t.rows||[]).reduce((a,r)=>a+(r.weight||1),0)||1;
+      const span=((t.sketch.toRow||0)-(t.sketch.fromRow||0)+1)/total;
+      const colPct=(t.sketch.colPct||40)/100;
+      return Math.max(0.4,Math.min(4,(colPct*1.5)/Math.max(0.05,span)));
+    }
+    const row=(t.rows||[]).find(r=>r.image&&r.image.key===key);
+    if(row){
+      const total=(t.rows||[]).reduce((a,r)=>a+(r.weight||1),0)||1;
+      return Math.max(0.4,Math.min(4,1.5/Math.max(0.05,(row.weight||1)/total)));
+    }
+    return 1.5;
+  }
+  function openImageAdjust(key){
+    const src=(boardState.images||{})[key];
+    if(!src){alert('先に画像を貼ってください。');return}
+    const a=(boardState.imageAdjusts||{})[key]||{};
+    imgAdjState={key,zoom:a.zoom>0?a.zoom:1,
+      x:(typeof a.x==='number')?a.x:.5, y:(typeof a.y==='number')?a.y:.5,
+      fit:((boardState.imageFits||{})[key]==='fill')?'fill':'fit',
+      src, ratio:imgAdjSlotRatio(key)};
+    ensureBoardImages({images:{[key]:src}}).then(()=>{
+      $('imgAdjustDialog').showModal();
+      requestAnimationFrame(imgAdjDraw);
+    });
+  }
+  function initImageAdjust(){
+    const dlg=$('imgAdjustDialog'); if(!dlg)return;
+    const stage=$('imgAdjStage');
+    const close=()=>dlg.close();
+    $('imgAdjCloseBtn').addEventListener('click',close);
+    $('imgAdjOkBtn').addEventListener('click',()=>{
+      boardState.imageAdjusts=boardState.imageAdjusts||{};
+      boardState.imageAdjusts[imgAdjState.key]={zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y};
+      close(); renderBoardEditor();
+    });
+    $('imgAdjZoomIn').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom+0.2));
+    $('imgAdjZoomOut').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom-0.2));
+    $('imgAdjResetBtn').addEventListener('click',()=>{
+      imgAdjState.zoom=1; imgAdjState.x=.5; imgAdjState.y=.5; imgAdjDraw();
+    });
+    stage.addEventListener('pointerdown',e=>{
+      stage.setPointerCapture&&stage.setPointerCapture(e.pointerId);
+      imgAdjPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove',e=>{
+      if(!imgAdjPointers.has(e.pointerId))return;
+      const prev=imgAdjPointers.get(e.pointerId);
+      imgAdjPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const pts=[...imgAdjPointers.values()];
+      if(pts.length>=2){
+        // 指2本：広げると拡大
+        const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+        const mid={x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
+        if(imgAdjPrevDist){ imgAdjSetZoom(imgAdjState.zoom*(d/imgAdjPrevDist)); }
+        if(imgAdjPrevMid){ imgAdjPan(mid.x-imgAdjPrevMid.x,mid.y-imgAdjPrevMid.y); }
+        imgAdjPrevDist=d; imgAdjPrevMid=mid;
+      }else{
+        // 指1本：ずらす
+        imgAdjPan(e.clientX-prev.x,e.clientY-prev.y);
+      }
+      e.preventDefault();
+    });
+    const up=e=>{
+      imgAdjPointers.delete(e.pointerId);
+      if(imgAdjPointers.size<2){ imgAdjPrevDist=null; imgAdjPrevMid=null; }
+    };
+    stage.addEventListener('pointerup',up);
+    stage.addEventListener('pointercancel',up);
+    window.addEventListener('resize',()=>{ if(dlg.open)imgAdjDraw(); });
+  }
+
   function boardTemplateList(){
     return [
       {key:'tajima',label:'工事件名・工事場所・施工者'},
@@ -3361,6 +3515,8 @@
     updateQuickBar();
     boardState.freePos = data.freePos||null;
     boardState.images = cloneBoardData(data.images||{});
+    boardState.imageFits = cloneBoardData(data.imageFits||{});
+    boardState.imageAdjusts = cloneBoardData(data.imageAdjusts||{});
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
     const sizeRow=$('boardNoteSizeRow');
@@ -3386,7 +3542,7 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null,images:cloneBoardData(boardState.images||{})};
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null,images:cloneBoardData(boardState.images||{}),imageFits:cloneBoardData(boardState.imageFits||{}),imageAdjusts:cloneBoardData(boardState.imageAdjusts||{})};
     if(genericTemplate(base.template)){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
@@ -3764,13 +3920,38 @@
     })));
   }
   // 枠の中に、縦横比を保ったまま豆図を収めて描く
-  function drawBoardImageInto(ctx,src,x,y,areaW,areaH){
+  // 豆図の調整値。fit=収める（余白あり）／fill=枠を埋める（はみ出しは切り取り）
+  function boardImageFit(data,key){
+    const f=(data&&data.imageFits)?data.imageFits[key]:null;
+    return (f==='fill')?'fill':'fit';
+  }
+  function boardImageAdjust(data,key){
+    const a=(data&&data.imageAdjusts)?data.imageAdjusts[key]:null;
+    return {zoom:(a&&a.zoom>0)?a.zoom:1, x:(a&&typeof a.x==='number')?a.x:0.5, y:(a&&typeof a.y==='number')?a.y:0.5};
+  }
+  // 豆図を枠の中に描く。
+  //   fit  … 全体が入るように収める（余白が出る）
+  //   fill … 枠を隙間なく埋める（はみ出した分は切り取る）
+  // zoom で拡大、x/y（0〜1）で見せたい位置をずらせる。
+  function drawBoardImageInto(ctx,src,x,y,areaW,areaH,mode,adj){
     const img=boardImageReady(src);
     if(!img||areaW<4||areaH<4)return false;
-    const sc=Math.min(areaW/img.width,areaH/img.height);
-    const dw=img.width*sc,dh=img.height*sc;
+    const a=adj||{zoom:1,x:.5,y:.5};
+    const z=Math.max(1,a.zoom||1);
     ctx.save(); ctx.shadowBlur=0;
-    ctx.drawImage(img,x+(areaW-dw)/2,y+(areaH-dh)/2,dw,dh);
+    ctx.beginPath(); ctx.rect(x,y,areaW,areaH); ctx.clip();
+    // 倍率の決め方だけが違い、あとは同じ。
+    //   fit  … 短いほうに合わせる（全体が入る）
+    //   fill … 長いほうに合わせる（枠が埋まる）
+    const base=(mode==='fill')
+      ? Math.max(areaW/img.width,areaH/img.height)
+      : Math.min(areaW/img.width,areaH/img.height);
+    const sc=base*z, dw=img.width*sc, dh=img.height*sc;
+    const ax=(typeof a.x==='number')?a.x:.5, ay=(typeof a.y==='number')?a.y:.5;
+    // はみ出しているときは見せたい位置に寄せ、収まっているときは中央に置く
+    const dx=(dw>areaW)?(x-(dw-areaW)*ax):(x+(areaW-dw)/2);
+    const dy=(dh>areaH)?(y-(dh-areaH)*ay):(y+(areaH-dh)/2);
+    ctx.drawImage(img,dx,dy,dw,dh);
     ctx.restore();
     return true;
   }
@@ -3821,7 +4002,8 @@
           top+=lblSize+4;
         }
         drawBoardImageInto(ctx,(data.images||{})[key],innerX+padX,top,
-          (rowRightX-innerX)-padX*2,Math.max(4,g.y+g.h-top-padY));
+          (rowRightX-innerX)-padX*2,Math.max(4,g.y+g.h-top-padY),
+          boardImageFit(data,key),boardImageAdjust(data,key));
       }else if(g.row.parts){
         const parts=g.row.parts;
         const partW=(rowRightX-innerX)/parts.length;
@@ -3856,7 +4038,8 @@
       ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
       const sketchImg=(data.images||{})['sketch'];
       if(sketchImg&&drawBoardImageInto(ctx,sketchImg,sketchColX+padX,sy+padY+lblSize+4,
-          (innerX+innerW)-sketchColX-padX*2,Math.max(4,ey-(sy+padY+lblSize+4)-padY))){
+          (innerX+innerW)-sketchColX-padX*2,Math.max(4,ey-(sy+padY+lblSize+4)-padY),
+          boardImageFit(data,'sketch'),boardImageAdjust(data,'sketch'))){
         // 豆図を貼っているときは、同じ場所の文字は出さない
       }else if(sketch.noteKey){
         const text=data[sketch.noteKey]||'';
@@ -4491,6 +4674,7 @@
   });
   initInAppCamera();
   initBoardBuilder();
+  initImageAdjust();
   try{ renderBackupStatus(); }catch(e){}
   syncBoardTemplateOptions();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));

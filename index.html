@@ -839,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v165';
-  const APP_UPDATE_NOTE='豆図が枠いっぱいに入り、見出しも書き換えられるようにしました';
+  const APP_VERSION='v166';
+  const APP_UPDATE_NOTE='豆図を貼っていても、その上に文字を書けるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3128,8 +3128,8 @@
   function boardImageSlots(key){
     const t=genericTemplate(key); if(!t)return [];
     const list=[];
-    (t.rows||[]).forEach(r=>{ if(r.image)list.push({key:r.image.key,label:r.image.label||'豆図'}); });
-    if(t.sketch)list.push({key:'sketch',label:t.sketch.label||'略図'});
+    (t.rows||[]).forEach(r=>{ if(r.image)list.push({key:r.image.key,label:r.image.label||'豆図',noteKey:'imgnote_'+r.image.key}); });
+    if(t.sketch)list.push({key:'sketch',label:t.sketch.label||'略図',noteKey:t.sketch.noteKey||''});
     return list;
   }
   async function shrinkImageToDataUrl(file,maxSide,quality){
@@ -3186,7 +3186,8 @@
           <button type="button" class="btn" data-bimg="${escapeAttr(sl.key)}">${has?'変える':'貼る'}</button>
           ${has?`<button type="button" class="btn danger" data-bimgdel="${escapeAttr(sl.key)}">消す</button>`:''}
         </div>
-        ${has?`<div style="margin-top:5px"><input type="text" data-bimglbl="${escapeAttr(sl.key)}" value="${escapeAttr((boardState.imageLabels&&boardState.imageLabels[sl.key]!==undefined)?boardState.imageLabels[sl.key]:sl.label)}" placeholder="見出し（空欄にすると出ません）" style="width:100%" /></div>
+        ${has?`<div style="margin-top:5px"><label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:2px">見出し（空欄にすると出ません）</label>
+        <input type="text" data-bimglbl="${escapeAttr(sl.key)}" value="${escapeAttr((boardState.imageLabels&&boardState.imageLabels[sl.key]!==undefined)?boardState.imageLabels[sl.key]:sl.label)}" placeholder="例：配線図" style="width:100%" /></div>
         <div class="btn-row" style="margin-top:5px">
           <button type="button" class="btn${fill?'':' primary'}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fit" style="flex:1">収める</button>
           <button type="button" class="btn${fill?' primary':''}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fill" style="flex:1">枠を埋める</button>
@@ -4081,13 +4082,29 @@
         const ih=src?Math.max(4,g.h-2):Math.max(4,g.y+g.h-top-padY);
         const ix=src?(innerX+1):(innerX+padX);
         const iw=src?Math.max(4,(rowRightX-innerX)-2):Math.max(4,(rowRightX-innerX)-padX*2);
-        drawBoardImageInto(ctx,src,ix,top,iw,ih,boardImageFit(data,key),boardImageAdjust(data,key));
+        const drew=drawBoardImageInto(ctx,src,ix,top,iw,ih,boardImageFit(data,key),boardImageAdjust(data,key));
         if(label){
           ctx.save();
           ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-          if(src){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
+          if(drew){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
           else ctx.fillStyle=CHALK_WHITE_GET();
           ctx.fillText(label,innerX+padX,g.y+padY);
+          ctx.restore();
+        }
+        // 豆図の枠にも文字を書ける（絵の上に重ねる）
+        const noteText=data['imgnote_'+key]||'';
+        if(noteText){
+          const nTop=g.y+padY+(label?lblSize+4:0);
+          const nH=Math.max(10,g.y+g.h-nTop-padY);
+          const nMax=Math.max(1,Math.round(nH/(baseFont*1.25)));
+          const nW=(rowRightX-innerX)-padX*2;
+          const nf=fitNoteFont(ctx,noteText,nW,nMax,Math.round(baseFont*0.9),10);
+          ctx.save();
+          ctx.font=CHALK_FONT_BOLD(nf.size);ctx.textBaseline='top';
+          if(drew){ ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=Math.max(3,nf.size*0.4); ctx.fillStyle='#fff'; }
+          else ctx.fillStyle=CHALK_WHITE_GET();
+          const nLine=nH/nMax;
+          for(let i=0;i<nf.lines.length&&i<nMax;i++)ctx.fillText(nf.lines[i],innerX+padX,nTop+i*nLine);
           ctx.restore();
         }
       }else if(g.row.parts){
@@ -4130,28 +4147,34 @@
       const imgH=sketchImg?Math.max(4,ey-sy-2):Math.max(4,ey-(sy+padY+lblSize+4)-padY);
       const imgX=sketchImg?(sketchColX+1):(sketchColX+padX);
       const imgW=sketchImg?Math.max(4,(innerX+innerW)-sketchColX-2):Math.max(4,(innerX+innerW)-sketchColX-padX*2);
-      if(sketchImg&&drawBoardImageInto(ctx,sketchImg,imgX,imgTop,imgW,imgH,
-          boardImageFit(data,'sketch'),boardImageAdjust(data,'sketch'))){
-        // 絵の上に見出しを重ねる（読めるよう影を付ける）
-        if(sketchLabel){
+      const drewImg=sketchImg&&drawBoardImageInto(ctx,sketchImg,imgX,imgTop,imgW,imgH,
+          boardImageFit(data,'sketch'),boardImageAdjust(data,'sketch'));
+      // 見出しを出す（絵の上に重ねるときは、読めるよう影を付ける）
+      if(sketchLabel){
+        ctx.save();
+        ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
+        if(drewImg){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
+        else ctx.fillStyle=CHALK_WHITE_GET();
+        ctx.fillText(sketchLabel,sketchColX+padX,sy+padY);
+        ctx.restore();
+      }
+      // 説明の文字。絵を貼っているときは、その上に重ねて書く。
+      if(sketch.noteKey){
+        const text=data[sketch.noteKey]||'';
+        if(text){
+          const maxLines=noteLinesScaled(sketch.maxLines||6,data.noteSize);
+          const textTop=sy+padY+(sketchLabel?lblSize+4:0);
+          const textH=Math.max(10,ey-textTop-padY);
+          const lineH=textH/maxLines;
+          const noteW=(innerX+innerW)-sketchColX-padX*2;
+          const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.8),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
           ctx.save();
-          ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-          ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=Math.max(3,lblSize*0.35);
-          ctx.fillStyle='#fff';
-          ctx.fillText(sketchLabel,sketchColX+padX,sy+padY);
+          ctx.font=CHALK_FONT_BOLD(fit.size);ctx.textBaseline='top';
+          if(drewImg){ ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=Math.max(3,fit.size*0.4); ctx.fillStyle='#fff'; }
+          else ctx.fillStyle=CHALK_WHITE_GET();
+          for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],sketchColX+padX,textTop+i*lineH);
           ctx.restore();
         }
-      }else if(sketch.noteKey){
-        if(sketchLabel){ ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();ctx.fillText(sketchLabel,sketchColX+padX,sy+padY); }
-        const text=data[sketch.noteKey]||'';
-        const maxLines=noteLinesScaled(sketch.maxLines||6,data.noteSize);
-        const textTop=sy+padY+lblSize+4;
-        const textH=Math.max(10,ey-textTop-padY);
-        const lineH=textH/maxLines;
-        const noteW=(innerX+innerW)-sketchColX-padX*2;
-        const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.8),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
-        ctx.font=CHALK_FONT_BOLD(fit.size);
-        for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],sketchColX+padX,textTop+i*lineH);
       }
     }
     ctx.restore();

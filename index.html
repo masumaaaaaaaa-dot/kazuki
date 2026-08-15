@@ -839,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v164';
-  const APP_UPDATE_NOTE='豆図の枠の表示位置がずれていたのを修正しました';
+  const APP_VERSION='v165';
+  const APP_UPDATE_NOTE='豆図が枠いっぱいに入り、見出しも書き換えられるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -855,7 +855,7 @@
   let selectMode=false; const selectedPhotoIds=new Set();
   let myBoards = [];
   const objectUrls = new Map();
-  const boardState = { photoId:'', image:null, images:{}, imageFits:{}, imageAdjusts:{}, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
+  const boardState = { photoId:'', image:null, images:{}, imageFits:{}, imageAdjusts:{}, imageLabels:{}, displayW:0, displayH:0, strokes:[], drawing:false, currentStroke:null, interactionMode:'text', activeDrawPointerId:null, projectInfoApplied:false, beforeApplySnapshot:null };
 
   const today = () => new Date().toISOString().slice(0,10);
   const uid = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
@@ -3186,7 +3186,8 @@
           <button type="button" class="btn" data-bimg="${escapeAttr(sl.key)}">${has?'変える':'貼る'}</button>
           ${has?`<button type="button" class="btn danger" data-bimgdel="${escapeAttr(sl.key)}">消す</button>`:''}
         </div>
-        ${has?`<div class="btn-row" style="margin-top:5px">
+        ${has?`<div style="margin-top:5px"><input type="text" data-bimglbl="${escapeAttr(sl.key)}" value="${escapeAttr((boardState.imageLabels&&boardState.imageLabels[sl.key]!==undefined)?boardState.imageLabels[sl.key]:sl.label)}" placeholder="見出し（空欄にすると出ません）" style="width:100%" /></div>
+        <div class="btn-row" style="margin-top:5px">
           <button type="button" class="btn${fill?'':' primary'}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fit" style="flex:1">収める</button>
           <button type="button" class="btn${fill?' primary':''}" data-bimgfit="${escapeAttr(sl.key)}" data-mode="fill" style="flex:1">枠を埋める</button>
           <button type="button" class="btn" data-bimgadj="${escapeAttr(sl.key)}" style="flex:1">大きさ・位置</button>
@@ -3198,6 +3199,7 @@
       if(boardState.images)delete boardState.images[b.dataset.bimgdel];
       if(boardState.imageFits)delete boardState.imageFits[b.dataset.bimgdel];
       if(boardState.imageAdjusts)delete boardState.imageAdjusts[b.dataset.bimgdel];
+      if(boardState.imageLabels)delete boardState.imageLabels[b.dataset.bimgdel];
       renderBoardEditor();
     }));
     box.querySelectorAll('[data-bimgfit]').forEach(b=>b.addEventListener('click',()=>{
@@ -3206,6 +3208,11 @@
       renderBoardEditor();
     }));
     box.querySelectorAll('[data-bimgadj]').forEach(b=>b.addEventListener('click',()=>openImageAdjust(b.dataset.bimgadj)));
+    box.querySelectorAll('[data-bimglbl]').forEach(el=>el.addEventListener('input',()=>{
+      boardState.imageLabels=boardState.imageLabels||{};
+      boardState.imageLabels[el.dataset.bimglbl]=el.value;
+      scheduleBoardEditorRender();
+    }));
   }
 
   function isCustomBoardKey(k){ return typeof k==='string'&&k.indexOf('custom:')===0; }
@@ -3224,6 +3231,7 @@
     // いま調整している値を反映させた黒板を描く
     board.images=Object.assign({},boardState.images||{});
     board.imageFits=Object.assign({},boardState.imageFits||{},{[imgAdjState.key]:imgAdjState.fit});
+    board.imageLabels=Object.assign({},boardState.imageLabels||{});
     board.imageAdjusts=Object.assign({},boardState.imageAdjusts||{},
       {[imgAdjState.key]:{zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y}});
     const size=boardRenderSize(board);
@@ -3270,6 +3278,10 @@
         if(i===t.sketch.toRow)ey=y+rh;
         y+=rh;
       });
+      // 絵があるときは枠いっぱい（描画側と同じ）
+      const hasImg=!!((boardState.images||{})['sketch']);
+      if(hasImg)return {x:sketchColX+1, y:sy+1,
+              w:Math.max(4,(innerX+innerW)-sketchColX-2), h:Math.max(4,ey-sy-2)};
       const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
       const top=sy+padY+lblSize+4;
       return {x:sketchColX+padX, y:top,
@@ -3281,14 +3293,13 @@
     rows.forEach(r=>{
       const rh=innerH*((r.weight||1)/total);
       if(r.image&&r.image.key===key){
-        let top=y+padY;
-        if(r.image.label){
+        if((boardState.images||{})[key]){
+          found={x:innerX+1, y:y+1, w:Math.max(4,innerW-2), h:Math.max(4,rh-2)};
+        }else{
           const lblSize=Math.max(11,Math.round(baseFont*0.85));
-          top+=lblSize+4;
+          const top=y+padY+(r.image.label?lblSize+4:0);
+          found={x:innerX+padX, y:top, w:Math.max(4,innerW-padX*2), h:Math.max(4,y+rh-top-padY)};
         }
-        found={x:innerX+padX, y:top,
-               w:Math.max(4,innerW-padX*2),
-               h:Math.max(4,y+rh-top-padY)};
       }
       y+=rh;
     });
@@ -3583,6 +3594,7 @@
     boardState.images = cloneBoardData(data.images||{});
     boardState.imageFits = cloneBoardData(data.imageFits||{});
     boardState.imageAdjusts = cloneBoardData(data.imageAdjusts||{});
+    boardState.imageLabels = cloneBoardData(data.imageLabels||{});
     $('boardNoteSize').value = data.noteSize||'m';
     // 記入欄があるテンプレートのときだけ、文字の大きさを選べるようにする
     const sizeRow=$('boardNoteSizeRow');
@@ -3608,7 +3620,7 @@
     renderTemplatePicker(data.template||'tajima');
   }
   function readBoardControls(){
-    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null,images:cloneBoardData(boardState.images||{}),imageFits:cloneBoardData(boardState.imageFits||{}),imageAdjusts:cloneBoardData(boardState.imageAdjusts||{})};
+    const base={enabled:$('boardEnabled').checked,template:$('boardTemplate').value,position:$('boardPosition').value,size:$('boardSize').value,orient:$('boardOrient').value,noteSize:$('boardNoteSize').value,surface:$('boardSurface').value,freePos:boardState.freePos||null,images:cloneBoardData(boardState.images||{}),imageFits:cloneBoardData(boardState.imageFits||{}),imageAdjusts:cloneBoardData(boardState.imageAdjusts||{}),imageLabels:cloneBoardData(boardState.imageLabels||{})};
     if(genericTemplate(base.template)){
       const fields={}; genericTemplateFieldList(base.template).forEach(f=>{const el=$('gf_'+f.id); fields[f.id]=el?el.value:''});
       const extra={}; genericTemplateNoteKeys(base.template).forEach(n=>{const el=$('gn_'+n.key); extra[n.key]=limitBoardNoteLines(el?el.value:'',n.maxLines||9)});
@@ -4060,16 +4072,24 @@
         // 豆図の枠。画像が貼られていれば中に収めて描く
         const key=g.row.image.key;
         const padX=8,padY=6;
-        let top=g.y+padY;
-        if(g.row.image.label){
-          const lblSize=Math.max(11,Math.round(baseFont*0.85));
+        const src=(data.images||{})[key];
+        const label=(data.imageLabels&&typeof data.imageLabels[key]==='string')
+          ? data.imageLabels[key] : (g.row.image.label||'');
+        const lblSize=Math.max(11,Math.round(baseFont*0.85));
+        // 絵を貼っているときは枠いっぱいまで使い、見出しは絵の上に重ねる
+        const top=src?(g.y+1):(g.y+padY+(label?lblSize+4:0));
+        const ih=src?Math.max(4,g.h-2):Math.max(4,g.y+g.h-top-padY);
+        const ix=src?(innerX+1):(innerX+padX);
+        const iw=src?Math.max(4,(rowRightX-innerX)-2):Math.max(4,(rowRightX-innerX)-padX*2);
+        drawBoardImageInto(ctx,src,ix,top,iw,ih,boardImageFit(data,key),boardImageAdjust(data,key));
+        if(label){
+          ctx.save();
           ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-          ctx.fillText(g.row.image.label,innerX+padX,top);
-          top+=lblSize+4;
+          if(src){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
+          else ctx.fillStyle=CHALK_WHITE_GET();
+          ctx.fillText(label,innerX+padX,g.y+padY);
+          ctx.restore();
         }
-        drawBoardImageInto(ctx,(data.images||{})[key],innerX+padX,top,
-          (rowRightX-innerX)-padX*2,Math.max(4,g.y+g.h-top-padY),
-          boardImageFit(data,key),boardImageAdjust(data,key));
       }else if(g.row.parts){
         const parts=g.row.parts;
         const partW=(rowRightX-innerX)/parts.length;
@@ -4100,14 +4120,29 @@
       ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
       const padX=8,padY=6;
       const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
-      ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();
-      ctx.fillText(sketch.label||'略図',sketchColX+padX,sy+padY);
+      ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();
       const sketchImg=(data.images||{})['sketch'];
-      if(sketchImg&&drawBoardImageInto(ctx,sketchImg,sketchColX+padX,sy+padY+lblSize+4,
-          (innerX+innerW)-sketchColX-padX*2,Math.max(4,ey-(sy+padY+lblSize+4)-padY),
+      // 見出し（略図など）は、自分で書き換えられる。空にすれば見出しなしになる。
+      const sketchLabel=(data.imageLabels&&typeof data.imageLabels['sketch']==='string')
+        ? data.imageLabels['sketch'] : (sketch.label||'略図');
+      // 豆図を貼っているときは枠いっぱいまで使う。見出しは絵の上に重ねる。
+      const imgTop=sketchImg?(sy+1):(sy+padY+lblSize+4);
+      const imgH=sketchImg?Math.max(4,ey-sy-2):Math.max(4,ey-(sy+padY+lblSize+4)-padY);
+      const imgX=sketchImg?(sketchColX+1):(sketchColX+padX);
+      const imgW=sketchImg?Math.max(4,(innerX+innerW)-sketchColX-2):Math.max(4,(innerX+innerW)-sketchColX-padX*2);
+      if(sketchImg&&drawBoardImageInto(ctx,sketchImg,imgX,imgTop,imgW,imgH,
           boardImageFit(data,'sketch'),boardImageAdjust(data,'sketch'))){
-        // 豆図を貼っているときは、同じ場所の文字は出さない
+        // 絵の上に見出しを重ねる（読めるよう影を付ける）
+        if(sketchLabel){
+          ctx.save();
+          ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
+          ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=Math.max(3,lblSize*0.35);
+          ctx.fillStyle='#fff';
+          ctx.fillText(sketchLabel,sketchColX+padX,sy+padY);
+          ctx.restore();
+        }
       }else if(sketch.noteKey){
+        if(sketchLabel){ ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();ctx.fillText(sketchLabel,sketchColX+padX,sy+padY); }
         const text=data[sketch.noteKey]||'';
         const maxLines=noteLinesScaled(sketch.maxLines||6,data.noteSize);
         const textTop=sy+padY+lblSize+4;

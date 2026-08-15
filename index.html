@@ -819,8 +819,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19d';
-  const APP_UPDATE_NOTE='次の写真を開いたとき、前の文字が残っていた不具合を修正しました';
+  const APP_VERSION='2026.08.19f';
+  const APP_UPDATE_NOTE='黒板の位置の初期値を「自由」にしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2854,11 +2854,11 @@
     if(genericTemplate(name)){
       const fields={}; genericTemplateFieldList(name).forEach(f=>{fields[f.id]=f.ctxField?c[f.ctxField]:''});
       const extra={}; genericTemplateNoteKeys(name).forEach(n=>{extra[n.key]=''});
-      return Object.assign({template:name,position:'rb',size:'s',fields},extra);
+      return Object.assign({template:name,position:'free',size:'s',fields},extra);
     }
     const key=BOARD_TEMPLATES[name]?name:'tajima';
     const def=BOARD_TEMPLATES[key];
-    return {template:key,position:'rb',size:'s',
+    return {template:key,position:'free',size:'s',
       top:def.top.map(t=>({label:t.label,value:t.field?c[t.field]:''})),
       bottom:{label:def.bottom.label,value:def.bottom.field?c[def.bottom.field]:''},
       note:''};
@@ -3413,6 +3413,8 @@
     if(bw>w-pad*2){bw=w-pad*2;bh=bw*ar}
     if(bh>h-pad*2){bh=h-pad*2;bw=bh/ar}
     let x=pad,y=h-bh-pad;
+    // 「自由」でまだ動かしていないときは、右下から始める（左下だと配管などに重なりやすい）
+    if(position==='free'&&!(free&&typeof free.x==='number')){x=Math.max(0,w-bw);y=Math.max(0,h-bh)}
     if(position==='rb'){x=w-bw-pad;y=h-bh-pad}
     if(position==='lt'){x=pad;y=pad}
     if(position==='rt'){x=w-bw-pad;y=pad}
@@ -4063,6 +4065,13 @@
   }
   async function openBoardDialog(ph){
     closeBoardInlineEditor();   // 前の写真の入力欄を残さない
+    // 位置決めの黒板は画像を貼り付けているだけなので、消さないと前の写真のものが
+    // 描き直しが終わるまで見えてしまう。開いた時点で必ず消しておく。
+    try{
+      const box=$('posPickBoard');
+      if(box){ box.style.backgroundImage='none'; box.style.backgroundColor='transparent'; }
+      _posPickBoardCache={key:'',url:''};
+    }catch(e){}
     $('boardPhotoId').value=ph.id;boardState.photoId=ph.id;boardState.image=await loadImageElement(ph.blob);
     boardState.strokes=ph.boardData&&ph.boardData.scope==='board'?cloneBoardData(ph.boardData.strokes||[]):[];
     let savedBoard;

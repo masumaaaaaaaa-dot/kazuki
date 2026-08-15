@@ -63,6 +63,11 @@
     .thumb{width:116px;height:104px;border-radius:8px;object-fit:contain;background:#eef1f5;border:1px solid #cbd5e1}
     .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
+    /* 現場の並べ替え矢印。他の操作ボタンとは別に、現場名の右へ縦に並べる */
+    .item-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;margin-left:8px}
+    .order-btns{display:flex;flex-direction:column;gap:4px}
+    .order-btn{width:38px;height:32px;padding:0;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+    .order-btn:disabled{opacity:.32;cursor:default}
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid #cbd5e1;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:max(5px,env(safe-area-inset-bottom))}
     .nav-btn{border:0;background:#fff;padding:9px 2px 6px;color:#64748b;font-size:11px}.nav-btn span{display:block;font-size:21px;line-height:1.1;margin-bottom:3px}.nav-btn.active{color:var(--brand-ink);font-weight:800}
     dialog{border:0;border-radius:15px;padding:0;width:min(94vw,620px);max-height:90vh;box-shadow:0 24px 70px rgba(0,0,0,.28)}dialog::backdrop{background:rgba(15,23,42,.55)}
@@ -782,7 +787,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18a';
+  const APP_VERSION='2026.08.18b';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -882,14 +887,17 @@
       return `<div class="project-item ${p.id===currentProjectId?'active':''}" data-id="${p.id}">
         <div class="item-head"><div class="item-main"><div class="item-title">${escapeHtml(p.name)}</div>
         <div class="item-sub">${escapeHtml(p.address||'住所未入力')}<br>${count}枚｜${escapeHtml(p.company||'会社名未入力')}</div></div>
-        ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}</div>
+        <div class="item-side">
+          ${p.id===currentProjectId?'<span class="badge">選択中</span>':''}
+          <div class="order-btns">
+            <button class="btn order-btn" data-action="up-project" data-id="${p.id}" title="1つ上へ移動" aria-label="1つ上へ移動" ${i===0?'disabled':''}>↑</button>
+            <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>
+          </div>
+        </div></div>
         <div class="photo-actions">
           <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
-          <button class="btn" data-action="up-project" data-id="${p.id}" title="1つ上へ" ${i===0?'disabled':''}>↑</button>
-          <button class="btn" data-action="down-project" data-id="${p.id}" title="1つ下へ" ${i===projects.length-1?'disabled':''}>↓</button>
-          ${i>0?`<button class="btn" data-action="top-project" data-id="${p.id}" title="先頭へ移動">先頭へ</button>`:''}
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
           <button class="btn" data-action="export-project" data-id="${p.id}">データ控え</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
@@ -4246,7 +4254,6 @@
     if(b.dataset.action==='edit-project')openProjectDialog(p);
     if(b.dataset.action==='up-project')await moveProject(id,-1);
     if(b.dataset.action==='down-project')await moveProject(id,1);
-    if(b.dataset.action==='top-project')await moveProjectTo(id,0);
     if(b.dataset.action==='duplicate-project'){
       const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};
       delete np.order;

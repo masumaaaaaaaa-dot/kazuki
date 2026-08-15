@@ -839,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v163';
-  const APP_UPDATE_NOTE='豆図の調整画面で、黒板ぜんぶを見ながら調整できるようにしました';
+  const APP_VERSION='v164';
+  const APP_UPDATE_NOTE='豆図の枠の表示位置がずれていたのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3257,9 +3257,12 @@
     const rows=t.rows||[];
     const total=rows.reduce((a,r)=>a+(r.weight||1),0)||1;
     const key=imgAdjState.key;
+    // ここは描画側とまったく同じ計算にすること。
+    // 余白やラベルのぶんを入れ忘れると、枠と実際の絵がずれる。
+    const padX=8, padY=6;
     if(key==='sketch'&&t.sketch){
-      const colPct=t.sketch.colPct||0.4;      // すでに割合（0.55など）
-      const sketchColX=innerX+innerW*(1-colPct);
+      // 描画側と同じ式（1-colPct ではない）
+      const sketchColX=innerX+innerW*(t.sketch.colPct||0.4);
       let y=innerY, sy=innerY, ey=innerY;
       rows.forEach((r,i)=>{
         const rh=innerH*((r.weight||1)/total);
@@ -3267,12 +3270,26 @@
         if(i===t.sketch.toRow)ey=y+rh;
         y+=rh;
       });
-      return {x:sketchColX,y:sy,w:(innerX+innerW)-sketchColX,h:Math.max(4,ey-sy)};
+      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
+      const top=sy+padY+lblSize+4;
+      return {x:sketchColX+padX, y:top,
+              w:Math.max(4,(innerX+innerW)-sketchColX-padX*2),
+              h:Math.max(4,ey-top-padY)};
     }
+    const baseFont=Math.max(12,Math.round(Math.min(w,h)*0.06));
     let y=innerY, found=null;
     rows.forEach(r=>{
       const rh=innerH*((r.weight||1)/total);
-      if(r.image&&r.image.key===key)found={x:innerX,y,w:innerW,h:rh};
+      if(r.image&&r.image.key===key){
+        let top=y+padY;
+        if(r.image.label){
+          const lblSize=Math.max(11,Math.round(baseFont*0.85));
+          top+=lblSize+4;
+        }
+        found={x:innerX+padX, y:top,
+               w:Math.max(4,innerW-padX*2),
+               h:Math.max(4,y+rh-top-padY)};
+      }
       y+=rh;
     });
     return found;

@@ -590,9 +590,9 @@
 <dialog id="imgAdjustDialog">
   <div class="dialog-head"><h3>豆図の大きさ・位置</h3><button class="btn" type="button" id="imgAdjCloseBtn">閉じる</button></div>
   <div class="dialog-body">
-    <div class="hint">指2本を広げると大きく、指1本でずらせます。枠の中に見えているとおりに黒板へ入ります。</div>
-    <div id="imgAdjStage" style="margin-top:10px;position:relative;width:100%;max-height:52vh;background:#33513f;border:2px solid rgba(255,255,255,.85);border-radius:6px;overflow:hidden;touch-action:none;user-select:none">
-      <canvas id="imgAdjCanvas" style="width:100%;display:block"></canvas>
+    <div class="hint">黒板ぜんぶを表示しています。オレンジの点線が豆図の枠です。<br>指2本を広げると大きく、指1本でずらせます。見えているとおりに保存されます。</div>
+    <div id="imgAdjStage" style="margin-top:10px;position:relative;width:100%;display:flex;justify-content:center;align-items:center;touch-action:none;user-select:none">
+      <canvas id="imgAdjCanvas" style="display:block;border-radius:6px"></canvas>
     </div>
     <div class="btn-row" style="margin-top:10px">
       <button type="button" class="btn" id="imgAdjZoomOut" style="flex:1;font-size:20px">−</button>
@@ -839,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v162';
-  const APP_UPDATE_NOTE='豆図の調整画面の操作感を改善しました';
+  const APP_VERSION='v163';
+  const APP_UPDATE_NOTE='豆図の調整画面で、黒板ぜんぶを見ながら調整できるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3215,21 +3215,67 @@
   const imgAdjPointers=new Map();
   let imgAdjPrevDist=null, imgAdjPrevMid=null;
 
+  // 黒板を丸ごと描いて、そのうえで豆図の枠を目立たせる。
+  // これなら「完成したときにどう見えるか」がそのまま分かる。
   function imgAdjDraw(){
     const cv=$('imgAdjCanvas'); if(!cv)return;
     const stage=$('imgAdjStage'); if(!stage)return;
-    const w=Math.max(200,stage.clientWidth||320);
-    // 縦長の枠だと画面からはみ出すので、高さに上限をかける
-    const maxH=Math.max(180,Math.round(window.innerHeight*0.5));
-    const h=Math.max(120,Math.min(maxH,Math.round(w/imgAdjState.ratio)));
-    if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
-    cv.style.height=h+'px';
+    const board=readBoardControls();
+    // いま調整している値を反映させた黒板を描く
+    board.images=Object.assign({},boardState.images||{});
+    board.imageFits=Object.assign({},boardState.imageFits||{},{[imgAdjState.key]:imgAdjState.fit});
+    board.imageAdjusts=Object.assign({},boardState.imageAdjusts||{},
+      {[imgAdjState.key]:{zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y}});
+    const size=boardRenderSize(board);
+    const w=Math.max(220,stage.clientWidth||320);
+    const maxH=Math.max(180,Math.round(window.innerHeight*0.46));
+    let cw=w, ch=Math.round(w*size.h/size.w);
+    if(ch>maxH){ ch=maxH; cw=Math.round(maxH*size.w/size.h); }
+    if(cv.width!==cw||cv.height!==ch){ cv.width=cw; cv.height=ch; }
+    cv.style.width=cw+'px'; cv.style.height=ch+'px';
     const ctx=cv.getContext('2d');
     ctx.setTransform(1,0,0,1,0,0);
-    ctx.fillStyle='#33513f'; ctx.fillRect(0,0,w,h);
-    drawBoardImageInto(ctx,imgAdjState.src,0,0,w,h,imgAdjState.fit,
-      {zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y});
+    ctx.clearRect(0,0,cw,ch);
+    drawBoardFace(ctx,cw,ch,board);
+    // 豆図の枠を示す（この中に入ります、と分かるように）
+    const r=imgAdjSlotRect(board,cw,ch);
+    imgAdjState.rect=r;
+    if(r){
+      ctx.save();
+      ctx.strokeStyle='#f5a524'; ctx.lineWidth=2.5;
+      ctx.setLineDash([7,5]);
+      ctx.strokeRect(r.x+1,r.y+1,r.w-2,r.h-2);
+      ctx.restore();
+    }
     const lb=$('imgAdjZoomLabel'); if(lb)lb.textContent=imgAdjState.zoom.toFixed(1)+'倍';
+  }
+  // 黒板の中で、豆図が入る場所を求める（描画の計算と同じ考え方）
+  function imgAdjSlotRect(board,w,h){
+    const t=genericTemplate(board.template); if(!t)return null;
+    const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
+    const innerX=pad, innerY=pad, innerW=w-pad*2, innerH=h-pad*2;
+    const rows=t.rows||[];
+    const total=rows.reduce((a,r)=>a+(r.weight||1),0)||1;
+    const key=imgAdjState.key;
+    if(key==='sketch'&&t.sketch){
+      const colPct=t.sketch.colPct||0.4;      // すでに割合（0.55など）
+      const sketchColX=innerX+innerW*(1-colPct);
+      let y=innerY, sy=innerY, ey=innerY;
+      rows.forEach((r,i)=>{
+        const rh=innerH*((r.weight||1)/total);
+        if(i===t.sketch.fromRow)sy=y;
+        if(i===t.sketch.toRow)ey=y+rh;
+        y+=rh;
+      });
+      return {x:sketchColX,y:sy,w:(innerX+innerW)-sketchColX,h:Math.max(4,ey-sy)};
+    }
+    let y=innerY, found=null;
+    rows.forEach(r=>{
+      const rh=innerH*((r.weight||1)/total);
+      if(r.image&&r.image.key===key)found={x:innerX,y,w:innerW,h:rh};
+      y+=rh;
+    });
+    return found;
   }
   // 指を動かすたびに描き直すと重いので、1コマにまとめる
   let _imgAdjRaf=0;
@@ -3245,13 +3291,13 @@
   }
   // いま画像が枠からどれだけはみ出しているか（指の動きと画像の動きを合わせるために使う）
   function imgAdjOverflow(){
-    const cv=$('imgAdjCanvas'); const img=boardImageReady(imgAdjState.src);
-    if(!cv||!img)return {ox:0,oy:0};
+    const r=imgAdjState.rect; const img=boardImageReady(imgAdjState.src);
+    if(!r||!img)return {ox:0,oy:0};
     const base=(imgAdjState.fit==='fill')
-      ? Math.max(cv.width/img.width,cv.height/img.height)
-      : Math.min(cv.width/img.width,cv.height/img.height);
+      ? Math.max(r.w/img.width,r.h/img.height)
+      : Math.min(r.w/img.width,r.h/img.height);
     const sc=base*Math.max(1,imgAdjState.zoom);
-    return {ox:Math.max(0,img.width*sc-cv.width), oy:Math.max(0,img.height*sc-cv.height)};
+    return {ox:Math.max(0,img.width*sc-r.w), oy:Math.max(0,img.height*sc-r.h)};
   }
   function imgAdjPan(dx,dy){
     const o=imgAdjOverflow();
@@ -3260,23 +3306,6 @@
     if(o.oy>0)imgAdjState.y=Math.max(0,Math.min(1,imgAdjState.y-dy/o.oy));
     imgAdjScheduleDraw();
   }
-  // 豆図の枠のおおよその縦横比（テンプレートによって変わる）
-  function imgAdjSlotRatio(key){
-    const t=genericTemplate($('boardTemplate').value);
-    if(!t)return 1.5;
-    if(key==='sketch'&&t.sketch){
-      const total=(t.rows||[]).reduce((a,r)=>a+(r.weight||1),0)||1;
-      const span=((t.sketch.toRow||0)-(t.sketch.fromRow||0)+1)/total;
-      const colPct=(t.sketch.colPct||40)/100;
-      return Math.max(0.4,Math.min(4,(colPct*1.5)/Math.max(0.05,span)));
-    }
-    const row=(t.rows||[]).find(r=>r.image&&r.image.key===key);
-    if(row){
-      const total=(t.rows||[]).reduce((a,r)=>a+(r.weight||1),0)||1;
-      return Math.max(0.4,Math.min(4,1.5/Math.max(0.05,(row.weight||1)/total)));
-    }
-    return 1.5;
-  }
   function openImageAdjust(key){
     const src=(boardState.images||{})[key];
     if(!src){alert('先に画像を貼ってください。');return}
@@ -3284,7 +3313,7 @@
     imgAdjState={key,zoom:a.zoom>0?a.zoom:1,
       x:(typeof a.x==='number')?a.x:.5, y:(typeof a.y==='number')?a.y:.5,
       fit:((boardState.imageFits||{})[key]==='fill')?'fill':'fit',
-      src, ratio:imgAdjSlotRatio(key)};
+      src, rect:null};
     ensureBoardImages({images:{[key]:src}}).then(()=>{
       $('imgAdjustDialog').showModal();
       requestAnimationFrame(imgAdjDraw);

@@ -819,8 +819,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19c';
-  const APP_UPDATE_NOTE='設定から画面の説明文を隠せるようにしました';
+  const APP_VERSION='2026.08.19d';
+  const APP_UPDATE_NOTE='次の写真を開いたとき、前の文字が残っていた不具合を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -4062,6 +4062,7 @@
     btn.textContent=applied?'✓ 現在の現場情報を反映中（もう一度押すと戻す）':'現在の現場情報を黒板へ反映';
   }
   async function openBoardDialog(ph){
+    closeBoardInlineEditor();   // 前の写真の入力欄を残さない
     $('boardPhotoId').value=ph.id;boardState.photoId=ph.id;boardState.image=await loadImageElement(ph.blob);
     boardState.strokes=ph.boardData&&ph.boardData.scope==='board'?cloneBoardData(ph.boardData.strokes||[]):[];
     let savedBoard;
@@ -4092,6 +4093,7 @@
     requestAnimationFrame(renderBoardEditor);
   }
   async function saveBoardEdits(){
+    closeBoardInlineEditor();   // 入力中の文字を確定してから作る
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
     const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
     if(board.enabled!==false){await ensureBoardImages(board);const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
@@ -4183,7 +4185,13 @@
     if(genericTemplate(board.template))return genericFieldRects(w,h,board.template);
     return legacyFieldRects(w,h,board.noteSize);
   }
-  function closeBoardInlineEditor(){ const el=$('boardInlineEditor'); if(el)el.remove(); }
+  // 黒板に直接入力するときの吹き出し。
+  // 開いたまま画面を閉じると次の写真に残ってしまうため、必ずここで片づける。
+  let _boardInlineCommit=null;
+  function closeBoardInlineEditor(){
+    if(_boardInlineCommit){ try{ _boardInlineCommit(); }catch(e){} _boardInlineCommit=null; }
+    const el=$('boardInlineEditor'); if(el)el.remove();
+  }
   function openBoardInlineEditor(r){
     const prev=$('boardInlineEditor'); if(prev)prev.blur();
     const stage=$('boardStage'); const srcEl=$(r.targetId); if(!stage||!srcEl)return;
@@ -4198,11 +4206,13 @@
       srcEl.value=editor.value;
       srcEl.dispatchEvent(new Event('input',{bubbles:true}));
       if(editor.parentNode)editor.remove();
+      _boardInlineCommit=null;
     };
+    _boardInlineCommit=commit;
     editor.addEventListener('blur',commit);
     editor.addEventListener('keydown',e=>{
       if(e.key==='Enter'&&r.kind!=='note'){e.preventDefault();editor.blur();}
-      if(e.key==='Escape'){committed=true;editor.remove();}
+      if(e.key==='Escape'){committed=true;_boardInlineCommit=null;editor.remove();}
     });
     stage.appendChild(editor);
     editor.focus();
@@ -4345,6 +4355,7 @@
   $('saveMyBoardBtn').addEventListener('click',saveMyBoard);
   $('undoDrawBtn').addEventListener('click',()=>{ boardState.strokes.pop(); renderBoardEditor(); });
   $('clearDrawBtn').addEventListener('click',()=>{ boardState.strokes=[]; renderBoardEditor(); });
+  $('boardDialog').addEventListener('close',()=>{ closeBoardInlineEditor(); });
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
   $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
   const drawCanvas=$('boardDrawCanvas'); drawCanvas.addEventListener('pointerdown',onBoardPointerDown); drawCanvas.addEventListener('pointermove',onBoardPointerMove); ['pointerup','pointerleave','pointercancel'].forEach(ev=>drawCanvas.addEventListener(ev,onBoardPointerUp));

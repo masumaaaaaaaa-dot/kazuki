@@ -403,9 +403,10 @@
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
           </div>
           <div class="hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ保存先を選んでください。</div>
-          <div class="hint" style="margin:6px 0 0">端末の中のフォルダでも、Googleドライブのフォルダでも指定できます。<br>
-          ・端末の中に置く場合は「内部ストレージ → DCIM → Camera」がおすすめです。写真アプリにすぐ出ますし、Googleフォトのバックアップ対象にもなります。<br>
-          ・Googleドライブを選ぶと、パソコンからも見られます。ただし電波のない現場では、電波が戻るまで反映されません。</div>
+          <div class="hint" style="margin:6px 0 0">端末の中のフォルダでも、クラウドのフォルダでも指定できます。<br>
+          ・端末の中に置く場合は「内部ストレージ → DCIM → Camera」がおすすめです。写真アプリにすぐ出ますし、Googleフォトなどのバックアップ対象にもなります。<br>
+          ・クラウド（Googleドライブ、OneDrive、Dropbox など、スマホに入れているもの）を選ぶと、パソコンからも見られます。ただし電波のない現場では、電波が戻るまで反映されません。<br>
+          ・選べるフォルダは、お使いのスマホに入っているアプリによって変わります。設定を押したときの一覧に出てこないクラウドは、そのアプリを先に入れてください。</div>
         </div>
       </div>
       <div class="card">
@@ -807,8 +808,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18g';
-  const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
+  const APP_VERSION='2026.08.18h';
+  const APP_UPDATE_NOTE='黒板編集の操作説明を訂正し、保存先の案内を分かりやすくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1786,7 +1787,7 @@
     }
     btn.disabled=false;
     status.textContent=photoDirectoryHandle
-      ? `保存先：${photoDirectoryHandle.name}（元画質で保存）　※このフォルダが端末内かGoogleドライブ内かは、スマホの「ファイル」アプリで確認できます`
+      ? `保存先：${photoDirectoryHandle.name}（元画質で保存）　※このフォルダが端末内かクラウド上かは、スマホの「ファイル」アプリで確認できます`
       : '初回だけ「内部ストレージ → DCIM → Camera」を選んでください。';
   }
 
@@ -4381,14 +4382,19 @@
       }).catch(console.warn);
     });
   }
-  // 更新後に、何が変わったかを知らせる
+  // 更新後に、何が変わったかを知らせる。
+  // 版を上げたのに知らせの文だけ直し忘れると、同じ内容が出続けるため、
+  // 前回と同じ文のときは開発者向けに警告を出しておく。
   function notifyUpdatedIfNeeded(){
     try{
       const prev=localStorage.getItem('photoLedgerVersion');
+      const prevNote=localStorage.getItem('photoLedgerUpdateNote');
       if(prev && prev!==APP_VERSION){
+        if(prevNote===APP_UPDATE_NOTE)console.warn('APP_UPDATE_NOTE が前回と同じです。版を上げたら知らせの文も直してください。');
         setTimeout(()=>showActionToast('更新しました：'+APP_UPDATE_NOTE,'',null,10),800);
       }
       localStorage.setItem('photoLedgerVersion',APP_VERSION);
+      localStorage.setItem('photoLedgerUpdateNote',APP_UPDATE_NOTE);
     }catch(e){}
   }
   function maybeShowWelcome(){

@@ -808,8 +808,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18h';
-  const APP_UPDATE_NOTE='黒板編集の操作説明を訂正し、保存先の案内を分かりやすくしました';
+  const APP_VERSION='2026.08.18i';
+  const APP_UPDATE_NOTE='位置決めの画面に、実際の黒板が表示されるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3805,6 +3805,21 @@
   function resetBoardZoom(){boardZoom.scale=1;boardZoom.tx=0;boardZoom.ty=0;applyBoardZoomTransform();}
   // ---- 写真の上で黒板の位置を指で決める ----
   let posPickState=null;
+  // 位置決め用の黒板の絵。中身が変わったときだけ作り直して使い回す。
+  let _posPickBoardCache={key:'',url:''};
+  function posPickBoardImage(board){
+    try{
+      const key=JSON.stringify(board)+'|'+JSON.stringify(boardState.strokes||[]);
+      if(_posPickBoardCache.key===key)return _posPickBoardCache.url;
+      const size=boardRenderSize(board);
+      const sc=Math.min(1,560/Math.max(size.w,size.h));
+      const cv=makeBoardCanvasRotated(board,boardState.strokes||[],
+        Math.max(1,Math.round(size.w*sc)),Math.max(1,Math.round(size.h*sc)));
+      const url=cv.toDataURL('image/jpeg',0.85);
+      _posPickBoardCache={key,url};
+      return url;
+    }catch(e){ console.warn('位置決め用の黒板を作れませんでした',e); return ''; }
+  }
   function updatePosPickUI(){
     const wrap=$('posPickWrap'); if(!wrap)return;
     const board=readBoardControls();
@@ -3823,7 +3838,10 @@
     const lab=$('posPickLabel');
     if(lab)lab.textContent=free?'写真の上で、黒板を指で動かして位置を決めてください':'写真に貼ったときの仕上がり';
     const hint=$('posPickHint');
-    if(hint)hint.textContent=free?'黒板をつかんで動かせます。位置は写真ごとに保存されます。':'「位置」を「自由」にすると、黒板を指で動かして置けます。';
+    if(hint)hint.textContent=free?'いまの黒板がそのまま表示されています。つかんで動かせます（位置は写真ごとに保存されます）。':'「位置」を「自由」にすると、黒板を指で動かして置けます。';
+    // 位置決めの四角に、いま編集している黒板そのもの（文字・手書きを含む）を映す。
+    // 指で動かすたびに描き直すと重いので、絵は先に1枚だけ作っておく。
+    const boxImg=posPickBoardImage(board);
     const draw=()=>{
       const stage=$('posPickStage'), box=$('posPickBoard');
       box.style.cursor=free?'move':'default';
@@ -3833,7 +3851,14 @@
       const r=computeBoardRect(sw,sh,board.position,board.size||'m',boardAspect(board),board.freePos);
       box.style.left=r.x+'px'; box.style.top=r.y+'px';
       box.style.width=r.w+'px'; box.style.height=r.h+'px';
-      box.style.background=board.surface==='white'?'rgba(250,250,250,.85)':'rgba(60,84,74,.85)';
+      if(boxImg){
+        box.style.backgroundImage='url("'+boxImg+'")';
+        box.style.backgroundSize='100% 100%';
+        box.style.backgroundColor='transparent';
+      }else{
+        box.style.backgroundImage='none';
+        box.style.backgroundColor=board.surface==='white'?'rgba(250,250,250,.85)':'rgba(60,84,74,.85)';
+      }
     };
     if(img.complete)draw(); else img.onload=draw;
     posPickState={draw};

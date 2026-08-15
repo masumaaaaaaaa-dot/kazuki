@@ -1,3 +1,61 @@
+    /* 黒板編集：横画面では画面ぜんぶを使い、左に黒板だけ、右に操作をまとめる。
+       上の見出しは場所を取るだけなので出さない。 */
+    @media(orientation:landscape) and (max-height:600px){
+      #boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
+      #boardDialog #boardForm{
+        display:grid;
+        grid-template-columns:minmax(0,1fr) clamp(300px,38vw,440px);
+        grid-template-rows:1fr;
+        height:100%;gap:8px;padding:8px;box-sizing:border-box;
+      }
+      /* 見出しと下のボタン列は、横向きでは使わない（右列にまとめる） */
+      #boardDialog .dialog-head{display:none}
+      #boardDialog .dialog-foot{display:none}
+      /* dialog-body を2列の入れ物として使う */
+      #boardDialog .dialog-body{
+        display:contents;padding:0;overflow:visible;
+      }
+      /* 左：黒板だけ */
+      #boardDialog .board-wrap{
+        grid-column:1;grid-row:1;
+        margin:0;padding:6px;min-width:0;max-width:none;
+        display:flex;align-items:center;justify-content:center;overflow:hidden;
+      }
+      #boardDialog .board-stage-viewport{width:100%;height:100%;max-width:100%;max-height:100%}
+      /* 左からは操作類を追い出す（右列で操作する） */
+      #boardDialog .mode-toggle,
+      #boardDialog .draw-tool-bar,
+      #boardDialog .draw-hint,
+      #boardDialog .inline-note,
+      #boardDialog .zoom-controls{display:none}
+      /* 右：操作をぜんぶまとめる */
+      #boardDialog #boardControlsCol{
+        grid-column:2;grid-row:1;
+        display:flex;flex-direction:column;min-width:0;
+        overflow:hidden;gap:6px;
+      }
+      /* 右列の上部に、モード切替と手書き道具を差し込む場所 */
+      #boardDialog #landscapeTools{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
+      #boardDialog #landscapeTools .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:0}
+      #boardDialog #landscapeTools .mode-toggle .btn{padding:7px 2px;font-size:11.5px;min-width:0}
+      #boardDialog #landscapeTools .draw-tool-bar{display:flex;flex-wrap:wrap;gap:4px;padding:5px 6px;margin:0}
+      #boardDialog #landscapeTools .swatch-btn{width:24px;height:24px}
+      #boardDialog #landscapeTools .width-btn,
+      #boardDialog #landscapeTools .icon-btn{width:28px;height:28px}
+      /* 入力欄は縦にスクロール */
+      #boardDialog #boardControlsScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+      #boardDialog #boardControlsCol .tip-box{margin-top:0!important;padding:7px 9px}
+      #boardDialog #boardControlsCol label{font-size:11px;margin-bottom:2px}
+      #boardDialog #boardControlsCol input,
+      #boardDialog #boardControlsCol select,
+      #boardDialog #boardControlsCol textarea{font-size:13.5px;padding:6px 8px}
+      #boardDialog #boardControlsCol textarea{min-height:56px}
+      #boardDialog #boardControlsCol h4,
+      #boardDialog #boardControlsCol .tip-box > div:first-child{font-size:12.5px}
+      /* 下の2つのボタンを右列の一番下に固定 */
+      #boardDialog #landscapeActions{display:flex;gap:6px;flex:0 0 auto}
+      #boardDialog #landscapeActions .btn{flex:1;padding:9px 6px;font-size:13px}
+    }
 <!doctype html>
 <html lang="ja">
 <head>
@@ -781,6 +839,8 @@
         </div>
       </div>
       <div id="boardControlsCol">
+      <div id="landscapeTools"></div>
+      <div id="boardControlsScroll">
       <div class="tip-box" style="margin-top:10px">
         <div style="font-weight:800;color:var(--brand2)">現場情報を自動入力</div>
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
@@ -847,6 +907,8 @@
       <div id="boardGenericFields" style="margin-top:10px"></div>
         <div id="boardImageSlots" style="display:none;margin-top:12px"></div>
       </div>
+      <div id="landscapeActions"></div>
+      </div>
     </div>
     <div class="dialog-foot">
       <button type="button" class="btn danger" id="resetOriginalBtn">元写真に戻す</button>
@@ -867,8 +929,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v167';
-  const APP_UPDATE_NOTE='黒板編集を横向きにしたときの使いやすさを改善しました';
+  const APP_VERSION='v168';
+  const APP_UPDATE_NOTE='黒板編集の横向きを、左に黒板・右に操作の形にまとめました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3376,6 +3438,30 @@
       requestAnimationFrame(imgAdjDraw);
     });
   }
+  // 横向きのときは、モード切替・手書き道具・下のボタンを右列へ移す。
+  // 縦向きに戻したら元の場所へ返す（作りを二重に持たないため）。
+  let _landscapeMoved=false;
+  function applyBoardLayout(){
+    const dlg=$('boardDialog'); if(!dlg)return;
+    const wide=window.matchMedia('(orientation:landscape) and (max-height:600px)').matches;
+    const tools=$('landscapeTools'), acts=$('landscapeActions');
+    const wrap=document.querySelector('#boardDialog .board-wrap');
+    const foot=document.querySelector('#boardDialog .dialog-foot');
+    const mode=$('boardModeToggle'), bar=$('drawToolBar');
+    const reset=$('resetOriginalBtn'), save=$('saveBoardBtn');
+    if(!tools||!acts||!wrap||!foot||!mode||!bar||!reset||!save)return;
+    if(wide&&!_landscapeMoved){
+      tools.appendChild(mode); tools.appendChild(bar);
+      acts.appendChild(reset); acts.appendChild(save);
+      _landscapeMoved=true;
+    }else if(!wide&&_landscapeMoved){
+      wrap.insertBefore(mode,wrap.firstChild);
+      mode.after(bar);
+      foot.appendChild(reset); foot.appendChild(save);
+      _landscapeMoved=false;
+    }
+    if(dlg.open)scheduleBoardEditorRender();
+  }
   function initImageAdjust(){
     const dlg=$('imgAdjustDialog'); if(!dlg)return;
     const stage=$('imgAdjStage');
@@ -4445,6 +4531,7 @@
     const dHint=$('drawHint'); if(dHint)dHint.classList.remove('show');
     switchBoardPickerTab('template');
     renderMyBoardPicker();
+    applyBoardLayout();
     $('boardDialog').showModal();
     ensureBoardImages({images:boardState.images}).then(()=>requestAnimationFrame(renderBoardEditor));
     requestAnimationFrame(renderBoardEditor);
@@ -4827,6 +4914,9 @@
   initInAppCamera();
   initBoardBuilder();
   initImageAdjust();
+  applyBoardLayout();
+  window.addEventListener('resize',()=>{ applyBoardLayout(); });
+  try{ if(screen.orientation)screen.orientation.addEventListener('change',()=>setTimeout(applyBoardLayout,200)); }catch(e){}
   try{ renderBackupStatus(); }catch(e){}
   syncBoardTemplateOptions();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));

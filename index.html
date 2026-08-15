@@ -72,11 +72,6 @@
     .thumb{width:116px;height:104px;border-radius:8px;object-fit:contain;background:#eef1f5;border:1px solid #cbd5e1}
     .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
-    /* 長押しでつまんで並べ替える取っ手 */
-    .drag-handle{touch-action:none;cursor:grab}
-    .photo-item.dragging{opacity:.55;box-shadow:0 6px 20px rgba(0,0,0,.35)}
-    .photo-item.drop-before{border-top:3px solid var(--brand)}
-    .photo-item.drop-after{border-bottom:3px solid var(--brand)}
     /* 現場の並べ替え矢印。他の操作ボタンとは分けて、現場名の右に横並びで置く。
        横並びにすると文字の高さに収まるので、カードの高さが変わらない。 */
     .order-btns{display:flex;gap:5px;flex:0 0 auto;align-self:flex-start;margin-left:6px}
@@ -423,7 +418,6 @@
           <span id="bulkCount" style="font-weight:800;font-size:13px">0枚を選択中</span>
           <span style="flex:1"></span>
           <button class="btn tiny-btn" id="bulkAllBtn">すべて選ぶ</button>
-          <button class="btn tiny-btn" id="bulkBoardBtn">黒板をまとめて反映</button>
           <button class="btn tiny-btn" id="bulkDateBtn">撮影日をまとめて変更</button>
           <button class="btn tiny-btn danger" id="bulkDeleteBtn">まとめて削除</button>
           <button class="btn tiny-btn" id="bulkCancelBtn">やめる</button>
@@ -816,8 +810,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19a';
-  const APP_UPDATE_NOTE='黒板の一括反映・撮影日の一括変更・ドラッグ並べ替え・提出前チェックを追加';
+  const APP_VERSION='2026.08.19b';
+  const APP_UPDATE_NOTE='撮影日をまとめて変えると黒板の日付も直るようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -953,7 +947,7 @@
     updateBulkUI();
     if(!currentProjectId){host.innerHTML='<div class="empty">先に現場を選択してください。</div>';return}
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
-    host.innerHTML=arr.map((p,i)=>`<div class="photo-item" data-pid="${p.id}" draggable="false">
+    host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
       <div style="position:relative">
         <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
         ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
@@ -968,7 +962,6 @@
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
         <button class="btn" data-action="move-photo" data-id="${p.id}">順番</button>
-        <button class="btn drag-handle" data-drag="${p.id}" title="長押しして上下に動かすと並べ替えられます" aria-label="長押しで並べ替え">≡ 移動</button>
         <button class="btn danger" data-action="delete-photo" data-id="${p.id}">削除</button>
       </div></div></div>`).join('');
   }
@@ -1945,49 +1938,63 @@
     });
     for(let i=0;i<list.length;i++){ list[i].order=i; await idbPut('photos',list[i]); }
   }
-  // ---- 黒板をまとめて反映 ----
-  // いま「黒板」画面で作った設定を、選んだ写真すべてに同じように貼り直す。
-  async function applyBoardToSelected(){
-    const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
-    if(!targets.length){alert('黒板を反映する写真を選んでください。');return}
-    // ひな形にする黒板：直前に編集した黒板があればそれ、なければ前回の設定
-    const src=settings.lastBoardFull?cloneBoardData(settings.lastBoardFull):null;
-    if(!src){alert('先に写真を1枚開いて黒板を作り、「黒板付き写真を保存」を押してください。\nその黒板を、選んだ写真にまとめて反映します。');return}
-    const strokes=cloneBoardData(settings.lastBoardStrokes||[]);
-    const already=targets.filter(p=>p.editedBlob).length;
-    const warn=already?`\n※このうち${already}枚には、すでに黒板が入っています。上書きされます。`:'';
-    if(!confirm(`選んだ${targets.length}枚に、同じ黒板を反映します。\n工事件名などの現場情報は、各写真の現場から自動で入ります。${warn}\n\nよろしいですか？`))return;
-    let done=0, failed=0;
-    setOutputStatus&&null;
-    for(const ph of targets){
-      try{
-        const board=applyProjectDefaultsToBoard(cloneBoardData(src),ph,false);
-        board.freePos=src.freePos||null;
-        board.position=src.position||'lb';
-        await ensureBoardImages(board);
-        const img=await loadImageElement(ph.blob);
-        const full=document.createElement('canvas');
-        full.width=img.naturalWidth; full.height=img.naturalHeight;
-        const ctx=full.getContext('2d');
-        ctx.fillStyle='#fff'; ctx.fillRect(0,0,full.width,full.height);
-        ctx.drawImage(img,0,0,full.width,full.height);
-        if(board.enabled!==false){
-          const bc=makeBoardCanvas(board,strokes);
-          const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);
-          ctx.drawImage(bc,r.x,r.y,r.w,r.h);
+  // 黒板の中の、指定した項目だけを今の値で入れ直す（例：撮影日だけ）。
+  // 変わる項目が無ければ null を返し、作り直しそのものを省く。
+  function refreshBoardFields(board,ph,ctxFields){
+    const want=new Set(ctxFields||[]);
+    if(!want.size)return null;
+    const c=boardContext(ph);
+    let changed=false;
+    if(genericTemplate(board.template)){
+      board.fields=board.fields||{};
+      genericTemplateFieldList(board.template).forEach(f=>{
+        if(f.ctxField&&want.has(f.ctxField)&&board.fields[f.id]!==c[f.ctxField]){
+          board.fields[f.id]=c[f.ctxField]; changed=true;
         }
-        const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('作成失敗')),'image/jpeg',0.92));
-        ph.editedBlob=blob;
-        ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes};
-        ph.editedUpdatedAt=Date.now(); ph.updatedAt=Date.now();
-        await idbPut('photos',ph);
-        revokePhotoUrl(ph.id);
-        done++;
-      }catch(e){ console.warn('黒板の反映に失敗',ph.id,e); failed++; }
+      });
+    }else{
+      const def=BOARD_TEMPLATES[board.template||'tajima'];
+      if(def){
+        board.top=Array.isArray(board.top)?board.top:[];
+        def.top.forEach((t,i)=>{
+          if(t.field&&want.has(t.field)&&board.top[i]&&board.top[i].value!==c[t.field]){
+            board.top[i].value=c[t.field]; changed=true;
+          }
+        });
+        if(def.bottom.field&&want.has(def.bottom.field)&&board.bottom&&board.bottom.value!==c[def.bottom.field]){
+          board.bottom.value=c[def.bottom.field]; changed=true;
+        }
+      }
     }
-    selectedPhotoIds.clear(); selectMode=false;
-    renderPhotos(); renderProjects();
-    alert(`${done}枚に黒板を反映しました。`+(failed?`\n${failed}枚は失敗しました。`:''));
+    return changed?board:null;
+  }
+  // 保存済みの黒板を、いまの写真情報で作り直して貼り直す。
+  // 撮影日を変えたときなど、黒板の中の日付も合わせるために使う。
+  async function rebuildPhotoBoard(ph,fields){
+    if(!ph||!ph.boardData||ph.boardData.scope!=='board'||!ph.boardData.board)return false;
+    const saved=ph.boardData;
+    if(saved.enabled===false)return false;
+    // 指定した項目だけを入れ直す。
+    // すべてを入れ直すと、手で書き換えた工事場所などまで上書きしてしまうため。
+    const board=refreshBoardFields(cloneBoardData(saved.board),ph,fields);
+    if(!board)return false;
+    board.freePos=saved.board.freePos||null;
+    board.position=saved.board.position||'lb';
+    await ensureBoardImages(board);
+    const img=await loadImageElement(ph.blob);
+    const full=document.createElement('canvas');
+    full.width=img.naturalWidth; full.height=img.naturalHeight;
+    const ctx=full.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,full.width,full.height);
+    ctx.drawImage(img,0,0,full.width,full.height);
+    const bc=makeBoardCanvas(board,saved.strokes||[]);
+    const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);
+    ctx.drawImage(bc,r.x,r.y,r.w,r.h);
+    ph.editedBlob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('作成失敗')),'image/jpeg',0.92));
+    ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:saved.strokes||[]};
+    ph.editedUpdatedAt=Date.now();
+    revokePhotoUrl(ph.id);
+    return true;
   }
 
   // ---- 撮影日をまとめて変更 ----
@@ -2001,14 +2008,31 @@
     if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||Number.isNaN(new Date(v+'T00:00:00').getTime())){
       alert('日付の形が正しくありません。2026-08-15 のように入れてください。');return;
     }
-    const snapshots=targets.map(p=>({id:p.id,date:p.date}));
-    for(const ph of targets){ ph.date=v; ph.updatedAt=Date.now(); await idbPut('photos',ph); }
+    // 黒板の中に撮影日が入っている写真は、黒板も作り直して日付を合わせる
+    const withBoard=targets.filter(p=>p.editedBlob&&p.boardData&&p.boardData.scope==='board'&&p.boardData.enabled!==false);
+    if(withBoard.length && !confirm(`選んだ${targets.length}枚のうち${withBoard.length}枚に黒板が入っています。\n黒板の中に撮影日がある場合は、あわせて${fmtDate(v)}に直します。\n（他の文字はそのままです）\n\nよろしいですか？`))return;
+    const snapshots=targets.map(p=>({id:p.id,date:p.date,editedBlob:p.editedBlob,boardData:cloneBoardData(p.boardData)}));
+    let redone=0, failed=0;
+    for(const ph of targets){
+      ph.date=v; ph.updatedAt=Date.now();
+      try{ if(await rebuildPhotoBoard(ph,['shotDate']))redone++; }
+      catch(e){ console.warn('黒板の作り直しに失敗',ph.id,e); failed++; }
+      await idbPut('photos',ph);
+    }
     selectedPhotoIds.clear(); selectMode=false;
     renderPhotos();
-    showUndoToast(`${targets.length}枚の撮影日を${fmtDate(v)}にしました`,async()=>{
+    if(failed)alert(`${failed}枚は黒板を作り直せませんでした。写真の日付だけ変わっています。`);
+    const extra=redone?`（黒板${redone}枚も直しました）`:'';
+    showUndoToast(`${targets.length}枚の撮影日を${fmtDate(v)}にしました${extra}`,async()=>{
       for(const sn of snapshots){
         const ph=photos.find(x=>x.id===sn.id);
-        if(ph){ ph.date=sn.date; ph.updatedAt=Date.now(); await idbPut('photos',ph); }
+        if(!ph)continue;
+        ph.date=sn.date;
+        ph.editedBlob=sn.editedBlob;
+        ph.boardData=sn.boardData;
+        ph.editedUpdatedAt=Date.now(); ph.updatedAt=Date.now();
+        revokePhotoUrl(ph.id);
+        await idbPut('photos',ph);
       }
       renderPhotos();
     });
@@ -2025,7 +2049,7 @@
     const noDate=arr.filter(p=>!p.date).length;
     const pj=currentProject()||{};
     if(noBoard)issues.push(`黒板が入っていない写真が${noBoard}枚あります`);
-    if(noContent)issues.push(`記入欄が空の写真が${noContent}枚あります`);
+    if(noContent)issues.push(`写真の横の記入欄が空の写真が${noContent}枚あります`);
     if(noDate)issues.push(`撮影日が入っていない写真が${noDate}枚あります`);
     if(!String(pj.name||'').trim())issues.push('工事名が未入力です');
     if(!String(pj.company||'').trim()&&!String(settings.company||'').trim())issues.push('施工者が未入力です');
@@ -2063,73 +2087,6 @@
       await restorePhotosAtOriginalOrder([snapshot]);
       renderPhotos();renderProjects();
     });
-  }
-  // ---- 写真を長押しでつまんで並べ替える ----
-  // 取っ手（≡ 移動）を押している間だけ動く。写真の上を普通になぞっても反応しない。
-  let photoDrag=null;
-  function clearDropMarks(){
-    document.querySelectorAll('.photo-item.drop-before,.photo-item.drop-after')
-      .forEach(el=>el.classList.remove('drop-before','drop-after'));
-  }
-  function photoItemAt(y){
-    const items=[...document.querySelectorAll('#photoList .photo-item')];
-    for(const el of items){
-      const r=el.getBoundingClientRect();
-      if(y>=r.top&&y<=r.bottom)return {el,r};
-    }
-    if(!items.length)return null;
-    const first=items[0].getBoundingClientRect();
-    if(y<first.top)return {el:items[0],r:first};
-    const last=items[items.length-1];
-    return {el:last,r:last.getBoundingClientRect()};
-  }
-  function onPhotoDragStart(e){
-    const h=e.target.closest('.drag-handle'); if(!h)return;
-    const item=h.closest('.photo-item'); if(!item)return;
-    photoDrag={id:h.dataset.drag,item,targetId:'',before:true};
-    item.classList.add('dragging');
-    h.style.cursor='grabbing';
-    e.preventDefault();
-  }
-  function onPhotoDragMove(e){
-    if(!photoDrag)return;
-    const t=(e.touches&&e.touches[0])||e;
-    const hit=photoItemAt(t.clientY);
-    clearDropMarks();
-    if(hit&&hit.el!==photoDrag.item){
-      const before=(t.clientY < hit.r.top+hit.r.height/2);
-      hit.el.classList.add(before?'drop-before':'drop-after');
-      photoDrag.targetId=hit.el.dataset.pid;
-      photoDrag.before=before;
-    }else{
-      photoDrag.targetId='';
-    }
-    e.preventDefault();
-  }
-  async function onPhotoDragEnd(){
-    if(!photoDrag)return;
-    const {id,targetId,before,item}=photoDrag;
-    photoDrag=null;
-    item.classList.remove('dragging');
-    clearDropMarks();
-    if(!targetId||targetId===id)return;
-    const arr=currentPhotos();
-    const from=arr.findIndex(x=>x.id===id);
-    let to=arr.findIndex(x=>x.id===targetId);
-    if(from<0||to<0)return;
-    if(from<to && before)to--;
-    if(from>to && !before)to++;
-    await movePhotoTo(id,to);
-  }
-  function initPhotoDrag(){
-    const host=$('photoList'); if(!host)return;
-    host.addEventListener('mousedown',onPhotoDragStart);
-    host.addEventListener('touchstart',onPhotoDragStart,{passive:false});
-    window.addEventListener('mousemove',onPhotoDragMove);
-    window.addEventListener('touchmove',onPhotoDragMove,{passive:false});
-    window.addEventListener('mouseup',onPhotoDragEnd);
-    window.addEventListener('touchend',onPhotoDragEnd);
-    window.addEventListener('touchcancel',onPhotoDragEnd);
   }
   async function renumberCurrentPhotos(){
     const arr=currentPhotos();
@@ -4128,9 +4085,6 @@
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);
     settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
-    // まとめて反映するときのひな形として、黒板の中身ごと覚えておく
-    settings.lastBoardFull=cloneBoardData(board);
-    settings.lastBoardStrokes=cloneBoardData(boardState.strokes||[]);
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
     $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。次の写真も同じ黒板の設定で開きます。');
   }
@@ -4470,7 +4424,6 @@
   });
   initInAppCamera();
   initBoardBuilder();
-  initPhotoDrag();
   try{ renderBackupStatus(); }catch(e){}
   syncBoardTemplateOptions();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
@@ -4494,7 +4447,6 @@
     renderPhotos();
   });
   $('bulkDeleteBtn').addEventListener('click',async()=>{ await deleteSelectedPhotos(); });
-  $('bulkBoardBtn').addEventListener('click',async()=>{ await applyBoardToSelected(); });
   $('bulkDateBtn').addEventListener('click',async()=>{ await changeDateOfSelected(); });
   $('photoList').addEventListener('change',e=>{
     const cb=e.target.closest('.bulk-check'); if(!cb)return;

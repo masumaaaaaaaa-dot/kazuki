@@ -88,6 +88,11 @@
       background:#1f2937;color:#fff;border-radius:12px;padding:11px 12px 11px 15px;display:flex;align-items:center;gap:12px;
       box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:13.5px;max-width:calc(100vw - 24px)}
     .undo-toast .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* 設定で「説明文を隠す」にしたときの表示。
+       状態を知らせる欄（保存先・バージョン・残り枚数など）は隠さない。 */
+    html.hide-hints .hint:not(.keep-hint),
+    html.hide-hints .inline-note:not(.keep-hint),
+    html.hide-hints .tip-box .hint:not(.keep-hint){display:none!important}
     .undo-toast button{border:0;background:#facc15;color:#1f2937;font-weight:800;border-radius:9px;padding:9px 14px;font-size:13.5px;white-space:nowrap}
     /* あと何秒で戻せなくなるかの表示 */
     .undo-toast .count{flex:0 0 auto;min-width:40px;text-align:center;font-weight:800;font-size:12.5px;
@@ -397,12 +402,12 @@
             <option value="native">スマホのカメラを使う（画質優先・おすすめ）</option>
             <option value="inapp">アプリ内カメラ（黒板を見ながら撮る）</option>
           </select>
-          <div class="hint" style="margin-top:5px" id="cameraModeHint"></div></div>
+          <div class="hint keep-hint" style="margin-top:5px" id="cameraModeHint"></div></div>
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真を保存先フォルダにも残す（元画質）</label>
           <div class="btn-row" style="margin-top:0">
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
           </div>
-          <div class="hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ保存先を選んでください。</div>
+          <div class="hint keep-hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ保存先を選んでください。</div>
           <div class="hint" style="margin:6px 0 0">端末の中のフォルダでも、クラウドのフォルダでも指定できます。<br>
           ・端末の中に置く場合は「内部ストレージ → DCIM → Camera」がおすすめです。写真アプリにすぐ出ますし、Googleフォトなどのバックアップ対象にもなります。<br>
           ・クラウド（Googleドライブ、OneDrive、Dropbox など、スマホに入れているもの）を選ぶと、パソコンからも見られます。ただし電波のない現場では、電波が戻るまで反映されません。<br>
@@ -448,7 +453,7 @@
         </div>
         <p class="hint" style="margin-bottom:0">スマホでは印刷画面で「PDF形式で保存」を選ぶと、役所提出用のA4 PDFとして保存できますが、保存先はそのつどスマホ側の画面で選ぶ必要があります。</p>
         <div class="btn-row" style="margin-top:10px">
-          <button class="btn outline full" id="pdfSaveBtn">📄 PDFで保存（保存先フォルダへ）</button>
+          <button class="btn outline full" id="pdfSaveBtn">📄 PDFで保存（保存先フォルダへ直接）</button>
         </div>
         <p class="hint" style="margin-bottom:0;margin-top:6px">上の「印刷・PDF保存」と違い、保存先を選ぶ画面を出さずに、設定の「バックアップの保存先フォルダ」へ直接PDFファイルを保存します（未設定の場合はダウンロードフォルダに保存されます）。写真も含めて、印刷プレビューと同じ内容がPDFになります。</p>
         <div class="btn-row" style="margin-top:10px">
@@ -490,7 +495,7 @@
           <button class="btn outline full" id="chooseBackupFolderBtn" type="button">バックアップの保存先フォルダを設定</button>
           <div class="hint" style="margin-top:6px">写真の保存先と同じように、Googleドライブのフォルダなどを指定できます。設定しておくと、以後は「バックアップ保存」を押すだけでそのフォルダに保存されます。</div>
         </div>
-        <div class="hint" id="backupAgeLabel" style="margin:0 0 6px;font-weight:700"></div>
+        <div class="hint keep-hint" id="backupAgeLabel" style="margin:0 0 6px;font-weight:700"></div>
           <div class="btn-row">
           <button class="btn outline" id="backupBtn">バックアップ保存</button>
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
@@ -504,15 +509,19 @@
       </div>
       <div class="card">
         <h2>アプリの情報</h2>
-        <div class="hint">いま動いているバージョン：<strong id="appVersionLabel" style="font-size:14px;color:var(--text)">-</strong></div>
-        <div class="hint" style="margin-top:4px">使い始めた日：<strong id="firstUsedLabel" style="font-size:14px;color:var(--text)">-</strong></div>
+        <div class="hint keep-hint">いま動いているバージョン：<strong id="appVersionLabel" style="font-size:14px;color:var(--text)">-</strong></div>
+        <div class="hint keep-hint" style="margin-top:4px">使い始めた日：<strong id="firstUsedLabel" style="font-size:14px;color:var(--text)">-</strong></div>
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
         <div class="hint" style="margin-top:14px">アプリ内カメラの写り方について相談するときは、下のボタンで調べた内容を見せてください。この端末がどのレンズを使えるかが分かります。</div>
         <button class="btn outline full" id="camDiagBtn" style="margin-top:8px">カメラの対応状況を調べる</button>
         <pre id="camDiagOut" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text)"></pre>
-        <div class="hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
-      </div>
+        <div class="hint keep-hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
+      
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0" />
+        <label class="check-row"><input type="checkbox" id="hideHintsChk" /> 画面の説明文を隠す（すっきり表示）</label>
+        <div class="hint keep-hint" style="margin-top:4px">各ページの薄い文字の説明が消えます。保存先やバージョンなど、状態を知らせる表示は残ります。いつでも元に戻せます。</div>
+</div>
       <div class="card">
         <h2>このアプリの出力形式</h2>
         <div class="hint">A4縦／1ページ3枚／左側に写真／右側に罫線入りの任意記入欄／写真番号／表紙は工事名・工事場所・提出先・工事番号・工期・現場担当者に加え、会社名と作成年月日は入力した場合だけ表示／ページ番号付き。</div>
@@ -777,7 +786,7 @@
             <img id="posPickPhoto" style="width:100%;display:block" alt="" />
             <div id="posPickBoard" style="position:absolute;left:0;top:0;border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:move;touch-action:none"></div>
           </div>
-          <div class="hint" style="margin-top:6px" id="posPickHint"></div>
+          <div class="hint keep-hint" style="margin-top:6px" id="posPickHint"></div>
         </div>
       <div id="boardLegacyFields" class="grid two" style="margin-top:10px">
         <div><label>上段1 ラベル</label><input id="boardLabel1" /></div><div><label>上段1 文字</label><input id="boardValue1" /></div>
@@ -810,14 +819,14 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19b';
-  const APP_UPDATE_NOTE='撮影日をまとめて変えると黒板の日付も直るようにしました';
+  const APP_VERSION='2026.08.19c';
+  const APP_UPDATE_NOTE='設定から画面の説明文を隠せるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, theme:'light', colorTheme:'default', cameraMode:'native', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, hideHints:false, theme:'light', colorTheme:'default', cameraMode:'native', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -2704,6 +2713,11 @@
     try{localStorage.setItem('photoLedgerColor',id)}catch(e){}
     await idbPut('settings',{key:'main',value:settings});
   }
+  // 説明文の表示・非表示
+  function applyHideHints(){
+    document.documentElement.classList.toggle('hide-hints',!!settings.hideHints);
+    const c=$('hideHintsChk'); if(c)c.checked=!!settings.hideHints;
+  }
   function applyTheme(theme){
     const t=theme==='dark'?'dark':'light';
     document.documentElement.dataset.theme=t;
@@ -2732,7 +2746,7 @@
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
     const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
     renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;
-    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'native';updateCameraModeHint();}applyTheme(settings.theme)}
+    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'native';updateCameraModeHint();}applyTheme(settings.theme);applyHideHints()}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -4434,6 +4448,11 @@
   $('printBtn').addEventListener('click',withPreSubmit(printLedger));
   $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
   $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
+  $('hideHintsChk').addEventListener('change',async e=>{
+    settings.hideHints=e.target.checked;
+    applyHideHints();
+    try{ await idbPut('settings',{key:'main',value:settings}); }catch(err){ console.warn('設定の保存に失敗',err); }
+  });
   $('forceUpdateBtn').addEventListener('click',forceUpdateApp);
   $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
   $('selectModeBtn').addEventListener('click',()=>{

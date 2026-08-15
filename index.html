@@ -473,9 +473,9 @@
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
           <input type="file" id="restoreInput" accept="application/json,.json" hidden />
         </div>
-        <div class="hint" style="margin-top:10px">「バックアップ復元」は、いまのデータをすべて置き換えます。現場ごとのバックアップ（現場一覧の「バックアップ」ボタンで保存したファイル）を追加したいときは、下のボタンを使ってください。今のデータは消えません。</div>
+        <div class="hint" style="margin-top:10px">「バックアップ復元」は、いまのデータをすべて置き換えます。現場ごとのデータ控え（現場一覧の「データ控え」ボタンで保存したファイル）を追加したいときは、下のボタンを使ってください。今のデータは消えません。</div>
         <div class="btn-row" style="margin-top:8px">
-          <button class="btn outline" id="importProjectBtn">現場のバックアップを取り込む</button>
+          <button class="btn outline" id="importProjectBtn">現場のデータ控えを取り込む</button>
           <input type="file" id="importProjectInput" accept="application/json,.json" hidden />
         </div>
       </div>
@@ -782,7 +782,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.17g';
+  const APP_VERSION='2026.08.18a';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -847,7 +847,15 @@
   function idbClear(store){return new Promise((resolve,reject)=>{const r=tx(store,'readwrite').clear();r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
 
   async function loadAll(){
-    projects=(await idbGetAll('projects')).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    // 並び順：手で並べ替えた順（order）があればそれを優先し、
+    // まだ並べ替えていない現場は、これまでどおり更新の新しい順に後ろへ並べる。
+    projects=(await idbGetAll('projects')).sort((a,b)=>{
+      const ao=(typeof a.order==='number')?a.order:null, bo=(typeof b.order==='number')?b.order:null;
+      if(ao!==null&&bo!==null)return ao-bo;
+      if(ao!==null)return -1;
+      if(bo!==null)return 1;
+      return (b.updatedAt||0)-(a.updatedAt||0);
+    });
     photos=await idbGetAll('photos');
     myBoards=(await idbGetAll('myBoards')).sort((a,b)=>{const sa=a.sort,sb=b.sort;if(typeof sa==='number'&&typeof sb==='number')return sa-sb;if(typeof sa==='number')return -1;if(typeof sb==='number')return 1;return (b.createdAt||0)-(a.createdAt||0)});
     const ss=await idbGetAll('settings');
@@ -869,7 +877,7 @@
   function renderProjects(){
     const host=$('projectList');
     if(!projects.length){host.innerHTML='<div class="empty">まだ現場がありません。<br>「新しい現場」から作成してください。</div>';return}
-    host.innerHTML=projects.map(p=>{
+    host.innerHTML=projects.map((p,i)=>{
       const count=photos.filter(x=>x.projectId===p.id).length;
       return `<div class="project-item ${p.id===currentProjectId?'active':''}" data-id="${p.id}">
         <div class="item-head"><div class="item-main"><div class="item-title">${escapeHtml(p.name)}</div>
@@ -879,8 +887,11 @@
           <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
-          <button class="btn" data-action="export-project" data-id="${p.id}">バックアップ</button>
+          <button class="btn" data-action="up-project" data-id="${p.id}" title="1つ上へ" ${i===0?'disabled':''}>↑</button>
+          <button class="btn" data-action="down-project" data-id="${p.id}" title="1つ下へ" ${i===projects.length-1?'disabled':''}>↓</button>
+          ${i>0?`<button class="btn" data-action="top-project" data-id="${p.id}" title="先頭へ移動">先頭へ</button>`:''}
           <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
+          <button class="btn" data-action="export-project" data-id="${p.id}">データ控え</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
     }).join('');
@@ -996,7 +1007,10 @@
     e.preventDefault(); syncCoverToForm(); const id=$('projectId').value||uid('project'); const old=projects.find(p=>p.id===id);
     const p={id,name:$('projectName').value.trim(),address:$('projectAddress').value.trim(),submitTo:$('projectSubmitTo').value.trim(),number:$('projectNumber').value.trim(),start:$('projectStart').value,end:$('projectEnd').value,company:$('projectCompany').value.trim(),manager:$('projectManager').value.trim(),engineer:$('projectEngineer').value.trim(),createdDate:$('projectCreatedDate').value,nendo:$('projectNendo').value.trim(),coverType:$('projectCoverType').value,remarks:$('projectRemarks').value.trim(),createdAt:old?.createdAt||Date.now(),updatedAt:Date.now()};
     if(!p.name){alert('工事名を入力してください。');return}
-    await idbPut('projects',p); currentProjectId=id; $('projectDialog').close(); await loadAll();
+    if(old&&typeof old.order==='number')p.order=old.order;   // 手で並べ替えた位置を保つ
+    await idbPut('projects',p);
+    if(!old)await placeNewProjectFirst(p);                   // 新しい現場は先頭に置く
+    currentProjectId=id; $('projectDialog').close(); await loadAll();
   }
 
   function exifBufToStr(dv,offset,length){let s='';for(let i=0;i<length;i++)s+=String.fromCharCode(dv.getUint8(offset+i));return s;}
@@ -1892,6 +1906,26 @@
     });
   }
   // ---- 写真を指定の位置へ動かす ----
+  // ---- 現場の並べ替え ----
+  // 手で並べ替えたら、その順を order として全現場に記録する。
+  // 以後は「更新の新しい順」ではなく、この順で並ぶ。
+  async function moveProjectTo(id,targetIndex){
+    const from=projects.findIndex(x=>x.id===id);
+    if(from<0)return;
+    const to=Math.max(0,Math.min(projects.length-1,targetIndex));
+    if(from===to)return;
+    const moved=projects.splice(from,1)[0];
+    projects.splice(to,0,moved);
+    for(let i=0;i<projects.length;i++){
+      if(projects[i].order!==i){ projects[i].order=i; await idbPut('projects',projects[i]); }
+    }
+    renderProjects();
+  }
+  async function moveProject(id,dir){
+    const i=projects.findIndex(x=>x.id===id);
+    if(i<0)return;
+    await moveProjectTo(id,i+dir);
+  }
   async function movePhotoTo(id,targetIndex){
     const arr=currentPhotos();
     const from=arr.findIndex(x=>x.id===id);
@@ -2364,6 +2398,13 @@
   }
   function dataURLtoBlob(dataurl){const [meta,data]=dataurl.split(',');const mime=(meta.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(data);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
   // ---- 現場ごとの書き出し・取り込み ----
+  // 並べ替え済みの現場があるとき、新しく作った現場が最後尾に埋もれないよう先頭に置く
+  async function placeNewProjectFirst(project){
+    if(!projects.some(x=>typeof x.order==='number'))return;   // まだ誰も並べ替えていなければ何もしない
+    project.order=-1;
+    const list=[project].concat(projects.filter(x=>x.id!==project.id));
+    for(let i=0;i<list.length;i++){ if(list[i].order!==i){ list[i].order=i; await idbPut('projects',list[i]); } }
+  }
   async function exportProject(project){
     const rel=photos.filter(x=>x.projectId===project.id).sort((a,b)=>(a.order||0)-(b.order||0));
     const ph=[]; let failed=0;
@@ -2378,7 +2419,11 @@
     const filename=`${name}_${today()}_${hhmmStamp()}.json`;
     const result=await saveToBackupFolderOrDownload(blob,filename);
     const where=result.savedTo==='folder'?`「${backupDirectoryHandle.name}」`:'ダウンロードフォルダ';
-    alert(`「${project.name}」を書き出しました（写真${ph.length}枚）。\n保存先：${where}\nファイル名：${filename}`
+    alert(`「${project.name}」のデータ控えを保存しました（写真${ph.length}枚）。\n\n`
+      +`※このファイルは印刷や提出には使えません。\n`
+      +`　アプリで復元するためのデータです。\n`
+      +`　提出用の書類は「A4出力」から作成してください。\n\n`
+      +`保存先：${where}\nファイル名：${filename}`
       +(failed?`\n※${failed}枚は書き出せませんでした。`:''));
   }
   async function importProject(file){
@@ -4199,7 +4244,21 @@
     if(b.dataset.action==='output-project'){currentProjectId=id;updateCurrentLabel();renderProjects();renderPhotos();showPage('output')}
     if(b.dataset.action==='export-project'){try{await exportProject(p)}catch(err){console.error(err);alert('書き出しに失敗しました。')}}
     if(b.dataset.action==='edit-project')openProjectDialog(p);
-    if(b.dataset.action==='duplicate-project'){const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};await idbPut('projects',np);currentProjectId=np.id;await loadAll()}
+    if(b.dataset.action==='up-project')await moveProject(id,-1);
+    if(b.dataset.action==='down-project')await moveProject(id,1);
+    if(b.dataset.action==='top-project')await moveProjectTo(id,0);
+    if(b.dataset.action==='duplicate-project'){
+      const np={...p,id:uid('project'),name:p.name+'（複製）',createdAt:Date.now(),updatedAt:Date.now()};
+      delete np.order;
+      await idbPut('projects',np);
+      // 並べ替えている場合は、元の現場のすぐ下に置く
+      if(projects.some(x=>typeof x.order==='number')){
+        const at=projects.findIndex(x=>x.id===p.id);
+        const list=projects.slice(); list.splice(at+1,0,np);
+        for(let k=0;k<list.length;k++){ if(list[k].order!==k){ list[k].order=k; await idbPut('projects',list[k]); } }
+      }
+      currentProjectId=np.id;await loadAll();
+    }
     if(b.dataset.action==='delete-project'){
       const cnt=photos.filter(x=>x.projectId===id).length;
       if(!confirm(`「${p.name}」と登録写真${cnt}枚を削除します。よろしいですか？`))return;

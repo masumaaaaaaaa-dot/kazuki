@@ -519,7 +519,7 @@
         <div class="hint keep-hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
       
         <hr style="border:0;border-top:1px solid var(--line);margin:14px 0" />
-        <label class="check-row"><input type="checkbox" id="hideHintsChk" /> 画面の説明文を隠す（すっきり表示）</label>
+        <button class="btn outline full" id="hideHintsBtn" type="button" style="margin-top:8px">画面の説明文を隠す</button>
         <div class="hint keep-hint" style="margin-top:4px">各ページの薄い文字の説明が消えます。保存先やバージョンなど、状態を知らせる表示は残ります。いつでも元に戻せます。</div>
 </div>
       <div class="card">
@@ -819,8 +819,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.19f';
-  const APP_UPDATE_NOTE='黒板の位置の初期値を「自由」にしました';
+  const APP_VERSION='2026.08.19g';
+  const APP_UPDATE_NOTE='黒板編集の動きを軽くし、設定のボタンの見た目をそろえました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2715,8 +2715,10 @@
   }
   // 説明文の表示・非表示
   function applyHideHints(){
-    document.documentElement.classList.toggle('hide-hints',!!settings.hideHints);
-    const c=$('hideHintsChk'); if(c)c.checked=!!settings.hideHints;
+    const on=!!settings.hideHints;
+    document.documentElement.classList.toggle('hide-hints',on);
+    const b=$('hideHintsBtn');
+    if(b){ b.textContent=on?'画面の説明文を表示する':'画面の説明文を隠す'; b.classList.toggle('active',on); }
   }
   function applyTheme(theme){
     const t=theme==='dark'?'dark':'light';
@@ -2905,7 +2907,7 @@
       html+=`<div style="margin-top:10px"><label>${escapeHtml(n.label||'自由記入')}（${lines}行まで）</label><textarea id="gn_${n.key}" rows="${Math.min(9,lines)}" style="font-family:monospace;font-weight:700">${escapeHtml(val)}</textarea></div>`;
     });
     container.innerHTML=html;
-    container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>renderBoardEditor()));
+    container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>scheduleBoardEditorRender()));
   }
   // ---- 自分で組み立てた黒板（カスタム黒板）----
   // 保存先は設定の中。データベースの版を上げずに済み、バックアップにも自動で含まれる。
@@ -3950,6 +3952,9 @@
   // 位置決め用の黒板の絵。中身が変わったときだけ作り直して使い回す。
   let _posPickBoardCache={key:'',url:''};
   function posPickBoardImage(board){
+    // 手書きしている最中は作らない（線を伸ばすたびに作ると重くなるため）。
+    // 指を離したときに作り直される。
+    if(boardState.drawing)return _posPickBoardCache.url||'';
     try{
       const key=JSON.stringify(board)+'|'+JSON.stringify(boardState.strokes||[]);
       if(_posPickBoardCache.key===key)return _posPickBoardCache.url;
@@ -3983,7 +3988,7 @@
     if(hint)hint.textContent=free?'いまの黒板がそのまま表示されています。つかんで動かせます（位置は写真ごとに保存されます）。':'「位置」を「自由」にすると、黒板を指で動かして置けます。';
     // 位置決めの四角に、いま編集している黒板そのもの（文字・手書きを含む）を映す。
     // 指で動かすたびに描き直すと重いので、絵は先に1枚だけ作っておく。
-    const boxImg=posPickBoardImage(board);
+    const boxImg=posPickBoardImage(board);   // 中身が変わったときだけ作り直す
     const draw=()=>{
       const stage=$('posPickStage'), box=$('posPickBoard');
       box.style.cursor=free?'move':'default';
@@ -4038,7 +4043,15 @@
     window.addEventListener('mousemove',move); window.addEventListener('touchmove',move,{passive:false});
     window.addEventListener('mouseup',end); window.addEventListener('touchend',end);
   }
+  // 文字入力や手書きのたびに黒板を丸ごと描き直すと重くなるため、
+  // 同じ1コマ内の呼び出しはまとめて1回にする（見た目は変わらない）。
+  let _boardRenderRaf=0;
+  function scheduleBoardEditorRender(){
+    if(_boardRenderRaf)return;
+    _boardRenderRaf=requestAnimationFrame(()=>{ _boardRenderRaf=0; renderBoardEditor(); });
+  }
   function renderBoardEditor(){
+    if(_boardRenderRaf){ cancelAnimationFrame(_boardRenderRaf); _boardRenderRaf=0; }
     try{ renderBoardImageUI(); }catch(e){ console.warn(e); }
     const board=readBoardControls();
     setTimeout(updatePosPickUI,0);
@@ -4146,7 +4159,24 @@
   }
   function pointerPos(ev,canvas){const rect=canvas.getBoundingClientRect();return{x:(ev.clientX-rect.left)/rect.width,y:(ev.clientY-rect.top)/rect.height}}
   function startDraw(ev){if(!$('boardDialog').open)return;const stroke={mode:$('drawMode').value,color:$('drawColor').value,width:Number($('drawWidth').value),points:[pointerPos(ev,$('boardDrawCanvas'))]};boardState.currentStroke=stroke;boardState.drawing=true;boardState.strokes.push(stroke);renderBoardEditor()}
-  function moveDraw(ev){if(!boardState.drawing||!boardState.currentStroke)return;boardState.currentStroke.points.push(pointerPos(ev,$('boardDrawCanvas')));renderBoardEditor()}
+  // 手書き中は黒板の下地も入力欄も変わらないので、線の層だけを描き直す。
+  // 全部描き直すと、線を引くたびに黒板を作り直すことになって重い。
+  let _drawRaf=0;
+  function redrawStrokeLayerOnly(){
+    if(_drawRaf)return;
+    _drawRaf=requestAnimationFrame(()=>{
+      _drawRaf=0;
+      const draw=$('boardDrawCanvas'); if(!draw)return;
+      const dctx=draw.getContext('2d');
+      dctx.clearRect(0,0,draw.width,draw.height);
+      drawStrokesOnCtx(dctx,draw.width,draw.height,boardState.strokes);
+    });
+  }
+  function moveDraw(ev){
+    if(!boardState.drawing||!boardState.currentStroke)return;
+    boardState.currentStroke.points.push(pointerPos(ev,$('boardDrawCanvas')));
+    redrawStrokeLayerOnly();
+  }
   function endDraw(){boardState.drawing=false;boardState.currentStroke=null}
 
   function legacyFieldRects(w,h,noteSize){
@@ -4276,10 +4306,13 @@
     }
   }
   function onBoardPointerUp(ev){
+    const wasDrawing=boardState.drawing;
     boardPointers.delete(ev.pointerId);
     if(ev.pointerId===boardState.activeDrawPointerId){endDraw();boardState.activeDrawPointerId=null}
     if(boardPointers.size<2){boardPinchPrevDist=null;boardPinchPrevMid=null;}
     if(boardPointers.size===0)boardSuppressDraw=false;
+    // 指を離したら全体を整える（位置決めの黒板もここで作り直される）
+    if(wasDrawing)scheduleBoardEditorRender();
   }
 
   // 上部バーの絵（ページごとに切り替わる。チョークで描いたような白線）
@@ -4331,8 +4364,8 @@
     if(e.target.value!==limited)e.target.value=limited;
   });
   $('photoForm').addEventListener('submit',savePhoto);
-  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardSurface','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>renderBoardEditor()));
-  $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; renderBoardEditor(); });
+  ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardSurface','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>scheduleBoardEditorRender()));
+  $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; scheduleBoardEditorRender(); });
   $('boardTemplate').addEventListener('change',()=>{
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);
     const newKey=$('boardTemplate').value;
@@ -4389,7 +4422,7 @@
     $('drawWidth').value=btn.dataset.width;
     $('drawWidthIcons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
   });
-  window.addEventListener('resize',()=>{ if($('boardDialog').open) renderBoardEditor(); });
+  window.addEventListener('resize',()=>{ if($('boardDialog').open) scheduleBoardEditorRender(); });
   window.addEventListener('orientationchange',()=>{ if($('boardDialog').open) setTimeout(renderBoardEditor,80); });
   $('cameraBtn').addEventListener('click',async()=>{
     // 横向き固定に必要な user activation を失わないよう、最初の await より前に開始する。
@@ -4468,8 +4501,8 @@
   $('printBtn').addEventListener('click',withPreSubmit(printLedger));
   $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
   $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
-  $('hideHintsChk').addEventListener('change',async e=>{
-    settings.hideHints=e.target.checked;
+  $('hideHintsBtn').addEventListener('click',async()=>{
+    settings.hideHints=!settings.hideHints;
     applyHideHints();
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(err){ console.warn('設定の保存に失敗',err); }
   });

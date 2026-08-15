@@ -225,18 +225,43 @@
     #boardDialog .board-stage-viewport{aspect-ratio:3/2}
     @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
     /* スマホを横向きにしたとき：黒板だけを大きく表示し、他の入力欄は隠す */
-    @media(orientation:landscape) and (max-height:540px){
+    /* 黒板編集：横画面では左に黒板、右に操作欄を並べる。
+       以前は操作欄をまるごと隠していたため、横向きだと何もできなかった。 */
+    @media(orientation:landscape) and (max-height:600px){
       #boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
       #boardDialog #boardForm{display:flex;flex-direction:column;height:100%}
-      #boardDialog .dialog-head{padding:8px 12px;flex:0 0 auto;position:static}
-      #boardDialog .dialog-body{display:flex;align-items:flex-start;justify-content:center;gap:12px;padding:8px 10px;flex:1 1 auto;min-height:0;overflow-y:auto}
-      #boardDialog .dialog-foot{flex:0 0 auto;position:static}
-      #boardDialog .board-wrap{flex:0 1 auto;max-width:640px;width:100%;padding:6px}
-      #boardDialog .board-stage-viewport{max-width:100%;max-height:calc(100dvh - 180px);width:auto}
+      #boardDialog .dialog-head{padding:6px 12px;flex:0 0 auto;position:static}
+      #boardDialog .dialog-head h3{font-size:15px}
+      #boardDialog .dialog-body{
+        display:flex;align-items:stretch;gap:10px;padding:8px 10px;
+        flex:1 1 auto;min-height:0;overflow:hidden;
+      }
+      #boardDialog .dialog-foot{flex:0 0 auto;position:static;padding:6px 10px}
+      /* 左：黒板 */
+      #boardDialog .board-wrap{
+        flex:1 1 58%;min-width:0;max-width:none;padding:6px;
+        display:flex;flex-direction:column;overflow:hidden;
+      }
+      #boardDialog .board-stage-viewport{flex:1 1 auto;min-height:0;max-width:100%;width:auto}
       #boardDialog .mode-toggle{margin-bottom:5px}
+      #boardDialog .mode-toggle .btn{padding:6px 8px;font-size:12px}
+      #boardDialog .draw-tool-bar{padding:4px 6px;gap:5px}
+      #boardDialog .swatch-btn{width:26px;height:26px}
+      #boardDialog .width-btn,#boardDialog .icon-btn{width:30px;height:30px}
       #boardDialog .zoom-controls{margin-top:5px}
+      #boardDialog .draw-hint{font-size:11px;margin-top:4px}
       #boardDialog .inline-note{display:none}
-      #boardDialog #boardControlsCol{display:none}
+      /* 右：入力欄などの操作列（隠さずに出す） */
+      #boardDialog #boardControlsCol{
+        display:block;flex:1 1 42%;min-width:250px;max-width:420px;
+        overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;
+      }
+      #boardDialog #boardControlsCol .tip-box{margin-top:0!important}
+      #boardDialog #boardControlsCol label{font-size:11.5px}
+      #boardDialog #boardControlsCol input,
+      #boardDialog #boardControlsCol select,
+      #boardDialog #boardControlsCol textarea{font-size:14px;padding:7px 9px}
+      #boardDialog #boardControlsCol textarea{min-height:64px}
     }
     @media(max-width:620px){
       .grid.two,.grid.three{grid-template-columns:1fr}.photo-item{grid-template-columns:104px 1fr}.thumb{width:104px;height:96px}.content{padding:10px}.card{padding:12px}.btn-row .btn{min-width:100px}
@@ -336,6 +361,9 @@
       }
       #camBottomBar > div:last-child > span[style*="flex:1"]{display:none!important}
       #camCloseBtn,#camHideUiBtn{width:100%!important;min-width:0!important;padding:7px 4px!important}
+      /* 横向きのときだけ「隠す」を上、「閉じる」を下にする（押し間違い防止） */
+      #camHideUiBtn{order:-2!important}
+      #camCloseBtn{order:3!important}
       #camShotCount{margin:0!important;font-size:11px!important;order:-1!important}
       #camShutterBtn{
         width:68px!important;height:68px!important;min-width:68px!important;min-height:68px!important;
@@ -649,7 +677,7 @@
       <div><div style="font-weight:800;margin-bottom:3px">写真をとる</div><div class="hint">「写真」タブで撮影します。写真ごとに「黒板」ボタンから黒板を貼れます。</div></div></div>
     <div style="display:flex;gap:11px;margin-bottom:13px"><div style="flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">3</div>
       <div><div style="font-weight:800;margin-bottom:3px">出力する</div><div class="hint">「A4出力」タブから、印刷・PDF・Excel（工事写真帳の書式）で出せます。</div></div></div>
-    <div class="hint">台帳のデータ（現場・写真・黒板）は、このアプリの中だけに保存されます。機種変更や故障に備えて、ときどき「設定」からバックアップしてください。<br>各写真の「画像で保存」は、黒板を貼った状態の画像を、上で設定した保存先フォルダへ書き出す機能です。</div>
+    <div class="hint">台帳のデータ（現場・写真・黒板）は、このアプリの中だけに保存されます。機種変更や故障に備えて、ときどき「設定」からバックアップしてください。<br>各写真の「画像を保存」は、黒板を貼った状態の画像を、上で設定した保存先フォルダへ書き出す機能です。</div>
   </div>
   <div class="dialog-foot"><button type="button" class="btn primary" id="welcomeCloseBtn">はじめる</button></div>
 </dialog>
@@ -700,7 +728,7 @@
 
 <dialog id="boardDialog">
   <form method="dialog" id="boardForm">
-    <div class="dialog-head"><h3>黒板編集（黒板だけに手書き）</h3><button class="btn" type="button" onclick="document.getElementById('boardDialog').close()">閉じる</button></div>
+    <div class="dialog-head"><h3>黒板編集</h3><button class="btn" type="button" onclick="document.getElementById('boardDialog').close()">閉じる</button></div>
     <div class="dialog-body">
       <input type="hidden" id="boardPhotoId" />
       <div class="board-wrap">
@@ -756,7 +784,7 @@
       <div class="tip-box" style="margin-top:10px">
         <div style="font-weight:800;color:var(--brand2)">現場情報を自動入力</div>
         <div class="hint" style="margin-top:3px">工事件名・工事場所・施工者は、選択中の現場情報から自動で入ります。写真ごとに毎回入力する必要はありません。</div>
-        <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">現在の現場情報を黒板へ反映</button>
+        <button type="button" class="btn outline full" id="applyProjectToBoardBtn" style="margin-top:8px">表紙の情報を黒板に反映</button>
       </div>
       <div style="margin-top:10px">
         <label>黒板の選択（タップで選択・見た目のプレビュー付き）</label>
@@ -839,8 +867,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v166';
-  const APP_UPDATE_NOTE='豆図を貼っていても、その上に文字を書けるようにしました';
+  const APP_VERSION='v167';
+  const APP_UPDATE_NOTE='黒板編集を横向きにしたときの使いやすさを改善しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -987,7 +1015,7 @@
         <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
         <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
         <button class="btn outline" data-action="replace-photo" data-id="${p.id}">差し替え</button>
-        <button class="btn outline" data-action="save-device" data-id="${p.id}">画像で保存</button>
+        <button class="btn outline" data-action="save-device" data-id="${p.id}">画像を保存</button>
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
         <button class="btn" data-action="move-photo" data-id="${p.id}">順番</button>
@@ -4381,7 +4409,7 @@
   function setApplyProjectBtnState(applied){
     const btn=$('applyProjectToBoardBtn'); if(!btn)return;
     btn.classList.toggle('active',applied);
-    btn.textContent=applied?'✓ 現在の現場情報を反映中（もう一度押すと戻す）':'現在の現場情報を黒板へ反映';
+    btn.textContent=applied?'✓ 表紙の情報を反映中（もう一度押すと戻す）':'表紙の情報を黒板に反映';
   }
   async function openBoardDialog(ph){
     closeBoardInlineEditor();   // 前の写真の入力欄を残さない

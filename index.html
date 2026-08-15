@@ -395,11 +395,14 @@
             <option value="inapp">アプリ内カメラ（黒板を見ながら撮る）</option>
           </select>
           <div class="hint" style="margin-top:5px" id="cameraModeHint"></div></div>
-          <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真をスマホの写真フォルダにも保存する</label>
+          <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真を保存先フォルダにも残す（元画質）</label>
           <div class="btn-row" style="margin-top:0">
             <button class="btn outline" id="choosePhotoFolderBtn" type="button">保存先フォルダを設定</button>
           </div>
-          <div class="hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ「内部ストレージ → DCIM → Camera」を選んでください。</div>
+          <div class="hint" id="photoFolderStatus" style="margin:8px 0 0">初回だけ保存先を選んでください。</div>
+          <div class="hint" style="margin:6px 0 0">端末の中のフォルダでも、Googleドライブのフォルダでも指定できます。<br>
+          ・端末の中に置く場合は「内部ストレージ → DCIM → Camera」がおすすめです。写真アプリにすぐ出ますし、Googleフォトのバックアップ対象にもなります。<br>
+          ・Googleドライブを選ぶと、パソコンからも見られます。ただし電波のない現場では、電波が戻るまで反映されません。</div>
         </div>
       </div>
       <div class="card">
@@ -611,7 +614,7 @@
       <div><div style="font-weight:800;margin-bottom:3px">写真をとる</div><div class="hint">「写真」タブで撮影します。写真ごとに「黒板」ボタンから黒板を貼れます。</div></div></div>
     <div style="display:flex;gap:11px;margin-bottom:13px"><div style="flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">3</div>
       <div><div style="font-weight:800;margin-bottom:3px">出力する</div><div class="hint">「A4出力」タブから、印刷・PDF・Excel（工事写真帳の書式）で出せます。</div></div></div>
-    <div class="hint">写真はこの端末の中だけに保存されます。機種変更や故障に備えて、ときどき「設定」からバックアップしてください。</div>
+    <div class="hint">台帳のデータ（現場・写真・黒板）は、このアプリの中だけに保存されます。機種変更や故障に備えて、ときどき「設定」からバックアップしてください。<br>各写真の「画像で保存」は、黒板を貼った状態の画像を、上で設定した保存先フォルダへ書き出す機能です。</div>
   </div>
   <div class="dialog-foot"><button type="button" class="btn primary" id="welcomeCloseBtn">はじめる</button></div>
 </dialog>
@@ -796,7 +799,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18d';
+  const APP_VERSION='2026.08.18e';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -944,7 +947,7 @@
         <button class="btn outline" data-action="edit-board" data-id="${p.id}">黒板</button>
         <button class="btn outline" data-action="edit-content" data-id="${p.id}">記入欄</button>
         <button class="btn outline" data-action="replace-photo" data-id="${p.id}">差し替え</button>
-        <button class="btn outline" data-action="save-device" data-id="${p.id}">端末に保存</button>
+        <button class="btn outline" data-action="save-device" data-id="${p.id}">画像で保存</button>
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
         <button class="btn" data-action="move-photo" data-id="${p.id}">順番</button>
@@ -1745,7 +1748,7 @@
       renderPhotos(); renderProjects();
       let msg=`${files.length}枚の写真を台帳へ保存しました。写真内容は後から入力できます。`;
       if(saveDeviceCopy && settings.saveCameraCopy){
-        if(deviceSaved) msg+=`\nスマホの写真フォルダにも${deviceSaved}枚保存しました。`;
+        if(deviceSaved) msg+=`\n保存先フォルダにも${deviceSaved}枚保存しました。`;
         if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
       }
       // 撮影のときは、そのまま続けて撮れるように案内を出す
@@ -1756,7 +1759,7 @@
         showActionToast(`${files.length}枚を保存しました`,'',null,4);
       }
       if(deviceSaveFailed){
-        alert('スマホの写真フォルダへの保存に失敗した写真があります。台帳には保存できています。保存先フォルダの設定をご確認ください。');
+        alert('保存先フォルダへの保存に失敗した写真があります。台帳には保存できています。保存先フォルダの設定をご確認ください。');
       }
     }catch(err){console.error(err);alert('写真の読み込みに失敗しました。容量不足の可能性があります。')}
     finally{statusMsg.remove();$('cameraInput').value='';$('galleryInput').value='';}
@@ -1775,7 +1778,7 @@
     }
     btn.disabled=false;
     status.textContent=photoDirectoryHandle
-      ? `保存先：${photoDirectoryHandle.name}（撮影写真は元画質で保存）`
+      ? `保存先：${photoDirectoryHandle.name}（元画質で保存）　※このフォルダが端末内かGoogleドライブ内かは、スマホの「ファイル」アプリで確認できます`
       : '初回だけ「内部ストレージ → DCIM → Camera」を選んでください。';
   }
 
@@ -1836,7 +1839,7 @@
     const filename=photoFileName(new File([blob],ph.filename||'photo.jpg',{type:blob.type||'image/jpeg'}));
     if(photoDirectoryHandle){
       await saveBlobToDirectory(blob,filename);
-      alert('スマホの写真フォルダへ保存しました。');
+      alert(`保存先フォルダ「${photoDirectoryHandle.name}」へ画像を保存しました。`);
       return;
     }
     downloadBlob(blob,filename);
@@ -4324,7 +4327,7 @@
       openPhotoDialog(ph);
       requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
     }
-    if(b.dataset.action==='save-device'){try{await saveRegisteredPhotoToPhone(ph)}catch(err){alert(err.message||'スマホへの保存に失敗しました。')}}
+    if(b.dataset.action==='save-device'){try{await saveRegisteredPhotoToPhone(ph)}catch(err){alert(err.message||'保存に失敗しました。')}}
     if(b.dataset.action==='up-photo')await movePhoto(id,-1);
     if(b.dataset.action==='down-photo')await movePhoto(id,1);
     if(b.dataset.action==='delete-photo')await deletePhotoWithUndo(ph);

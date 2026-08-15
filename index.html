@@ -72,6 +72,11 @@
     .thumb{width:116px;height:104px;border-radius:8px;object-fit:contain;background:#eef1f5;border:1px solid #cbd5e1}
     .photo-meta{font-size:12px;color:#475569;line-height:1.55}.photo-meta strong{color:#1e293b}
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
+    /* 長押しでつまんで並べ替える取っ手 */
+    .drag-handle{touch-action:none;cursor:grab}
+    .photo-item.dragging{opacity:.55;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+    .photo-item.drop-before{border-top:3px solid var(--brand)}
+    .photo-item.drop-after{border-bottom:3px solid var(--brand)}
     /* 現場の並べ替え矢印。他の操作ボタンとは分けて、現場名の右に横並びで置く。
        横並びにすると文字の高さに収まるので、カードの高さが変わらない。 */
     .order-btns{display:flex;gap:5px;flex:0 0 auto;align-self:flex-start;margin-left:6px}
@@ -418,6 +423,8 @@
           <span id="bulkCount" style="font-weight:800;font-size:13px">0枚を選択中</span>
           <span style="flex:1"></span>
           <button class="btn tiny-btn" id="bulkAllBtn">すべて選ぶ</button>
+          <button class="btn tiny-btn" id="bulkBoardBtn">黒板をまとめて反映</button>
+          <button class="btn tiny-btn" id="bulkDateBtn">撮影日をまとめて変更</button>
           <button class="btn tiny-btn danger" id="bulkDeleteBtn">まとめて削除</button>
           <button class="btn tiny-btn" id="bulkCancelBtn">やめる</button>
         </div>
@@ -489,7 +496,8 @@
           <button class="btn outline full" id="chooseBackupFolderBtn" type="button">バックアップの保存先フォルダを設定</button>
           <div class="hint" style="margin-top:6px">写真の保存先と同じように、Googleドライブのフォルダなどを指定できます。設定しておくと、以後は「バックアップ保存」を押すだけでそのフォルダに保存されます。</div>
         </div>
-        <div class="btn-row">
+        <div class="hint" id="backupAgeLabel" style="margin:0 0 6px;font-weight:700"></div>
+          <div class="btn-row">
           <button class="btn outline" id="backupBtn">バックアップ保存</button>
           <button class="btn outline" id="restoreBtn">バックアップ復元</button>
           <input type="file" id="restoreInput" accept="application/json,.json" hidden />
@@ -808,8 +816,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18i';
-  const APP_UPDATE_NOTE='位置決めの画面に、実際の黒板が表示されるようにしました';
+  const APP_VERSION='2026.08.19a';
+  const APP_UPDATE_NOTE='黒板の一括反映・撮影日の一括変更・ドラッグ並べ替え・提出前チェックを追加';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -945,7 +953,7 @@
     updateBulkUI();
     if(!currentProjectId){host.innerHTML='<div class="empty">先に現場を選択してください。</div>';return}
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
-    host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
+    host.innerHTML=arr.map((p,i)=>`<div class="photo-item" data-pid="${p.id}" draggable="false">
       <div style="position:relative">
         <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
         ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
@@ -960,6 +968,7 @@
         <button class="btn" data-action="up-photo" data-id="${p.id}" ${i===0?'disabled':''}>↑</button>
         <button class="btn" data-action="down-photo" data-id="${p.id}" ${i===arr.length-1?'disabled':''}>↓</button>
         <button class="btn" data-action="move-photo" data-id="${p.id}">順番</button>
+        <button class="btn drag-handle" data-drag="${p.id}" title="長押しして上下に動かすと並べ替えられます" aria-label="長押しで並べ替え">≡ 移動</button>
         <button class="btn danger" data-action="delete-photo" data-id="${p.id}">削除</button>
       </div></div></div>`).join('');
   }
@@ -1936,6 +1945,98 @@
     });
     for(let i=0;i<list.length;i++){ list[i].order=i; await idbPut('photos',list[i]); }
   }
+  // ---- 黒板をまとめて反映 ----
+  // いま「黒板」画面で作った設定を、選んだ写真すべてに同じように貼り直す。
+  async function applyBoardToSelected(){
+    const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
+    if(!targets.length){alert('黒板を反映する写真を選んでください。');return}
+    // ひな形にする黒板：直前に編集した黒板があればそれ、なければ前回の設定
+    const src=settings.lastBoardFull?cloneBoardData(settings.lastBoardFull):null;
+    if(!src){alert('先に写真を1枚開いて黒板を作り、「黒板付き写真を保存」を押してください。\nその黒板を、選んだ写真にまとめて反映します。');return}
+    const strokes=cloneBoardData(settings.lastBoardStrokes||[]);
+    const already=targets.filter(p=>p.editedBlob).length;
+    const warn=already?`\n※このうち${already}枚には、すでに黒板が入っています。上書きされます。`:'';
+    if(!confirm(`選んだ${targets.length}枚に、同じ黒板を反映します。\n工事件名などの現場情報は、各写真の現場から自動で入ります。${warn}\n\nよろしいですか？`))return;
+    let done=0, failed=0;
+    setOutputStatus&&null;
+    for(const ph of targets){
+      try{
+        const board=applyProjectDefaultsToBoard(cloneBoardData(src),ph,false);
+        board.freePos=src.freePos||null;
+        board.position=src.position||'lb';
+        await ensureBoardImages(board);
+        const img=await loadImageElement(ph.blob);
+        const full=document.createElement('canvas');
+        full.width=img.naturalWidth; full.height=img.naturalHeight;
+        const ctx=full.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,full.width,full.height);
+        ctx.drawImage(img,0,0,full.width,full.height);
+        if(board.enabled!==false){
+          const bc=makeBoardCanvas(board,strokes);
+          const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);
+          ctx.drawImage(bc,r.x,r.y,r.w,r.h);
+        }
+        const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('作成失敗')),'image/jpeg',0.92));
+        ph.editedBlob=blob;
+        ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes};
+        ph.editedUpdatedAt=Date.now(); ph.updatedAt=Date.now();
+        await idbPut('photos',ph);
+        revokePhotoUrl(ph.id);
+        done++;
+      }catch(e){ console.warn('黒板の反映に失敗',ph.id,e); failed++; }
+    }
+    selectedPhotoIds.clear(); selectMode=false;
+    renderPhotos(); renderProjects();
+    alert(`${done}枚に黒板を反映しました。`+(failed?`\n${failed}枚は失敗しました。`:''));
+  }
+
+  // ---- 撮影日をまとめて変更 ----
+  async function changeDateOfSelected(){
+    const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
+    if(!targets.length){alert('日付を変える写真を選んでください。');return}
+    const first=targets[0].date?String(targets[0].date).slice(0,10):today();
+    const input=prompt(`選んだ${targets.length}枚の撮影日を変更します。\n日付を入れてください（例 2026-08-15）`,first);
+    if(input===null)return;
+    const v=String(input).trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||Number.isNaN(new Date(v+'T00:00:00').getTime())){
+      alert('日付の形が正しくありません。2026-08-15 のように入れてください。');return;
+    }
+    const snapshots=targets.map(p=>({id:p.id,date:p.date}));
+    for(const ph of targets){ ph.date=v; ph.updatedAt=Date.now(); await idbPut('photos',ph); }
+    selectedPhotoIds.clear(); selectMode=false;
+    renderPhotos();
+    showUndoToast(`${targets.length}枚の撮影日を${fmtDate(v)}にしました`,async()=>{
+      for(const sn of snapshots){
+        const ph=photos.find(x=>x.id===sn.id);
+        if(ph){ ph.date=sn.date; ph.updatedAt=Date.now(); await idbPut('photos',ph); }
+      }
+      renderPhotos();
+    });
+  }
+
+  // ---- 提出前チェック ----
+  // A4を作る前に、うっかりを拾う。止めはせず、知らせるだけ。
+  function preSubmitIssues(){
+    const arr=currentPhotos();
+    const issues=[];
+    if(!arr.length)return issues;
+    const noBoard=arr.filter(p=>!p.editedBlob).length;
+    const noContent=arr.filter(p=>!String(p.content||'').trim()).length;
+    const noDate=arr.filter(p=>!p.date).length;
+    const pj=currentProject()||{};
+    if(noBoard)issues.push(`黒板が入っていない写真が${noBoard}枚あります`);
+    if(noContent)issues.push(`記入欄が空の写真が${noContent}枚あります`);
+    if(noDate)issues.push(`撮影日が入っていない写真が${noDate}枚あります`);
+    if(!String(pj.name||'').trim())issues.push('工事名が未入力です');
+    if(!String(pj.company||'').trim()&&!String(settings.company||'').trim())issues.push('施工者が未入力です');
+    return issues;
+  }
+  function confirmPreSubmit(){
+    const issues=preSubmitIssues();
+    if(!issues.length)return true;
+    return confirm('提出前の確認\n\n・'+issues.join('\n・')+'\n\nこのまま進めますか？\n（「キャンセル」を押すと戻って直せます）');
+  }
+
   async function deleteSelectedPhotos(){
     const targets=currentPhotos().filter(p=>selectedPhotoIds.has(p.id));
     if(!targets.length){alert('削除する写真を選んでください。');return}
@@ -1962,6 +2063,73 @@
       await restorePhotosAtOriginalOrder([snapshot]);
       renderPhotos();renderProjects();
     });
+  }
+  // ---- 写真を長押しでつまんで並べ替える ----
+  // 取っ手（≡ 移動）を押している間だけ動く。写真の上を普通になぞっても反応しない。
+  let photoDrag=null;
+  function clearDropMarks(){
+    document.querySelectorAll('.photo-item.drop-before,.photo-item.drop-after')
+      .forEach(el=>el.classList.remove('drop-before','drop-after'));
+  }
+  function photoItemAt(y){
+    const items=[...document.querySelectorAll('#photoList .photo-item')];
+    for(const el of items){
+      const r=el.getBoundingClientRect();
+      if(y>=r.top&&y<=r.bottom)return {el,r};
+    }
+    if(!items.length)return null;
+    const first=items[0].getBoundingClientRect();
+    if(y<first.top)return {el:items[0],r:first};
+    const last=items[items.length-1];
+    return {el:last,r:last.getBoundingClientRect()};
+  }
+  function onPhotoDragStart(e){
+    const h=e.target.closest('.drag-handle'); if(!h)return;
+    const item=h.closest('.photo-item'); if(!item)return;
+    photoDrag={id:h.dataset.drag,item,targetId:'',before:true};
+    item.classList.add('dragging');
+    h.style.cursor='grabbing';
+    e.preventDefault();
+  }
+  function onPhotoDragMove(e){
+    if(!photoDrag)return;
+    const t=(e.touches&&e.touches[0])||e;
+    const hit=photoItemAt(t.clientY);
+    clearDropMarks();
+    if(hit&&hit.el!==photoDrag.item){
+      const before=(t.clientY < hit.r.top+hit.r.height/2);
+      hit.el.classList.add(before?'drop-before':'drop-after');
+      photoDrag.targetId=hit.el.dataset.pid;
+      photoDrag.before=before;
+    }else{
+      photoDrag.targetId='';
+    }
+    e.preventDefault();
+  }
+  async function onPhotoDragEnd(){
+    if(!photoDrag)return;
+    const {id,targetId,before,item}=photoDrag;
+    photoDrag=null;
+    item.classList.remove('dragging');
+    clearDropMarks();
+    if(!targetId||targetId===id)return;
+    const arr=currentPhotos();
+    const from=arr.findIndex(x=>x.id===id);
+    let to=arr.findIndex(x=>x.id===targetId);
+    if(from<0||to<0)return;
+    if(from<to && before)to--;
+    if(from>to && !before)to++;
+    await movePhotoTo(id,to);
+  }
+  function initPhotoDrag(){
+    const host=$('photoList'); if(!host)return;
+    host.addEventListener('mousedown',onPhotoDragStart);
+    host.addEventListener('touchstart',onPhotoDragStart,{passive:false});
+    window.addEventListener('mousemove',onPhotoDragMove);
+    window.addEventListener('touchmove',onPhotoDragMove,{passive:false});
+    window.addEventListener('mouseup',onPhotoDragEnd);
+    window.addEventListener('touchend',onPhotoDragEnd);
+    window.addEventListener('touchcancel',onPhotoDragEnd);
   }
   async function renumberCurrentPhotos(){
     const arr=currentPhotos();
@@ -2465,6 +2633,7 @@
   async function backup(){
     const {blob,filename,failed}=await buildBackupPayload();
     settings.lastBackupAt=Date.now();
+    setTimeout(renderBackupStatus,0);
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('バックアップ日時の記録に失敗',e); }
     if(failed.length)alert(`一部の写真（${failed.length}枚）はバックアップに変換できなかったため、含まれていません。\n他の写真とデータは通常通り保存されます。`);
     const result=await saveToBackupFolderOrDownload(blob,filename);
@@ -3959,6 +4128,9 @@
     ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
     await idbPut('photos',ph);
     settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
+    // まとめて反映するときのひな形として、黒板の中身ごと覚えておく
+    settings.lastBoardFull=cloneBoardData(board);
+    settings.lastBoardStrokes=cloneBoardData(boardState.strokes||[]);
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
     $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。次の写真も同じ黒板の設定で開きます。');
   }
@@ -4138,7 +4310,7 @@
     const art=TOPBAR_ART[name]||TOPBAR_ART.projects;
     el.innerHTML=`<svg viewBox="0 0 64 60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${art}</svg>`;
   }
-  function showPage(name){setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();}
+  function showPage(name){setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
 
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
@@ -4298,10 +4470,17 @@
   });
   initInAppCamera();
   initBoardBuilder();
+  initPhotoDrag();
+  try{ renderBackupStatus(); }catch(e){}
   syncBoardTemplateOptions();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
-  $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);
+  // 出力の前に、うっかりがないか確認する（止めはせず、知らせるだけ）
+  const withPreSubmit=(fn)=>async()=>{ if(!confirmPreSubmit())return; await fn(); };
+  $('previewBtn').addEventListener('click',withPreSubmit(previewPrint));
+  $('printBtn').addEventListener('click',withPreSubmit(printLedger));
+  $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
+  $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
   $('forceUpdateBtn').addEventListener('click',forceUpdateApp);
   $('saveSettingsBtn').addEventListener('click',saveSettings);$('backupBtn').addEventListener('click',backup);$('restoreBtn').addEventListener('click',()=>$('restoreInput').click());$('restoreInput').addEventListener('change',async e=>{try{if(e.target.files[0])await restore(e.target.files[0])}catch(err){alert(err.message)}e.target.value='' });
   $('selectModeBtn').addEventListener('click',()=>{
@@ -4315,6 +4494,8 @@
     renderPhotos();
   });
   $('bulkDeleteBtn').addEventListener('click',async()=>{ await deleteSelectedPhotos(); });
+  $('bulkBoardBtn').addEventListener('click',async()=>{ await applyBoardToSelected(); });
+  $('bulkDateBtn').addEventListener('click',async()=>{ await changeDateOfSelected(); });
   $('photoList').addEventListener('change',e=>{
     const cb=e.target.closest('.bulk-check'); if(!cb)return;
     if(cb.checked)selectedPhotoIds.add(cb.dataset.id); else selectedPhotoIds.delete(cb.dataset.id);
@@ -4429,13 +4610,34 @@
       $('welcomeDialog').showModal();
     }catch(e){}
   }
+  function backupAgeDays(){
+    const last=settings.lastBackupAt||0;
+    return last?Math.floor((Date.now()-last)/86400000):null;
+  }
   function maybeSuggestBackup(){
     if(!photos.length)return;
-    const last=settings.lastBackupAt||0;
-    const days=last?Math.floor((Date.now()-last)/86400000):null;
-    if(last && days<14)return;
-    const msg=last?`前回のバックアップから${days}日たっています`:'まだバックアップしていません';
+    const days=backupAgeDays();
+    if(days!==null && days<14)return;
+    const msg=(days===null)
+      ? `まだ一度もバックアップしていません（写真${photos.length}枚）`
+      : (days>=30?`バックアップから${days}日たっています。早めの保存をおすすめします`
+                 :`前回のバックアップから${days}日たっています`);
     setTimeout(()=>showActionToast(msg,'バックアップ',()=>{showPage('settings');backup();},12),1500);
+  }
+  // 設定ページに、前回いつバックアップしたかを常に出しておく
+  function renderBackupStatus(){
+    const el=$('backupAgeLabel'); if(!el)return;
+    const days=backupAgeDays();
+    if(days===null){
+      el.textContent='まだ一度もバックアップしていません。';
+      el.style.color='var(--danger)';
+    }else if(days===0){
+      el.textContent='前回のバックアップ：今日';
+      el.style.color='var(--muted)';
+    }else{
+      el.textContent=`前回のバックアップ：${days}日前`;
+      el.style.color=(days>=14)?'var(--danger)':'var(--muted)';
+    }
   }
   $('welcomeCloseBtn').addEventListener('click',()=>{
     try{localStorage.setItem('photoLedgerWelcomed','1')}catch(e){}

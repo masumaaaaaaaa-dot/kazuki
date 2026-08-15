@@ -254,6 +254,11 @@
     html[data-theme="dark"] .draw-tool-bar .sep{background:var(--line)}
     html[data-theme="dark"] .mode-toggle .btn.active{color:#04201c}
     html[data-theme="dark"] .tmpl-thumb-btn.active{background:#0c332e}
+    /* カード内の囲み枠。文字色などと同じく、配色に合わせて明暗を切り替える */
+    .panel{background:#f8fafc;border:1px solid var(--line);border-radius:12px}
+    html[data-theme="dark"] .panel{background:#161a22;border-color:var(--line)}
+    .panel-accent{background:#f0fdfa;border:1px solid var(--line);border-radius:12px}
+    html[data-theme="dark"] .panel-accent{background:#0c2b28;border-color:var(--line)}
     @media print{
       @page{size:A4 portrait;margin:0}
       body{background:#fff}
@@ -369,7 +374,7 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
         <input type="file" id="galleryInput" accept="image/*" multiple hidden />
         <input type="file" id="replaceInput" accept="image/*" hidden />
-        <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc">
+        <div class="panel" style="margin-top:12px;padding:12px">
           <div style="margin-bottom:10px"><label>「その場で撮影」の方法</label><select id="cameraMode">
             <option value="native">スマホのカメラを使う（画質優先・おすすめ）</option>
             <option value="inapp">アプリ内カメラ（黒板を見ながら撮る）</option>
@@ -387,7 +392,7 @@
         <div class="btn-row" style="margin-bottom:10px">
           <button class="btn tiny-btn outline" id="selectModeBtn">まとめて選ぶ</button>
         </div>
-        <div id="bulkBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:9px 10px;background:#f0fdfa;border:1px solid #a7d7cf;border-radius:10px">
+        <div id="bulkBar" class="panel-accent" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:9px 10px">
           <span id="bulkCount" style="font-weight:800;font-size:13px">0枚を選択中</span>
           <span style="flex:1"></span>
           <button class="btn tiny-btn" id="bulkAllBtn">すべて選ぶ</button>
@@ -507,17 +512,18 @@
       <canvas id="camCanvas" style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#000;display:block;touch-action:none;cursor:move"></canvas>
     </div>
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:12px;line-height:1.5;margin-bottom:8px">黒板をつかんで動かせます。画面に見えているとおりに保存されます。</div>
+      <div style="font-size:13.5px;line-height:1.6;margin-bottom:8px">黒板をつかんで動かせます。画面に見えているとおりに保存されます。</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <button type="button" id="camTemplateBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板を選ぶ</span></button>
-        <button type="button" id="camSizeBtn" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板 小</span></button>
-        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:34px;width:38px;padding:5px;font-size:15px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">⟳</span></button>
-        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:34px;padding:5px 12px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
-        <button type="button" id="camSurfaceBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0"><span class="cam-turn-label">黒板</span></button>
-        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
-        <button type="button" id="camBoardOffBtn" style="min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
-        <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:34px;padding:5px 10px;font-size:12px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
+        <button type="button" id="camTemplateBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板を選ぶ</span></button>
+        <button type="button" id="camSizeBtn" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板 小</span></button>
+        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:44px;width:48px;padding:8px;font-size:21px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">⟳</span></button>
+        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
+        <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0"><span class="cam-turn-label">黒板</span></button>
+        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
+        <button type="button" id="camBoardOffBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
+        <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
       </div>
+      <div style="font-size:12.5px;line-height:1.6;margin-top:7px;opacity:.92">黒板には後で書き込みも出来ます<br>黒板なしで撮っても、黒板を後で入れれます</div>
     </div>
     <div id="camTemplateSheet" style="display:none;position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.82);z-index:5;overflow:auto;padding:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#fff">
@@ -775,8 +781,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.17a';
-  const APP_UPDATE_NOTE='黒板を自分で組み立てる機能と、豆図の貼り付けを追加しました';
+  const APP_VERSION='2026.08.17d';
+  const APP_UPDATE_NOTE='黒い配色のときに白い枠が浮いていたのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -881,7 +887,8 @@
 
   function getDisplayBlob(ph){ return ph.editedBlob || ph.blob; }
   function getPhotoUrl(ph){
-    const key = ph.id + ':' + (ph.editedBlob ? ('e' + (ph.editedUpdatedAt||ph.updatedAt||1)) : 'o');
+    // 差し替えても番号は変わらないので、更新時刻を鍵に含めて古い画像を掴まないようにする
+    const key = ph.id + ':' + (ph.editedBlob ? ('e' + (ph.editedUpdatedAt||ph.updatedAt||1)) : ('o' + (ph.updatedAt||0)));
     if(objectUrls.has(key)) return objectUrls.get(key);
     for(const [k,u] of [...objectUrls.entries()]){ if(k.startsWith(ph.id+':')){ URL.revokeObjectURL(u); objectUrls.delete(k);} }
     const u = URL.createObjectURL(getDisplayBlob(ph)); objectUrls.set(key,u); return u;
@@ -2644,8 +2651,20 @@
   async function saveBoardDefs(list){
     settings.boardDefs=list;
     try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板の保存に失敗',e); }
+    syncBoardTemplateOptions();
     for(const k of Object.keys(_templateThumbCache))delete _templateThumbCache[k];
     const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
+  }
+  // 黒板の種類は内部で select（選択肢リスト）を持っている。
+  // 自作の黒板もここへ足しておかないと、値をセットしても無視されて選べない。
+  function syncBoardTemplateOptions(){
+    const sel=$('boardTemplate'); if(!sel)return;
+    Array.from(sel.querySelectorAll('option[data-custom="1"]')).forEach(o=>o.remove());
+    boardDefs().forEach(b=>{
+      const o=document.createElement('option');
+      o.value='custom:'+b.id; o.textContent=b.name; o.dataset.custom='1';
+      sel.appendChild(o);
+    });
   }
   // テンプレートの実体を返す。組み込みの13種類と、自分で作った黒板の両方を扱う。
   function genericTemplate(key){
@@ -2784,7 +2803,12 @@
       if(!bbState.id)return;
       if(!confirm('この黒板を削除します。よろしいですか？\n（この黒板を使って保存済みの写真は、そのまま残ります）'))return;
       await saveBoardDefs(boardDefs().filter(b=>b.id!==bbState.id));
-      close(); buildTemplatePickerOnce(); renderBoardEditor();
+      close();
+      const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
+      buildTemplatePickerOnce();
+      const sel=$('boardTemplate');
+      if(!sel.value||sel.value.indexOf('custom:')===0){ sel.value='tajima'; sel.dispatchEvent(new Event('change')); }
+      renderTemplatePicker(sel.value);
     });
     $('bbSaveBtn').addEventListener('click',async()=>{
       const name=($('bbName').value||'').trim();
@@ -2803,8 +2827,11 @@
       close();
       const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
       buildTemplatePickerOnce();
-      $('boardTemplate').value='custom:'+bbState.id;
-      renderBoardEditor();
+      const sel=$('boardTemplate');
+      sel.value='custom:'+bbState.id;
+      // 作った黒板の項目を実際に読み込ませる（選び直したのと同じ動き）
+      sel.dispatchEvent(new Event('change'));
+      renderTemplatePicker(sel.value);
     });
     $('openBoardBuilderBtn').addEventListener('click',()=>{
       const cur=$('boardTemplate').value||'';
@@ -2894,18 +2921,20 @@
     const sk=(surfaceKind==='white')?'white':'chalk';
     const ck=key+'_'+sk;
     if(_templateThumbCache[ck])return _templateThumbCache[ck];
-    const c=document.createElement('canvas');c.width=240;c.height=160;
+    // 画面が高精細なので、表示より大きく描いてから縮めて表示する（ぼやけ防止）
+    const c=document.createElement('canvas');c.width=660;c.height=440;
     const ctx=c.getContext('2d');
     let sampleData;
     if(genericTemplate(key)) sampleData={template:key,fields:{},note:'',note2:'',surface:sk};
     else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:'',surface:sk}; }
-    drawBoardFace(ctx,240,160,sampleData);
-    const url=c.toDataURL('image/png');
+    drawBoardFace(ctx,660,440,sampleData);
+    const url=c.toDataURL('image/jpeg',0.86);
     _templateThumbCache[ck]=url;
     return url;
   }
   function buildTemplatePickerOnce(){
     const wrap=$('boardTemplatePicker'); if(!wrap)return;
+    syncBoardTemplateOptions();
     const surf=(readBoardControls().surface==='white')?'white':'chalk';
     if(wrap.dataset.built==='1'&&wrap.dataset.surface===surf)return;
     wrap.dataset.surface=surf;
@@ -2979,9 +3008,9 @@
     }
   }
   function myBoardThumbDataUrl(mb){
-    const c=document.createElement('canvas');c.width=240;c.height=160;const ctx=c.getContext('2d');
-    ctx.drawImage(makeBoardCanvas(mb.data,mb.strokes||[],240,160),0,0);
-    return c.toDataURL('image/png');
+    const c=document.createElement('canvas');c.width=660;c.height=440;const ctx=c.getContext('2d');
+    ctx.drawImage(makeBoardCanvas(mb.data,mb.strokes||[],660,440),0,0);
+    return c.toDataURL('image/jpeg',0.86);
   }
   function updateMyBoardPickerActive(selId){
     const wrap=$('myBoardPicker'); if(!wrap)return;
@@ -3664,7 +3693,10 @@
     if(!ph)return;
     const img=$('posPickPhoto');
     const url=getPhotoUrl({...ph,editedBlob:null});
-    if(img.dataset.pid!==ph.id){ img.src=url; img.dataset.pid=ph.id; }
+    // 写真の差し替えでは番号が変わらないため、番号だけで見比べると
+    // 古い画像が出たままになる。更新時刻も合わせて見る。
+    const stamp=ph.id+':'+(ph.updatedAt||0);
+    if(img.dataset.pid!==stamp){ img.src=url; img.dataset.pid=stamp; }
     const free=board.position==='free';
     const lab=$('posPickLabel');
     if(lab)lab.textContent=free?'写真の上で、黒板を指で動かして位置を決めてください':'写真に貼ったときの仕上がり';
@@ -3803,6 +3835,10 @@
     ph.updatedAt=Date.now();
     await idbPut('photos',ph);
     revokePhotoUrl(id);
+    // 黒板編集を開いたままだったときは、そちらの写真も入れ替える
+    if(boardState.photoId===id){
+      try{ boardState.image=await loadImageElement(ph.blob); renderBoardEditor(); updatePosPickUI(); }catch(e){}
+    }
     renderPhotos();
     alert('写真を差し替えました。');
   }
@@ -4115,6 +4151,7 @@
   });
   initInAppCamera();
   initBoardBuilder();
+  syncBoardTemplateOptions();
   $('cameraInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:true}));
   $('galleryInput').addEventListener('change',e=>handleFiles(e.target.files,{saveDeviceCopy:false}));
   $('previewBtn').addEventListener('click',previewPrint);$('printBtn').addEventListener('click',printLedger);$('excelBtn').addEventListener('click',exportExcel);$('pdfSaveBtn').addEventListener('click',exportPdf);

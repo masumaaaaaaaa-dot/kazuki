@@ -712,13 +712,12 @@
             <div id="boardFieldHotspots" class="board-hotspots"></div>
           </div>
         </div>
-        <div class="draw-hint" id="drawHint">この枠の中で指2本を広げると、黒板だけが大きくなります（写真は変わりません）</div>
+        <div class="draw-hint" id="drawHint">この黒板内で指2本を広げると、黒板だけが大きくなります（写真は変わりません）</div>
         <div class="inline-note">
           <strong>文字を入れる</strong>…「黒板に直接入力」にして、書きたいマスをタップすると、その場で打ち込めます（下の入力欄からでも同じです）。<br>
           <strong>手書きする</strong>…「手書き」に切り替えると、指で黒板になぞり書きできます。色と太さは上のボタンで選べます。書いたものは「消しゴム」で消せます。<br>
-          <strong>細かいところを書くとき</strong>…この枠の中で指2本を広げると、黒板だけが大きく表示され、指1本でずらせます。<u>あくまで表示を拡大しているだけで、写真に貼られる黒板の大きさや位置は変わりません</u>。指2本でつまめば元に戻ります。<br>
-          <strong>もっと大きく見たいとき</strong>…スマホを横向きにすると、黒板が画面いっぱいに表示されて手書きしやすくなります。<br>
-          ※写真に貼るときの黒板の大きさは「大きさ」、位置は「位置」で決めます。
+          <strong>細かいところを書くとき</strong>…「手書き」のときに、この黒板内で指2本を広げると黒板だけが大きくなります。指2本のまま動かすと表示をずらせます。指2本でつまめば元に戻ります。<br>
+          <strong>もっと大きく見たいとき</strong>…スマホを横向きにすると、黒板が画面いっぱいに表示されて手書きしやすくなります。
         </div>
       </div>
       <div id="boardControlsCol">
@@ -808,7 +807,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18f';
+  const APP_VERSION='2026.08.18g';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;

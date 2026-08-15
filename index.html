@@ -591,7 +591,7 @@
   <div class="dialog-head"><h3>豆図の大きさ・位置</h3><button class="btn" type="button" id="imgAdjCloseBtn">閉じる</button></div>
   <div class="dialog-body">
     <div class="hint">指2本を広げると大きく、指1本でずらせます。枠の中に見えているとおりに黒板へ入ります。</div>
-    <div id="imgAdjStage" style="margin-top:10px;position:relative;width:100%;background:#33513f;border:2px solid rgba(255,255,255,.85);border-radius:6px;overflow:hidden;touch-action:none">
+    <div id="imgAdjStage" style="margin-top:10px;position:relative;width:100%;max-height:52vh;background:#33513f;border:2px solid rgba(255,255,255,.85);border-radius:6px;overflow:hidden;touch-action:none;user-select:none">
       <canvas id="imgAdjCanvas" style="width:100%;display:block"></canvas>
     </div>
     <div class="btn-row" style="margin-top:10px">
@@ -839,8 +839,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v161';
-  const APP_UPDATE_NOTE='豆図を枠いっぱいに広げたり、指で大きさと位置を変えられるようにしました';
+  const APP_VERSION='v162';
+  const APP_UPDATE_NOTE='豆図の調整画面の操作感を改善しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3219,7 +3219,9 @@
     const cv=$('imgAdjCanvas'); if(!cv)return;
     const stage=$('imgAdjStage'); if(!stage)return;
     const w=Math.max(200,stage.clientWidth||320);
-    const h=Math.round(w/imgAdjState.ratio);
+    // 縦長の枠だと画面からはみ出すので、高さに上限をかける
+    const maxH=Math.max(180,Math.round(window.innerHeight*0.5));
+    const h=Math.max(120,Math.min(maxH,Math.round(w/imgAdjState.ratio)));
     if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
     cv.style.height=h+'px';
     const ctx=cv.getContext('2d');
@@ -3229,16 +3231,34 @@
       {zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y});
     const lb=$('imgAdjZoomLabel'); if(lb)lb.textContent=imgAdjState.zoom.toFixed(1)+'倍';
   }
-  function imgAdjSetZoom(z){
-    imgAdjState.zoom=Math.max(1,Math.min(5,Math.round(z*10)/10));
-    imgAdjDraw();
+  // 指を動かすたびに描き直すと重いので、1コマにまとめる
+  let _imgAdjRaf=0;
+  function imgAdjScheduleDraw(){
+    if(_imgAdjRaf)return;
+    _imgAdjRaf=requestAnimationFrame(()=>{ _imgAdjRaf=0; imgAdjDraw(); });
+  }
+  function imgAdjSetZoom(z,snap){
+    // 指でつまむときは細かく（丸めない）。＋ − ボタンのときだけ0.1刻みにそろえる。
+    const v=snap?Math.round(z*10)/10:z;
+    imgAdjState.zoom=Math.max(1,Math.min(5,v));
+    imgAdjScheduleDraw();
+  }
+  // いま画像が枠からどれだけはみ出しているか（指の動きと画像の動きを合わせるために使う）
+  function imgAdjOverflow(){
+    const cv=$('imgAdjCanvas'); const img=boardImageReady(imgAdjState.src);
+    if(!cv||!img)return {ox:0,oy:0};
+    const base=(imgAdjState.fit==='fill')
+      ? Math.max(cv.width/img.width,cv.height/img.height)
+      : Math.min(cv.width/img.width,cv.height/img.height);
+    const sc=base*Math.max(1,imgAdjState.zoom);
+    return {ox:Math.max(0,img.width*sc-cv.width), oy:Math.max(0,img.height*sc-cv.height)};
   }
   function imgAdjPan(dx,dy){
-    const cv=$('imgAdjCanvas'); if(!cv)return;
-    // 動かした量を、見せる位置の割合に置き換える
-    imgAdjState.x=Math.max(0,Math.min(1,imgAdjState.x-dx/Math.max(1,cv.width)));
-    imgAdjState.y=Math.max(0,Math.min(1,imgAdjState.y-dy/Math.max(1,cv.height)));
-    imgAdjDraw();
+    const o=imgAdjOverflow();
+    // 指で動かした長さぶん、画像も動くようにする
+    if(o.ox>0)imgAdjState.x=Math.max(0,Math.min(1,imgAdjState.x-dx/o.ox));
+    if(o.oy>0)imgAdjState.y=Math.max(0,Math.min(1,imgAdjState.y-dy/o.oy));
+    imgAdjScheduleDraw();
   }
   // 豆図の枠のおおよその縦横比（テンプレートによって変わる）
   function imgAdjSlotRatio(key){
@@ -3280,10 +3300,10 @@
       boardState.imageAdjusts[imgAdjState.key]={zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y};
       close(); renderBoardEditor();
     });
-    $('imgAdjZoomIn').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom+0.2));
-    $('imgAdjZoomOut').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom-0.2));
+    $('imgAdjZoomIn').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom+0.2,true));
+    $('imgAdjZoomOut').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom-0.2,true));
     $('imgAdjResetBtn').addEventListener('click',()=>{
-      imgAdjState.zoom=1; imgAdjState.x=.5; imgAdjState.y=.5; imgAdjDraw();
+      imgAdjState.zoom=1; imgAdjState.x=.5; imgAdjState.y=.5; imgAdjScheduleDraw();
     });
     stage.addEventListener('pointerdown',e=>{
       stage.setPointerCapture&&stage.setPointerCapture(e.pointerId);
@@ -3299,7 +3319,7 @@
         // 指2本：広げると拡大
         const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
         const mid={x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
-        if(imgAdjPrevDist){ imgAdjSetZoom(imgAdjState.zoom*(d/imgAdjPrevDist)); }
+        if(imgAdjPrevDist&&d>0){ imgAdjSetZoom(imgAdjState.zoom*(d/imgAdjPrevDist),false); }
         if(imgAdjPrevMid){ imgAdjPan(mid.x-imgAdjPrevMid.x,mid.y-imgAdjPrevMid.y); }
         imgAdjPrevDist=d; imgAdjPrevMid=mid;
       }else{

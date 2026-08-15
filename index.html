@@ -787,7 +787,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.18b';
+  const APP_VERSION='2026.08.18c';
   const APP_UPDATE_NOTE='回転マークの大きさと、ボタンの高さのそろい方を修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1086,7 +1086,7 @@
   let camPhotoMode='auto';
   let camRaf=0, camBoardObj=null, camBoardCanvas=null;
   let camLensId='', camReorienting=false, camReorientTried={land:false,port:false};
-  let camLensList=[], camLensIndex=-1;
+  let camLensList=[], camLensIndex=-1, camLensFiltered=false;
   let camUiHidden=false, camDrag=null;
   const CAM_PREVIEW_MAX=1280;   // 画面表示用の解像度上限（描画を軽くするため。保存写真は原寸）
 
@@ -1310,11 +1310,17 @@
   // ※カメラの許可が下りるまで label は空文字になるため、必ず
   //   getUserMedia が成功したあとに呼ぶこと（先に呼ぶと広角を選べません）。
   async function camLoadLensList(){
+    camLensFiltered=false;
     try{
       const devs=await navigator.mediaDevices.enumerateDevices();
       const cams=devs.filter(d=>d.kind==='videoinput');
       const back=cams.filter(d=>/back|rear|背面|環境/i.test(d.label||''));
-      camLensList=(camFacing==='environment'&&back.length)?back:cams;
+      const front=cams.filter(d=>/front|face|内側|前面|self/i.test(d.label||''));
+      // いま向いている側のレンズだけを一覧にする。
+      // 前後を混ぜると、前面に切り替えたのに背面のレンズが選ばれてしまう。
+      const side=(camFacing==='environment')?back:front;
+      if(side.length){ camLensList=side; camLensFiltered=true; }
+      else camLensList=cams;
     }catch(e){ camLensList=[]; }
     const cur=camCurrentDeviceId();
     camLensIndex=camLensList.findIndex(d=>d.deviceId===cur);
@@ -1380,7 +1386,7 @@
       camReorientTried={land:false,port:false};   // レンズが変わると映像の向きも変わりうる
       if(camTorchOn)await camApplyTorch(true);
       try{
-        settings.camLensId=d.deviceId; settings.camLensLabel=d.label||'';
+        settings.camLensId=d.deviceId; settings.camLensLabel=d.label||''; settings.camLensFacing=camFacing;
         await idbPut('settings',{key:'main',value:settings});
       }catch(e){}
       return true;
@@ -1389,10 +1395,14 @@
   // 開いた直後に、前回のレンズ→超広角→広角 の順で選ぶ
   async function camSelectPreferredLens(){
     if(camLensList.length<2)return;
+    // 前後を判別できなかったときは、勝手にレンズを変えない（背面に戻ってしまうため）
+    if(!camLensFiltered)return;
     let i=-1;
-    const savedId=settings.camLensId, savedLabel=settings.camLensLabel;
-    if(savedId)i=camLensList.findIndex(d=>d.deviceId===savedId);
-    if(i<0&&savedLabel)i=camLensList.findIndex(d=>d.label===savedLabel);  // 端末によってIDが変わるため
+    if(settings.camLensFacing===camFacing){
+      const savedId=settings.camLensId, savedLabel=settings.camLensLabel;
+      if(savedId)i=camLensList.findIndex(d=>d.deviceId===savedId);
+      if(i<0&&savedLabel)i=camLensList.findIndex(d=>d.label===savedLabel);  // 端末によってIDが変わるため
+    }
     if(i<0)i=camPickWideIndex();
     if(i>=0&&i!==camLensIndex)await camUseLens(i);
   }
@@ -1577,11 +1587,39 @@
       fb.style.color=camTorchOn?'#20160a':'#fff';
       camSetButtonLabel(fb,camTorchOn?'ライトON':'ライト');
     });
+    // 前後の切り替え。画面を閉じて開き直すと一瞬もとの画面が見えてしまうので、
+    // カメラの映像だけをその場で入れ替える。
     $('camSwitchBtn').addEventListener('click',async()=>{
+      if(camReorienting)return;
+      const prev=camFacing;
       camFacing=(camFacing==='environment')?'user':'environment';
-      camLensList=[]; camLensIndex=-1;   // 前後が変わるとレンズ一覧も変わる
-      closeCameraDialog();
-      await openCameraDialog();
+      camReorienting=true;
+      let ok=false;
+      try{
+        if(camStream){ try{camStream.getTracks().forEach(t=>t.stop());}catch(e){} camStream=null; }
+        let ns=null;
+        try{ ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(''),audio:false}); }
+        catch(e){
+          // 切り替えられないときは元の側へ戻す（映像が消えたままにならないように）
+          camFacing=prev;
+          try{ ns=await navigator.mediaDevices.getUserMedia({video:camVideoConstraints(''),audio:false}); }catch(e2){}
+        }
+        if(ns){
+          camStream=ns;
+          const v=$('camVideo'); v.srcObject=ns; await v.play().catch(()=>{});
+          await camApplyZoomFloor(ns);
+          camZoom=1; camTorchOn=false;
+          camReorientTried={land:false,port:false};
+          camLensList=[]; camLensIndex=-1; camLensFiltered=false;
+          ok=(camFacing!==prev);
+        }
+      }catch(e){ console.warn('カメラを切り替えられません',e); }
+      finally{ camReorienting=false; }
+      const fb=$('camFlashBtn');
+      if(fb){ fb.style.background='rgba(255,255,255,.16)'; fb.style.color='#fff'; camSetButtonLabel(fb,'ライト'); }
+      if(camStream){ await camLoadLensList(); await camSelectPreferredLens(); }
+      camUpdateButtons();
+      if(!ok){ try{ showActionToast('この端末では前後を切り替えられませんでした','',null,3); }catch(e){} }
     });
 
     // ボタンを隠して、黒板を画面の端まで置けるようにする

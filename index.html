@@ -323,7 +323,7 @@
 
     /* ダークモードでは color-scheme:dark によりボタン既定の文字色が白になる。
        カメラ上部の操作ボタンは白い背景なので、文字色を明示しないと読めなくなる。 */
-    #cameraDialog #camTopBar button{color:#1a1d20}
+    #cameraDialog #camTopBar button{color:#1a1d20;font-weight:800;letter-spacing:.2px}
     #cameraDialog #camTopBar button .cam-turn-label{color:inherit}
 
     /* カメラ横持ち：配置は変えず、操作文字・アイコンの向きだけ端末の横持ちに合わせる */
@@ -512,18 +512,18 @@
       <canvas id="camCanvas" style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#000;display:block;touch-action:none;cursor:move"></canvas>
     </div>
     <div id="camTopBar" style="position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);color:#fff;transition:opacity .18s ease">
-      <div style="font-size:13.5px;line-height:1.6;margin-bottom:8px">黒板をつかんで動かせます。画面に見えているとおりに保存されます。</div>
+      <div style="font-size:13.5px;line-height:1.6;margin-bottom:8px">黒板は指で動かせます。画面に見えているとおりに保存されます。</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <button type="button" id="camTemplateBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板を選ぶ</span></button>
-        <button type="button" id="camSizeBtn" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板 小</span></button>
-        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:44px;width:48px;padding:8px;font-size:21px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">⟳</span></button>
-        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
-        <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0"><span class="cam-turn-label">黒板</span></button>
-        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
-        <button type="button" id="camBoardOffBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
-        <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
+        <button type="button" id="camTemplateBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板を選ぶ</span></button>
+        <button type="button" id="camSizeBtn" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);flex:0 0 auto;color:#1a1d20"><span class="cam-turn-label">黒板 小</span></button>
+        <button type="button" id="camRotateBtn" title="黒板を右へ90度回す" style="min-height:44px;width:54px;padding:6px;font-size:28px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">⟳</span></button>
+        <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
+        <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800"><span class="cam-turn-label">黒板</span></button>
+        <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
+        <button type="button" id="camBoardOffBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
+        <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
       </div>
-      <div style="font-size:12.5px;line-height:1.6;margin-top:7px;opacity:.92">黒板には後で書き込みも出来ます<br>黒板なしで撮っても、黒板を後で入れれます</div>
+      <div style="font-size:12.5px;line-height:1.7;margin-top:7px;opacity:.92">黒板は後からでも書き込めます<br>黒板なしで撮影しても、後から黒板を入れられます</div>
     </div>
     <div id="camTemplateSheet" style="display:none;position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.82);z-index:5;overflow:auto;padding:14px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#fff">
@@ -781,8 +781,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='2026.08.17d';
-  const APP_UPDATE_NOTE='黒い配色のときに白い枠が浮いていたのを修正しました';
+  const APP_VERSION='2026.08.17e';
+  const APP_UPDATE_NOTE='カメラ画面の文字を太く、回転マークを大きくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

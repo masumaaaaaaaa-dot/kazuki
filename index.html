@@ -63,6 +63,22 @@
     /* 現場カード：どの現場も同じ形・同じ位置になるように整える */
     .item-title-row{display:flex;align-items:center;gap:7px;min-width:0}
     .item-title-row .item-title{min-width:0}
+    /* 現場・写真の一覧：工事名（見出し）を囲んで塗りつぶす */
+    #projectList .item-title,#photoList .item-title{
+      display:inline-block;padding:5px 12px;border-radius:9px;
+      background:var(--line);color:var(--text);white-space:normal}
+    html[data-theme="dark"] #projectList .item-title,
+    html[data-theme="dark"] #photoList .item-title{
+      background:var(--brand);color:var(--on-brand)}
+    /* 一覧のボタンは、明るい配色では灰色＋黒字にそろえる */
+    #projectList .btn.primary,#photoList .btn.primary{
+      background:var(--line);color:var(--text)}
+    html[data-theme="dark"] #projectList .btn.primary,
+    html[data-theme="dark"] #photoList .btn.primary{
+      background:transparent;color:var(--brand);border:1.6px solid var(--brand)}
+    html[data-theme="dark"] #projectList .btn.outline,
+    html[data-theme="dark"] #photoList .btn.outline{
+      background:transparent;color:var(--brand);border:1.6px solid var(--brand)}
     .item-title-row .badge{flex:0 0 auto}
     .project-item .item-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.45}
     .project-item .photo-actions{margin-top:8px;gap:4px}
@@ -952,8 +968,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v208';
-  const APP_UPDATE_NOTE='「使用中」の文字が読めない不具合を直しました';
+  const APP_VERSION='v209';
+  const APP_UPDATE_NOTE='現場・写真の一覧の見た目を整えました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

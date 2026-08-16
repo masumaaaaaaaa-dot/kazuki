@@ -618,6 +618,7 @@
         <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800"><span class="cam-turn-label">黒板</span></button>
         <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
         <button type="button" id="camBoardOffBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
+        <button type="button" id="camCornerBtn" title="黒板を四隅へ動かします（指でも自由に動かせます）" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">右下へ</span></button>
         <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
       </div>
       <div style="font-size:12.5px;line-height:1.7;margin-top:7px;opacity:.92">黒板は後からでも書き込めます<br>黒板なしで撮影しても、後から黒板を入れられます</div>
@@ -917,8 +918,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v181';
-  const APP_UPDATE_NOTE='撮影の合図（音と暗転）を作り直しました';
+  const APP_VERSION='v182';
+  const APP_UPDATE_NOTE='黒板を常に動かせるようにし、カメラの操作パネルが出ない不具合を直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1205,7 +1206,8 @@
   //   ・映像の切り出し（ズーム）・向きの補正・黒板の配置を、すべて同じ1つの描画処理で行う
   //   ・「画面用の座標」と「写真用の座標」を分けないので、見えているとおりに保存される
   //   ・端末の傾きセンサーは使わない（機種差で外れるため）。向きは映像そのものの形で決める
-  let camStream=null, camFacing='environment', camBoardPos={x:0.78,y:0.8};
+  let camStream=null, camFacing='environment', camBoardPos={x:1,y:1};   // 右下から
+  const CAM_CORNERS=[{x:1,y:1,label:'右下へ'},{x:0,y:1,label:'左下へ'},{x:0,y:0,label:'左上へ'},{x:1,y:0,label:'右上へ'}];
   let camSettings={template:null,size:null,orient:null,surface:null,noteSize:null,enabled:true,rotate:0};
   let camTorchOn=false, camZoom=1;
   // 写真の向き： auto=スマホの構え方に合わせる／land=横／port=縦
@@ -1382,6 +1384,11 @@
     if(po){
       const shape=(camTargetOrient()==='land')?'横':'縦';
       camSetButtonLabel(po,CAM_PHOTO_LABEL[camPhotoMode]+((camPhotoMode==='auto'&&shape)?('・'+shape):''));
+      const cb=$('camCornerBtn');
+      if(cb){
+        const i=CAM_CORNERS.findIndex(c=>c.x===camBoardPos.x&&c.y===camBoardPos.y);
+        camSetButtonLabel(cb,CAM_CORNERS[(i+1+CAM_CORNERS.length)%CAM_CORNERS.length].label);
+      }
       po.style.background=(camPhotoMode==='auto')?'rgba(255,255,255,.9)':'#f5a524';
       po.style.color='#1a1d20';
       po.title='保存する写真の向き。見えている枠のかたちがそのまま写真になります';
@@ -1606,9 +1613,12 @@
     }
     dlg.showModal();
     camUiHidden=false;
+    camBoardPos={x:1,y:1};        // 黒板は右下から
     if(window._applyCamUi)window._applyCamUi();
     camUpdateButtons();
     camStartLoop();
+    // 開いた直後は画面の大きさが確定していないことがあるため、少し置いてもう一度そろえる
+    setTimeout(()=>{ if(dlg.open&&window._applyCamUi){ window._applyCamUi(); camUpdateButtons(); } },250);
   }
   // カメラの後始末。ダイアログが閉じたときは必ずここを通る（戻るボタン・Escを含む）。
   // 撮った合図。画面を一瞬黒くして、シャッター音を鳴らす。
@@ -1809,21 +1819,35 @@
       if(sub){ sub.style.display=camUiHidden?'none':(landscape?'grid':'flex'); }
       if(btn)camSetButtonLabel(btn,camUiHidden?'出す':'隠す');
       // 横画面は左右に操作パネル、縦画面は上下に操作パネルを置く。
-      setTimeout(()=>{
+      // 画面が整う前に測ると大きさが0になり、映像が全面に広がって
+      // 操作パネルが見えなくなるため、正しい数字が取れるまで測り直す。
+      let tries=0;
+      const place=()=>{
         if(!st)return;
         if(landscape){
           const lw=camUiHidden?0:(top?top.offsetWidth:0);
           const rw=camUiHidden?0:(bot?bot.offsetWidth:0);
+          if(!camUiHidden&&(!lw||!rw)&&tries++<20){ requestAnimationFrame(place); return; }
           st.style.left=lw+'px'; st.style.right=rw+'px'; st.style.top='0px'; st.style.bottom='0px';
         }else{
           const th=camUiHidden?0:(top?top.offsetHeight:0);
           const bh=camUiHidden?0:(bot?bot.offsetHeight:0);
+          if(!camUiHidden&&(!th||!bh)&&tries++<20){ requestAnimationFrame(place); return; }
           st.style.left='0px'; st.style.right='0px'; st.style.top=th+'px'; st.style.bottom=bh+'px';
         }
-      },40);
+      };
+      requestAnimationFrame(place);
     };
     window._applyCamUi=applyCamUi;
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
+    // 黒板を四隅へ。押すたびに 右下 → 左下 → 左上 → 右上 と回る。
+    // どこに置いたあとでも、指で自由に動かせるのは変わらない。
+    $('camCornerBtn').addEventListener('click',()=>{
+      const i=CAM_CORNERS.findIndex(c=>c.x===camBoardPos.x&&c.y===camBoardPos.y);
+      const next=CAM_CORNERS[(i+1+CAM_CORNERS.length)%CAM_CORNERS.length]||CAM_CORNERS[0];
+      camBoardPos={x:next.x,y:next.y};
+      camUpdateButtons();
+    });
     // 画面が回ったら、配置を組み直してから映像の向きも合わせにいく
     let camOrientTimer=0;
     const onOrientChange=()=>{
@@ -4508,16 +4532,17 @@
     if(img.dataset.pid!==stamp){ img.src=url; img.dataset.pid=stamp; }
     const free=board.position==='free';
     const lab=$('posPickLabel');
-    if(lab)lab.textContent=free?'写真の上で、黒板を指で動かして位置を決めてください':'写真に貼ったときの仕上がり';
+    if(lab)lab.textContent='写真の上で、黒板を指で動かして位置を決めてください';
     const hint=$('posPickHint');
-    if(hint)hint.textContent=free?'いまの黒板がそのまま表示されています。つかんで動かせます（位置は写真ごとに保存されます）。':'「位置」を「自由」にすると、黒板を指で動かして置けます。';
+    if(hint)hint.textContent='いまの黒板がそのまま表示されています。つかんで動かせます（位置は写真ごとに保存されます）。';
     // 位置決めの四角に、いま編集している黒板そのもの（文字・手書きを含む）を映す。
     // 指で動かすたびに描き直すと重いので、絵は先に1枚だけ作っておく。
     const boxImg=posPickBoardImage(board);   // 中身が変わったときだけ作り直す
     const draw=()=>{
       const stage=$('posPickStage'), box=$('posPickBoard');
-      box.style.cursor=free?'move':'default';
-      box.style.pointerEvents=free?'auto':'none';
+      // 「右下」などを選んでいても、つかんで動かせるようにする
+      box.style.cursor='move';
+      box.style.pointerEvents='auto';
       const sw=stage.clientWidth, sh=stage.clientHeight;
       if(!sw||!sh)return;
       const r=computeBoardRect(sw,sh,board.position,board.size||'m',boardAspect(board),board.freePos);
@@ -4544,6 +4569,18 @@
       const br=box.getBoundingClientRect();
       offX=t.clientX-br.left;
       offY=t.clientY-br.top;
+      // 「右下」などを選んでいる状態から動かし始めたら、
+      // いまの見た目の位置を引き継いで「自由」に切り替える。
+      const sel=$('boardPosition');
+      if(sel&&sel.value!=='free'){
+        const b=readBoardControls();
+        const sw=stage.clientWidth, sh=stage.clientHeight;
+        const cur=computeBoardRect(sw,sh,b.position,b.size||'m',boardAspect(b),b.freePos);
+        const mX=Math.max(0,sw-cur.w), mY=Math.max(0,sh-cur.h);
+        boardState.freePos={x:mX?cur.x/mX:0,y:mY?cur.y/mY:0};
+        sel.value='free';
+        sel.dispatchEvent(new Event('input',{bubbles:true}));
+      }
       dragging=true; e.preventDefault();
     };
     const move=(e)=>{

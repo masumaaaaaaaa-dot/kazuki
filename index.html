@@ -264,9 +264,11 @@
       #boardDialog .draw-hint,
       #boardDialog .inline-note{display:none}
       /* 右：操作をまとめる（幅は控えめに） */
+      /* 右側はまるごと縦にスクロールする（道具だけ固定しない） */
       #boardDialog #boardControlsCol{
         grid-column:2;grid-row:1;
-        display:flex;flex-direction:column;min-width:0;overflow:hidden;gap:5px;
+        display:flex;flex-direction:column;min-width:0;
+        overflow-y:auto;-webkit-overflow-scrolling:touch;gap:5px;padding-right:2px;
       }
       #boardDialog #landscapeTools{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
       #boardDialog #landscapeTools .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:0}
@@ -281,7 +283,7 @@
       #boardDialog #landscapeTools .sep{display:none}
       /* 黒板の拡大・移動の操作 */
       #boardDialog .board-move{margin:0;flex:0 0 auto}
-      #boardDialog #boardControlsScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+      #boardDialog #boardControlsScroll{flex:0 0 auto}
       #boardDialog #boardControlsCol .tip-box{margin-top:0!important;padding:6px 8px}
       #boardDialog #boardControlsCol .tip-box .hint{display:none}
       #boardDialog #boardControlsCol label{font-size:10.5px;margin-bottom:2px}
@@ -292,7 +294,7 @@
       #boardDialog #boardControlsCol .btn{font-size:11.5px;padding:6px 6px}
       /* 横向きでは豆図は扱わない（縦向きで設定する） */
       #boardDialog #boardImageSlots{display:none!important}
-      #boardDialog #landscapeActions{display:flex;gap:5px;flex:0 0 auto}
+      #boardDialog #landscapeActions{display:flex;gap:5px;flex:0 0 auto;position:sticky;bottom:0;background:var(--card);padding-top:4px}
       #boardDialog #landscapeActions .btn{flex:1;padding:8px 3px;font-size:11.5px}
     }
     @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
@@ -818,7 +820,7 @@
           <button type="button" class="btn bm-btn" id="bzInBtn" title="大きく" aria-label="大きく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
           <button type="button" class="btn bm-btn" id="bzResetBtn" title="元の大きさ・位置に戻す" aria-label="元に戻す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.49-6.01"/><path d="M20.5 3.5v5h-5"/></svg></button>
         </div>
-        <div class="draw-hint" id="drawHint">この黒板内で指2本を広げると、黒板だけが大きくなります（写真は変わりません）</div>
+        <div class="draw-hint" id="drawHint">この黒板内で指2本で拡大・移動します</div>
         <div class="inline-note">
           <strong>文字を入れる</strong>…「黒板に直接入力」にして、書きたいマスをタップすると、その場で打ち込めます（下の入力欄からでも同じです）。<br>
           <strong>手書きする</strong>…「手書き」に切り替えると、指で黒板になぞり書きできます。色と太さは上のボタンで選べます。書いたものは「消しゴム」で消せます。<br>
@@ -873,7 +875,7 @@
         <div class="cf-dup">
           <select id="boardSurface"><option value="chalk">黒板（緑）</option><option value="white">ホワイトボード</option></select>
           <select id="boardOrient"><option value="land">横向き</option><option value="port">縦向き</option></select>
-          <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free">自由</option></select>
+          <select id="boardPosition"><option value="rb">右下</option><option value="lb">左下</option><option value="lt">左上</option><option value="rt">右上</option><option value="free" hidden>自由</option></select>
           <select id="boardSize"><option value="s">小さめ</option><option value="m">標準</option><option value="l">大きめ</option></select>
         </div>
       </div>
@@ -918,8 +920,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v182';
-  const APP_UPDATE_NOTE='黒板を常に動かせるようにし、カメラの操作パネルが出ない不具合を直しました';
+  const APP_VERSION='v183';
+  const APP_UPDATE_NOTE='「自由」を無くし、横向きの右側をスクロールできるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3651,7 +3653,6 @@
       {key:'concrete_uchisetsu',label:GENERIC_TEMPLATES.concrete_uchisetsu.label},
       {key:'dekigata_hyou',label:GENERIC_TEMPLATES.dekigata_hyou.label},
       {key:'kensa_kawa',label:GENERIC_TEMPLATES.kensa_kawa.label},
-      {key:'free',label:'自由設定'}
     ].concat(boardDefs().map(b=>({key:'custom:'+b.id,label:b.name,custom:true})));
   }
   const _templateThumbCache={};
@@ -3697,7 +3698,7 @@
   // 向き・位置・大きさは、押すたびに切り替わる
   const BQ_DEFS={
     bqOrient:{sel:'boardOrient',opts:[['land','横長'],['port','縦長']]},
-    bqPosition:{sel:'boardPosition',opts:[['rb','右下'],['lb','左下'],['lt','左上'],['rt','右上'],['free','自由']]},
+    bqPosition:{sel:'boardPosition',opts:[['rb','右下'],['lb','左下'],['lt','左上'],['rt','右上'],['free','移動した位置',true]]},
     bqSize:{sel:'boardSize',opts:[['s','小'],['m','中'],['l','大']]},   // 押すたびに 小→中→大
   };
   function updateQuickBar(){
@@ -3712,8 +3713,10 @@
       const btn=$(id); if(!btn)return;
       btn.addEventListener('click',()=>{
         const sel=$(def.sel);
-        const i=def.opts.findIndex(o=>o[0]===sel.value);
-        sel.value=def.opts[(i+1)%def.opts.length][0];
+        // ボタンで選ばせない項目（指で動かしたときだけ入る状態）は飛ばす
+        const pick=def.opts.filter(o=>!o[2]);
+        const i=pick.findIndex(o=>o[0]===sel.value);
+        sel.value=pick[(i+1)%pick.length][0];
         updateQuickBar();
         sel.dispatchEvent(new Event('input',{bubbles:true}));
         renderBoardEditor();

@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v220';
-  const APP_UPDATE_NOTE='写真の枠をテーマカラーにしました';
+  const APP_VERSION='v221';
+  const APP_UPDATE_NOTE='縦の写真で黒板が小さくなるのを直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -4075,8 +4075,9 @@
     const margin=Math.max(12,Math.round(Math.min(w,h)*0.018));
     const freePad=margin;     // 四隅と同じ余白。印刷で端が切れても黒板が欠けないように
     const pad=position==='free'?freePad:margin;
-    // 横向きの黒板を回転させたのと同じ大きさになるよう、長い辺を基準にする
-    const longSide=w*ratio;
+    // 黒板の大きさは、写真の「長いほうの辺」を基準に決める。
+    // 幅だけを基準にすると、縦長の写真で黒板が小さくなってしまう。
+    const longSide=Math.max(w,h)*ratio;
     let bw,bh;
     if(ar>1){ bh=longSide; bw=bh/ar; } else { bw=longSide; bh=bw*ar; }
     if(bw>w-pad*2){bw=w-pad*2;bh=bw*ar}

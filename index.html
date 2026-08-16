@@ -123,9 +123,10 @@
     html[data-color="rose"]{--brand:#e11d48;--brand2:#be123c;--brand-ink:#be123c;--accent:#0ea5e9}
     html[data-theme="dark"][data-color="rose"]{--brand:#fb7185;--brand2:#e11d48;--brand-ink:#fda4af;--accent:#38bdf8}
     /* テーマカラーの見本。丸い玉にして、選んだものにチェックを出す */
-    .color-picker{display:flex;flex-wrap:wrap;gap:10px 6px;justify-content:space-between;width:100%;box-sizing:border-box;padding:4px 2px 0}
-    .color-picker > div{flex:0 0 auto;width:34px}
-    .color-swatch{width:28px;height:28px; border-radius:50%;border:0;position:relative;padding:0;
+    .color-picker{display:grid;grid-template-columns:repeat(10,1fr);gap:4px 3px;
+      width:100%;box-sizing:border-box;padding:4px 3px 0;justify-items:center}
+    .color-picker > div{min-width:0;width:100%;display:flex;flex-direction:column;align-items:center}
+    .color-swatch{width:min(28px,100%);aspect-ratio:1;height:auto; border-radius:50%;border:0;position:relative;padding:0;
       background:transparent;cursor:pointer;transition:transform .12s ease}
     .color-swatch .ball{position:absolute;inset:0;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.14)}
     .color-swatch:active{transform:scale(.9)}
@@ -934,8 +935,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v200';
-  const APP_UPDATE_NOTE='テーマカラーの玉を小さくし、つやをなくしました';
+  const APP_VERSION='v201';
+  const APP_UPDATE_NOTE='テーマカラーを1段10個に収めました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

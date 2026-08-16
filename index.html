@@ -920,8 +920,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v184';
-  const APP_UPDATE_NOTE='黒板の余白をそろえ、拡大できなくなる不具合を直しました';
+  const APP_VERSION='v185';
+  const APP_UPDATE_NOTE='黒板の保存で押した手応えが出るようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -4681,17 +4681,36 @@
     ensureBoardImages({images:boardState.images}).then(()=>requestAnimationFrame(renderBoardEditor));
     requestAnimationFrame(renderBoardEditor);
   }
+  let _savingBoard=false;
   async function saveBoardEdits(){
+    if(_savingBoard)return;                    // 二度押しても二重に作らない
     closeBoardInlineEditor();   // 入力中の文字を確定してから作る
-    const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;const board=readBoardControls();
-    const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
-    if(board.enabled!==false){await ensureBoardImages(board);const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
-    const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
-    ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
-    await idbPut('photos',ph);
-    settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
-    try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
-    $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('黒板付き写真を保存しました。次の写真も同じ黒板の設定で開きます。');
+    const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;
+    _savingBoard=true;
+    const btn=$('saveBoardBtn');
+    const label=btn?btn.textContent:'';
+    // 押した手応えをすぐ出す。写真が大きいと作るのに時間がかかるため。
+    if(btn){ btn.disabled=true; btn.textContent='保存中…'; btn.style.opacity='.75'; }
+    try{
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));  // 表示を先に反映させる
+      const board=readBoardControls();
+      const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
+      if(board.enabled!==false){await ensureBoardImages(board);const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+      const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
+      ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
+      await idbPut('photos',ph);
+      settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
+      try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
+      $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();
+      // 出来上がりは画面下のお知らせで伝える（押すたびに確認を押さなくてよい）
+      showActionToast('黒板付き写真を保存しました','',null,4);
+    }catch(err){
+      console.error(err);
+      alert(err&&err.message?err.message:'黒板付き写真の保存に失敗しました。');
+    }finally{
+      _savingBoard=false;
+      if(btn){ btn.disabled=false; btn.textContent=label; btn.style.opacity=''; }
+    }
   }
   async function replacePhotoImage(id,file){
     const ph=photos.find(x=>x.id===id); if(!ph)return;

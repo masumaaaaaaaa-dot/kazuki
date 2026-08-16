@@ -11,13 +11,13 @@
   <link rel="icon" href="icon-192.png" />
   <style>
     :root{
-      --brand:#0f766e; --brand2:#115e59; --brand-ink:#0f766e; --accent:#f59e0b; --bg:#f3f4f6;
+      --brand:#0f766e; --brand2:#115e59; --brand-ink:#0f766e; --accent:#f59e0b; --on-brand:#fff; --bg:#f3f4f6;
       --card:#fff; --text:#172033; --muted:#64748b; --line:#d7dee7; --danger:#b42318;
       --shadow:0 5px 18px rgba(15,23,42,.09);
       color-scheme:light;
     }
     html[data-theme="dark"]{
-      --brand:#14b8a6; --brand2:#0f766e; --brand-ink:#14b8a6; --accent:#f59e0b; --bg:#0e1015;
+      --brand:#14b8a6; --brand2:#0f766e; --brand-ink:#14b8a6; --accent:#f59e0b; --on-brand:#fff; --bg:#0e1015;
       --card:#1a1d24; --text:#e7ebf2; --muted:#98a3b5; --line:#2b3140; --danger:#ff6b6b;
       --shadow:0 5px 18px rgba(0,0,0,.5);
       color-scheme:dark;
@@ -51,7 +51,7 @@
     input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#fff;color:var(--text)}
     textarea{min-height:88px;resize:vertical}
     .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#e2e8f0;color:#1e293b}
-    .btn.primary{background:var(--brand);color:#fff}.btn.accent{background:var(--accent);color:#fff}.btn.danger{background:#fee4e2;color:var(--danger)}.btn.outline{background:#fff;color:var(--brand-ink);border:1px solid var(--brand)}
+    .btn.primary{background:var(--brand);color:var(--on-brand)}.btn.accent{background:var(--accent);color:#fff}.btn.danger{background:#fee4e2;color:var(--danger)}.btn.outline{background:#fff;color:var(--brand-ink);border:1px solid var(--brand)}
     .btn.full{width:100%}.btn-row{display:flex;gap:8px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:120px}
     .btn.outline.active{background:var(--brand);color:#fff;border-color:var(--brand)}
     .empty{padding:28px 12px;text-align:center;color:var(--muted);border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa}
@@ -112,14 +112,23 @@
     html[data-color="brown"]{--brand:#6b4a2f;--brand2:#4b3320;--brand-ink:#6b4a2f;--accent:#d99b3d}
     html[data-theme="dark"][data-color="brown"]{--brand:#c39a72;--brand2:#8d6a4a;--brand-ink:#d6b294;--accent:#d99b3d}
     /* ここから明るい色 */
-    html[data-color="sky"]{--brand:#0ea5e9;--brand2:#0284c7;--brand-ink:#0369a1;--accent:#f59e0b}
-    html[data-theme="dark"][data-color="sky"]{--brand:#38bdf8;--brand2:#0ea5e9;--brand-ink:#7dd3fc;--accent:#f59e0b}
-    html[data-color="orange"]{--brand:#f97316;--brand2:#ea580c;--brand-ink:#c2410c;--accent:#0ea5e9}
-    html[data-theme="dark"][data-color="orange"]{--brand:#fb923c;--brand2:#ea580c;--brand-ink:#fdba74;--accent:#38bdf8}
-    html[data-color="lime"]{--brand:#16a34a;--brand2:#15803d;--brand-ink:#15803d;--accent:#f59e0b}
-    html[data-theme="dark"][data-color="lime"]{--brand:#4ade80;--brand2:#22c55e;--brand-ink:#86efac;--accent:#f59e0b}
+    html[data-color="sky"]{--brand:#0ea5e9;--brand2:#0284c7;--brand-ink:#0369a1;--accent:#f59e0b;--on-brand:#00212f}
+    html[data-theme="dark"][data-color="sky"]{--brand:#38bdf8;--brand2:#0ea5e9;--brand-ink:#7dd3fc;--accent:#f59e0b;--on-brand:#00212f}
+    html[data-color="orange"]{--brand:#f97316;--brand2:#ea580c;--brand-ink:#c2410c;--accent:#0ea5e9;--on-brand:#3a1400}
+    html[data-theme="dark"][data-color="orange"]{--brand:#fb923c;--brand2:#ea580c;--brand-ink:#fdba74;--accent:#38bdf8;--on-brand:#3a1400}
+    html[data-color="lime"]{--brand:#16a34a;--brand2:#15803d;--brand-ink:#15803d;--accent:#f59e0b;--on-brand:#04250f}
+    html[data-theme="dark"][data-color="lime"]{--brand:#4ade80;--brand2:#22c55e;--brand-ink:#86efac;--accent:#f59e0b;--on-brand:#04250f}
     html[data-color="violet"]{--brand:#7c3aed;--brand2:#6d28d9;--brand-ink:#6d28d9;--accent:#f59e0b}
     html[data-theme="dark"][data-color="violet"]{--brand:#a78bfa;--brand2:#8b5cf6;--brand-ink:#c4b5fd;--accent:#f59e0b}
+    /* 蛍光色。明るいので、ボタンの上の文字は黒にする */
+    html[data-color="neongreen"]{--brand:#22c55e;--brand2:#16a34a;--brand-ink:#15803d;--accent:#ff1493;--on-brand:#08240f}
+    html[data-theme="dark"][data-color="neongreen"]{--brand:#39ff14;--brand2:#22c55e;--brand-ink:#7cff5c;--accent:#ff1493;--on-brand:#08240f}
+    html[data-color="neonpink"]{--brand:#ff1493;--brand2:#db2777;--brand-ink:#be185d;--accent:#00e5ff;--on-brand:#33001a}
+    html[data-theme="dark"][data-color="neonpink"]{--brand:#ff1493;--brand2:#db2777;--brand-ink:#ff8ac4;--accent:#00e5ff;--on-brand:#33001a}
+    html[data-color="neonaqua"]{--brand:#00c4dd;--brand2:#0891b2;--brand-ink:#0e7490;--accent:#ff6700;--on-brand:#00252b}
+    html[data-theme="dark"][data-color="neonaqua"]{--brand:#00e5ff;--brand2:#00c4dd;--brand-ink:#67e8f9;--accent:#ff6700;--on-brand:#00252b}
+    html[data-color="neonlime"]{--brand:#a3c400;--brand2:#84a000;--brand-ink:#5c7000;--accent:#ff1493;--on-brand:#1d2400}
+    html[data-theme="dark"][data-color="neonlime"]{--brand:#ccff00;--brand2:#a3c400;--brand-ink:#d9ff4d;--accent:#ff1493;--on-brand:#1d2400}
     html[data-color="rose"]{--brand:#e11d48;--brand2:#be123c;--brand-ink:#be123c;--accent:#0ea5e9}
     html[data-theme="dark"][data-color="rose"]{--brand:#fb7185;--brand2:#e11d48;--brand-ink:#fda4af;--accent:#38bdf8}
     /* テーマカラーの見本。丸い玉にして、選んだものにチェックを出す */
@@ -940,8 +949,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v206';
-  const APP_UPDATE_NOTE='記入欄のいちばん上の線をなくしました';
+  const APP_VERSION='v207';
+  const APP_UPDATE_NOTE='テーマカラーに蛍光色を4つ追加しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3022,6 +3031,10 @@
     {id:'orange',name:'橙',c1:'#f97316',c2:'#ea580c'},
     {id:'violet',name:'藤',c1:'#7c3aed',c2:'#6d28d9'},
     {id:'rose',name:'赤',c1:'#e11d48',c2:'#be123c'},
+    {id:'neongreen',name:'蛍光緑',c1:'#39ff14',c2:'#22c55e'},
+    {id:'neonlime',name:'蛍光黄',c1:'#ccff00',c2:'#a3c400'},
+    {id:'neonaqua',name:'蛍光水',c1:'#00e5ff',c2:'#00c4dd'},
+    {id:'neonpink',name:'蛍光桃',c1:'#ff1493',c2:'#db2777'},
   ];
   function applyColorTheme(id){
     const t=COLOR_THEMES.find(x=>x.id===id)?id:'default';

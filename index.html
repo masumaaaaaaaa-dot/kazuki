@@ -161,11 +161,11 @@
     .board-note-status.over{color:var(--danger);font-weight:800}
     /* 黒板の拡大・移動。1列に並べる */
     .board-move{display:flex;gap:5px;margin-top:8px}
-    .board-move .bm-btn{flex:1;min-width:0;height:46px;padding:0;
+    .board-move .bm-btn{flex:1;min-width:0;height:44px;padding:0;
       display:flex;align-items:center;justify-content:center;
       background:var(--bg);border:1px solid var(--line);color:var(--text)}
     .board-move .bm-btn:active{background:var(--line)}
-    .board-move .bm-btn svg{display:block;width:26px;height:26px}
+    .board-move .bm-btn svg{display:block;width:23px;height:23px}
     .draw-hint{display:none;margin-top:8px;text-align:center;font-size:12px;font-weight:700;color:var(--brand-ink);
       background:#eef4f2;border:1px solid #bcd3cc;
       background:color-mix(in srgb,var(--brand) 10%,#fff);border-color:color-mix(in srgb,var(--brand) 35%,#fff);
@@ -837,13 +837,13 @@
           </div>
         </div>
         <div class="board-move" id="boardMovePad">
-          <button type="button" class="btn bm-btn" id="bzOutBtn" title="小さく" aria-label="小さく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzLeftBtn" title="左へ" aria-label="左へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzUpBtn" title="上へ" aria-label="上へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 7-7 7 7"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzDownBtn" title="下へ" aria-label="下へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 9 7 7 7-7"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzRightBtn" title="右へ" aria-label="右へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzInBtn" title="大きく" aria-label="大きく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
-          <button type="button" class="btn bm-btn" id="bzResetBtn" title="元の大きさ・位置に戻す" aria-label="元に戻す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.49-6.01"/><path d="M20.5 3.5v5h-5"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzOutBtn" title="小さく" aria-label="小さく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzLeftBtn" title="左へ" aria-label="左へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzUpBtn" title="上へ" aria-label="上へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 7-7 7 7"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzDownBtn" title="下へ" aria-label="下へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 9 7 7 7-7"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzRightBtn" title="右へ" aria-label="右へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzInBtn" title="大きく" aria-label="大きく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+          <button type="button" class="btn bm-btn" id="bzResetBtn" title="元の大きさ・位置に戻す" aria-label="元に戻す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.49-6.01"/><path d="M20.5 3.5v5h-5"/></svg></button>
         </div>
         <div class="draw-hint" id="drawHint">この黒板内で指2本を広げると、黒板だけが大きくなります（写真は変わりません）</div>
         <div class="inline-note">
@@ -945,8 +945,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v172';
-  const APP_UPDATE_NOTE='黒板の拡大・移動ボタンを1列に戻しました';
+  const APP_VERSION='v173';
+  const APP_UPDATE_NOTE='拡大・移動の矢印を、周りのボタンと同じ主張に整えました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

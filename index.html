@@ -940,8 +940,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v205';
-  const APP_UPDATE_NOTE='A4出力から写真番号と上の実線をなくしました';
+  const APP_VERSION='v206';
+  const APP_UPDATE_NOTE='記入欄のいちばん上の線をなくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2665,7 +2665,8 @@
     const BOX_MM=80, LINES=9;
     const step=BOX_MM/LINES;
     let out='';
-    for(let i=0;i<=LINES;i++){
+    // いちばん上の線は引かない（1行目の文字のすぐ上に線が来るため）
+    for(let i=1;i<=LINES;i++){
       out+=`<div class="rule" style="top:${(i*step).toFixed(2)}mm"></div>`;
     }
     return out;

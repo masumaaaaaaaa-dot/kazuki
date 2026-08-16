@@ -927,8 +927,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v196';
-  const APP_UPDATE_NOTE='シャッターの反応をさらに改善しました';
+  const APP_VERSION='v197';
+  const APP_UPDATE_NOTE='黒板を選ぶ画面と文字入力を軽くしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1490,7 +1490,7 @@
     const myId=camSettings.myBoardId;
     const cell=(sel,img,label,attr)=>`
       <button type="button" ${attr} style="padding:0;border:2px solid ${sel?'#f5a524':'rgba(255,255,255,.25)'};border-radius:10px;overflow:hidden;background:#111;text-align:left">
-        <img src="${img}" alt="" style="width:100%;display:block" />
+        <img src="${img}" alt="" style="width:100%;display:block;aspect-ratio:3/2;background:#2a2f3a" />
         <span style="display:block;padding:6px 7px;color:#fff;font-size:11.5px;line-height:1.4">${escapeHtml(label)}</span>
       </button>`;
     // MY黒板があれば先に出す（よく使うものなので探しやすい位置に）
@@ -1501,9 +1501,17 @@
         `data-myboard="${escapeAttr(mb.id)}"`)).join('');
       html+='<div style="grid-column:1 / -1;color:#fff;font-size:12px;font-weight:800;margin:8px 0 -2px">黒板テンプレート</div>';
     }
-    html+=boardTemplateList().map(t=>cell(!myId&&t.key===cur,templateThumbDataUrl(t.key,surf),t.label,
-      `data-tmpl="${escapeAttr(t.key)}"`)).join('');
+    const tlist=boardTemplateList();
+    html+=tlist.map(t=>cell(!myId&&t.key===cur,'',t.label,
+      `data-tmpl="${escapeAttr(t.key)}" data-thumbkey="${escapeAttr(t.key)}"`)).join('');
     grid.innerHTML=html;
+    // 見本は少しずつ作る（まとめて作ると開いた瞬間に固まる）
+    (function fillCamThumbs(i){
+      if(!grid.isConnected||i>=tlist.length)return;
+      const b=grid.querySelector(`button[data-thumbkey="${CSS.escape(tlist[i].key)}"] img`);
+      if(b){ try{ b.src=templateThumbDataUrl(tlist[i].key,surf); }catch(e){} }
+      requestAnimationFrame(()=>fillCamThumbs(i+1));
+    })(0);
     grid.querySelectorAll('button[data-tmpl]').forEach(b=>{
       b.addEventListener('click',()=>{
         camSettings.template=b.dataset.tmpl;
@@ -3198,7 +3206,7 @@
       html+=`<div style="margin-top:10px"><label>${escapeHtml(n.label||'自由記入')}（${lines}行まで）</label><textarea id="gn_${n.key}" rows="${Math.min(9,lines)}" style="font-family:monospace;font-weight:700">${escapeHtml(val)}</textarea></div>`;
     });
     container.innerHTML=html;
-    container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>scheduleBoardEditorRender()));
+    container.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>scheduleBoardEditorRenderTyping()));
   }
   // ---- 自分で組み立てた黒板（カスタム黒板）----
   // 保存先は設定の中。データベースの版を上げずに済み、バックアップにも自動で含まれる。
@@ -3799,8 +3807,17 @@
     if(wrap.dataset.built==='1'&&wrap.dataset.surface===surf)return;
     wrap.dataset.surface=surf;
     wrap.dataset.built='';
-    wrap.innerHTML=boardTemplateList().map(t=>`<button type="button" class="tmpl-thumb-btn" data-tmpl="${t.key}"><img src="${templateThumbDataUrl(t.key,surf)}" alt="" /><span>${escapeHtml(t.label)}</span></button>`).join('');
+    const list=boardTemplateList();
+    // 先に枠だけ出し、見本は少しずつ作る。まとめて作ると画面が固まるため。
+    wrap.innerHTML=list.map(t=>`<button type="button" class="tmpl-thumb-btn" data-tmpl="${t.key}"><img alt="" data-thumb="${escapeAttr(t.key)}" style="background:var(--line)" /><span>${escapeHtml(t.label)}</span></button>`).join('');
     wrap.dataset.built='1';
+    (function fillThumbs(i){
+      if(wrap.dataset.surface!==surf)return;          // 途中で板の色が変わったらやめる
+      if(i>=list.length)return;
+      const img=wrap.querySelector(`img[data-thumb="${CSS.escape(list[i].key)}"]`);
+      if(img){ try{ img.src=templateThumbDataUrl(list[i].key,surf); }catch(e){} }
+      requestAnimationFrame(()=>fillThumbs(i+1));      // 1つ作るごとに画面へ制御を返す
+    })(0);
     wrap.querySelectorAll('button[data-tmpl]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         $('boardTemplate').value=btn.dataset.tmpl;
@@ -4760,14 +4777,21 @@
   }
   // 文字入力や手書きのたびに黒板を丸ごと描き直すと重くなるため、
   // 同じ1コマ内の呼び出しはまとめて1回にする（見た目は変わらない）。
-  let _boardRenderRaf=0;
+  let _boardRenderRaf=0, _boardRenderTimer=0;
   function scheduleBoardEditorRender(){
     if(_boardRenderRaf)return;
     _boardRenderRaf=requestAnimationFrame(()=>{ _boardRenderRaf=0; renderBoardEditor(); });
   }
+  // 文字を打っている間は描き直さず、手が止まってから1回だけ描く。
+  // 1文字ごとに描くと、打ち込みが引っかかる。
+  function scheduleBoardEditorRenderTyping(){
+    clearTimeout(_boardRenderTimer);
+    _boardRenderTimer=setTimeout(()=>{ _boardRenderTimer=0; renderBoardEditor(); },180);
+  }
   function renderBoardEditor(){
     try{ updateOrientToggleBtn(); }catch(e){}
     if(_boardRenderRaf){ cancelAnimationFrame(_boardRenderRaf); _boardRenderRaf=0; }
+    if(_boardRenderTimer){ clearTimeout(_boardRenderTimer); _boardRenderTimer=0; }
     try{ renderBoardImageUI(); }catch(e){ console.warn(e); }
     const board=readBoardControls();
     setTimeout(updatePosPickUI,0);
@@ -4835,6 +4859,7 @@
   async function saveBoardEdits(){
     if(_savingBoard)return;                    // 二度押しても二重に作らない
     closeBoardInlineEditor();   // 入力中の文字を確定してから作る
+    if(_boardRenderTimer){ clearTimeout(_boardRenderTimer); _boardRenderTimer=0; }   // 打ちかけを反映
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph||!boardState.image)return;
     _savingBoard=true;
     const btn=$('saveBoardBtn');
@@ -5118,7 +5143,7 @@
   });
   $('photoForm').addEventListener('submit',savePhoto);
   ['boardEnabled','boardTemplate','boardPosition','boardSize','boardOrient','boardNoteSize','boardSurface','boardLabel1','boardValue1','boardLabel2','boardValue2','boardLabel3','boardValue3','boardBottomLabel','boardBottomValue'].forEach(id=>$(id).addEventListener('input',()=>scheduleBoardEditorRender()));
-  $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; scheduleBoardEditorRender(); });
+  $('boardNote').addEventListener('input',()=>{ const v=limitBoardNoteLines($('boardNote').value,9); if($('boardNote').value!==v)$('boardNote').value=v; scheduleBoardEditorRenderTyping(); });
   $('boardTemplate').addEventListener('change',()=>{
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);
     const newKey=$('boardTemplate').value;

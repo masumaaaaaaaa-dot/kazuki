@@ -945,8 +945,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v174';
-  const APP_UPDATE_NOTE='黒板の向きを変えたときに画面が飛ぶのを直しました';
+  const APP_VERSION='v175';
+  const APP_UPDATE_NOTE='向きを変えたときに画面が飛ぶのを直しました（再修正）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3496,14 +3496,18 @@
   // 黒板の向きを変えると高さが変わり、そのままだと画面が飛んでしまうため。
   function keepScrollAnchoredTo(el){
     const scroller=el.closest('.dialog-body')||document.scrollingElement;
+    if(!scroller)return ()=>{};
     const before=el.getBoundingClientRect().top;
     return ()=>{
+      // 黒板の描き直しは次のコマ以降に起きるため、数コマ続けて位置を合わせる。
+      // 1回だけだと、高さが変わる前に合わせてしまい効かない。
+      let n=0;
       const fix=()=>{
         const d=el.getBoundingClientRect().top-before;
-        if(Math.abs(d)>0.5&&scroller)scroller.scrollTop+=d;
+        if(Math.abs(d)>0.5)scroller.scrollTop+=d;
+        if(++n<6)requestAnimationFrame(fix);
       };
       fix();
-      requestAnimationFrame(fix);   // 描き直しが終わったあとにもう一度そろえる
     };
   }
   function initOrientToggle(){
@@ -3512,15 +3516,15 @@
       const restore=keepScrollAnchoredTo(b);
       const sel=$('boardOrient');
       sel.value=(sel.value==='port')?'land':'port';
-      sel.dispatchEvent(new Event('input',{bubbles:true}));
+      updateOrientToggleBtn();
+      renderBoardEditor();   // その場で描き直す（高さがここで変わる）
+      restore();             // 変わったぶんだけ位置を戻す
+    });
+    // 下の「向き」から変えたときも同じようにする
+    $('boardOrient').addEventListener('change',()=>{
+      const restore=keepScrollAnchoredTo($('boardOrient'));
       updateOrientToggleBtn();
       renderBoardEditor();
-      restore();
-    });
-    $('boardOrient').addEventListener('input',()=>{
-      const sel=$('boardOrient');
-      const restore=keepScrollAnchoredTo(sel);
-      updateOrientToggleBtn();
       restore();
     });
     updateOrientToggleBtn();

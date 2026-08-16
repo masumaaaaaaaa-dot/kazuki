@@ -926,8 +926,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v190';
-  const APP_UPDATE_NOTE='アプリ内カメラでMY黒板も選べるようにしました';
+  const APP_VERSION='v191';
+  const APP_UPDATE_NOTE='カメラでMY黒板の手書きが反映されなかったのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1275,8 +1275,16 @@
     camBoardObj=board;
     return board;
   }
+  // いま選んでいる黒板の手書き（MY黒板に描かれているもの）
+  function camStrokes(){
+    if(camSettings.myBoardId){
+      const mb=myBoards.find(x=>x.id===camSettings.myBoardId);
+      if(mb&&Array.isArray(mb.strokes))return mb.strokes;
+    }
+    return [];
+  }
   function camBoardImage(board){
-    if(!camBoardCanvas)camBoardCanvas=makeBoardCanvasRotated(board,[]);
+    if(!camBoardCanvas)camBoardCanvas=makeBoardCanvasRotated(board,camStrokes());
     return camBoardCanvas;
   }
 
@@ -1931,6 +1939,7 @@
           saveDeviceCopy:true,
           boardPos:{...camBoardPos},
           camBoard:cloneBoardData(camCurrentBoard()),
+          camStrokesUsed:cloneBoardData(camStrokes()),
           quiet:true
         });
         try{ const c1=$('camShotCount'); if(c1)c1.textContent=currentPhotos().length+'枚'; }catch(e){}
@@ -1942,7 +1951,7 @@
       }
     });
   }
-  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null,quiet=false}={}){
+  async function handleFiles(fileList,{saveDeviceCopy=false,boardPos=null,camBoard=null,camStrokesUsed=null,quiet=false}={}){
     if(!currentProjectId){alert('先に現場を作成・選択してください。');showPage('projects');return}
     const files=[...fileList]; if(!files.length)return;
     const addedPhotos=[];
@@ -1974,11 +1983,13 @@
             const full=await loadImageElement(ph.blob);
             const cv=document.createElement('canvas');cv.width=full.width;cv.height=full.height;
             const cx2=cv.getContext('2d');cx2.drawImage(full,0,0);
-            const bc=makeBoardCanvasRotated(board,[]);
+            const st=Array.isArray(camStrokesUsed)?camStrokesUsed:[];
+            const bc=makeBoardCanvasRotated(board,st);
             const r=computeBoardRect(full.width,full.height,'free',board.size||'m',boardAspectRotated(board),boardPos);
             cx2.drawImage(bc,r.x,r.y,r.w,r.h);
             ph.editedBlob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
-            ph.boardData={board,strokes:[]};
+            // あとから黒板編集を開いたときにも、手書きが残っているようにする
+            ph.boardData={version:2,scope:'board',enabled:board.enabled!==false,board,strokes:cloneBoardData(st)};
           }catch(e){ console.warn('黒板の合成に失敗',e); }
         }
         await idbPut('photos',ph); photos.push(ph); addedPhotos.push(ph);

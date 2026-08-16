@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v223';
-  const APP_UPDATE_NOTE='白板で豆図の上の文字が読めない不具合を直しました';
+  const APP_VERSION='v225';
+  const APP_UPDATE_NOTE='遅い機種でもカメラが滑らかに動くようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1374,6 +1374,9 @@
   // 画面の描き直し。毎秒60回だと古い機種で手いっぱいになり、
   // シャッターの処理が割り込めなくなるため、30回に抑える。
   let camLastDraw=0, camPaused=false;
+  // 端末の速さに合わせて、画面用の解像度を自動で下げる。
+  // 遅い機種でも映像がかくつかないようにするため。
+  let camPreviewMax=CAM_PREVIEW_MAX, camSlowCount=0;
   function camLoop(ts){
     const dlg=$('cameraDialog');
     if(!dlg||!dlg.open){camRaf=0;return;}
@@ -1382,9 +1385,21 @@
     const now=ts||performance.now();
     if(now-camLastDraw<32)return;              // 毎秒およそ30回
     camLastDraw=now;
-    camDrawInto($('camCanvas'),true,CAM_PREVIEW_MAX);
+    const t0=performance.now();
+    camDrawInto($('camCanvas'),true,camPreviewMax);
+    const cost=performance.now()-t0;
+    // 1コマに時間がかかりすぎるときは、解像度を段階的に下げる
+    if(cost>28){
+      if(++camSlowCount>=5 && camPreviewMax>480){
+        camPreviewMax=Math.max(480,Math.round(camPreviewMax*0.8));
+        camSlowCount=0;
+      }
+    }else if(cost<12){ camSlowCount=0; }
   }
-  function camStartLoop(){ if(!camRaf)camRaf=requestAnimationFrame(camLoop); }
+  function camStartLoop(){
+    camPreviewMax=CAM_PREVIEW_MAX; camSlowCount=0;   // 開くたびに元の解像度から
+    if(!camRaf)camRaf=requestAnimationFrame(camLoop);
+  }
   function camStopLoop(){ if(camRaf)cancelAnimationFrame(camRaf); camRaf=0; }
 
   // 画面上でキャンバスが実際に描かれている範囲（object-fit:contain の余白を除いた部分）
@@ -4087,6 +4102,9 @@
     if(ar>1){ bh=longSide; bw=bh/ar; } else { bw=longSide; bh=bw*ar; }
     if(bw>w-pad*2){bw=w-pad*2;bh=bw*ar}
     if(bh>h-pad*2){bh=h-pad*2;bw=bh/ar}
+    // 写真が極端に小さいと、余白を引いた結果マイナスになることがある。
+    // 壊れた画像を読み込んだときでも描画が崩れないよう、下限を設ける。
+    if(!(bw>0)||!(bh>0)){ bw=Math.max(1,w*0.5); bh=Math.max(1,bw*ar); }
     let x=pad,y=h-bh-pad;
     // 「自由」でまだ動かしていないときは、右下から始める（左下だと配管などに重なりやすい）
     if(position==='free'&&!(free&&typeof free.x==='number')){x=Math.max(pad,w-bw-pad);y=Math.max(pad,h-bh-pad)}

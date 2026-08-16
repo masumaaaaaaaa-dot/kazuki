@@ -74,6 +74,10 @@
     .photo-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.photo-actions .btn{padding:6px 9px;font-size:12px}
     /* 現場の並べ替え矢印。他の操作ボタンとは分けて、現場名の右に横並びで置く。
        横並びにすると文字の高さに収まるので、カードの高さが変わらない。 */
+    /* いま選んでいる現場を示す文字。色分けはせず、文字だけで伝える */
+    .now-using{flex:0 0 auto;align-self:center;margin-left:8px;font-size:12px;font-weight:800;
+      color:var(--brand-ink);white-space:nowrap}
+    html[data-theme="dark"] .now-using{color:#7dd3fc}
     .order-btns{display:flex;gap:5px;flex:0 0 auto;align-self:flex-start;margin-left:6px}
     .order-btn{width:36px;height:30px;padding:0;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
     .order-btn:disabled{opacity:.3;cursor:default}
@@ -922,8 +926,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v188';
-  const APP_UPDATE_NOTE='初期値がアプリ内カメラにならなかったのを修正しました';
+  const APP_VERSION='v189';
+  const APP_UPDATE_NOTE='現場一覧に「選択中」の文字だけ戻しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1023,6 +1027,7 @@
         <div class="item-head"><div class="item-main">
           <div class="item-title-row"><span class="item-title">${escapeHtml(p.name)}</span></div>
           <div class="item-sub">${escapeHtml(p.address||'住所未入力')}　|　${count}枚　|　${escapeHtml(p.company||'会社名未入力')}</div></div>
+        ${p.id===currentProjectId?'<span class="now-using">選択中</span>':''}
         <div class="order-btns">
           <button class="btn order-btn" data-action="up-project" data-id="${p.id}" title="1つ上へ移動" aria-label="1つ上へ移動" ${i===0?'disabled':''}>↑</button>
           <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>

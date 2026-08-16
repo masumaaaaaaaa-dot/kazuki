@@ -329,6 +329,28 @@
       #boardDialog #landscapeActions{display:flex;gap:5px;flex:0 0 auto;position:sticky;bottom:0;background:var(--card);padding-top:4px}
       #boardDialog #landscapeActions .btn{flex:1;padding:8px 3px;font-size:11.5px}
     }
+    /* ここから：現場・写真の一覧の色だけを変える（大きさ・並びは変えない） */
+    /* 工事名／写真の見出し … テーマカラーで塗りつぶし、文字は黒 */
+    #projectList .item-title,#photoList .item-title{
+      display:inline-block;background:var(--brand);color:#111;
+      padding:2px 8px;border-radius:7px}
+    /* 「選択中」… テーマカラーで囲み、中は白、文字は黒 */
+    #projectList .now-using{
+      background:#fff;border:1.6px solid var(--brand);color:#111;
+      padding:2px 9px;border-radius:999px}
+    /* ボタン … 灰色で塗りつぶし、文字は黒（削除はそのまま） */
+    #projectList .btn:not(.danger),#photoList .btn:not(.danger){
+      background:#e2e8f0;color:#111;border-color:#e2e8f0}
+    /* 暗い配色 */
+    html[data-theme="dark"] #projectList .item-title,
+    html[data-theme="dark"] #photoList .item-title{background:var(--brand);color:#111}
+    html[data-theme="dark"] #projectList .now-using{
+      background:transparent;border-color:var(--brand);color:var(--brand)}
+    /* ボタン … テーマカラーで囲み、文字もテーマカラー（削除はそのまま） */
+    html[data-theme="dark"] #projectList .btn:not(.danger),
+    html[data-theme="dark"] #photoList .btn:not(.danger){
+      background:transparent;color:var(--brand);border:1.6px solid var(--brand)}
+    /* ここまで */
     @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
     /* スマホを横向きにしたとき：黒板だけを大きく表示し、他の入力欄は隠す */
     /* 黒板編集：横画面では左に黒板、右に操作欄を並べる。
@@ -952,8 +974,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v213';
-  const APP_UPDATE_NOTE='v208の見た目を復元しました';
+  const APP_VERSION='v214';
+  const APP_UPDATE_NOTE='現場・写真の一覧の色を変えました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

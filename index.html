@@ -247,13 +247,15 @@
       /* 左：黒板だけ */
       #boardDialog .board-wrap{
         grid-column:1;grid-row:1;
-        margin:0;padding:6px;min-width:0;max-width:none;
+        margin:0;padding:6px;min-width:0;max-width:none;min-height:0;
         display:flex;align-items:center;justify-content:center;overflow:hidden;
       }
       /* 縦横比はそのまま。幅と高さの両方に収める（引き伸ばさない） */
+      /* 高さを基準に、縦横比のぶんだけ幅を決める。
+         width:auto だと幅が0になって黒板が消えるため、必ず height を基準にする。 */
       #boardDialog .board-stage-viewport{
-        width:auto;height:auto;max-width:100%;max-height:100%;
-        min-width:0;min-height:0;margin:0;
+        height:100%;width:auto;max-width:100%;max-height:100%;
+        min-width:0;min-height:0;margin:0;flex:0 0 auto;
       }
       #boardDialog .mode-toggle,
       #boardDialog .draw-tool-bar,
@@ -910,8 +912,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v177';
-  const APP_UPDATE_NOTE='横向きで黒板が縦に伸びていたのを修正しました';
+  const APP_VERSION='v178';
+  const APP_UPDATE_NOTE='横向きで黒板が消えていたのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

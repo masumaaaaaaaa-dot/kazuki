@@ -102,13 +102,6 @@
     .undo-toast .count{flex:0 0 auto;min-width:40px;text-align:center;font-weight:800;font-size:12.5px;
       color:#facc15;background:rgba(250,204,21,.14);border-radius:999px;padding:4px 8px;white-space:nowrap}
 
-    /* 現場の工事名をテーマカラーにする（文字色だけ） */
-    #projectList .item-title{color:var(--brand)}
-    /* 表紙・A4出力・複製・データ控え をテーマカラーで囲む（枠だけ。大きさは変えない） */
-    #projectList .cover-btn{border:1.6px solid var(--brand)}
-    /* 写真の枠をテーマカラーにする（太さ・大きさはそのまま） */
-    #photoList .thumb{border-color:var(--brand)}
-    html[data-theme="dark"] #photoList .thumb{border-color:var(--brand)}
     /* テーマカラー（設定で切り替え。既定は「標準」＝これまでの色） */
     html[data-color="green"]{--brand:#33513f;--brand2:#22362c;--brand-ink:#2c4636;--accent:#e0a83c}
     html[data-theme="dark"][data-color="green"]{--brand:#6fae87;--brand2:#4f8163;--brand-ink:#8cc7a2;--accent:#e0a83c;--on-brand:#0a2415}
@@ -959,8 +952,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v219';
-  const APP_UPDATE_NOTE='工事名をテーマカラーにしました';
+  const APP_VERSION='v208';
+  const APP_UPDATE_NOTE='「使用中」の文字が読めない不具合を直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1066,11 +1059,11 @@
           <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>
         </div></div>
         <div class="photo-actions">
-          <button class="btn cover-btn" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
-          <button class="btn cover-btn" data-action="edit-project" data-id="${p.id}">表紙</button>
-          <button class="btn cover-btn" data-action="output-project" data-id="${p.id}">A4出力</button>
-          <button class="btn cover-btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
-          <button class="btn cover-btn" data-action="export-project" data-id="${p.id}">データ控え</button>
+          <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
+          <button class="btn" data-action="edit-project" data-id="${p.id}">表紙</button>
+          <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
+          <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
+          <button class="btn" data-action="export-project" data-id="${p.id}">データ控え</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
     }).join('');

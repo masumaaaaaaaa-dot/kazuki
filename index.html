@@ -927,8 +927,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v193';
-  const APP_UPDATE_NOTE='「画面で撮影」の切り替えをカメラ画面へ移しました';
+  const APP_VERSION='v194';
+  const APP_UPDATE_NOTE='撮影と保存を2倍以上速くしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1973,7 +1973,8 @@
         // 画面に出しているのと同じ描画で、黒板を含まない原寸の写真を作る。
         // 黒板は handleFiles 側が同じ計算で貼るので、画面と仕上がりが必ず一致する。
         const shot=document.createElement('canvas');
-        if(!camDrawInto(shot,false,2560))throw new Error('撮影画像を作成できませんでした');
+        // 保存時に1800pxへ縮めるので、はじめからその大きさで作る（二度手間を省く）
+        if(!camDrawInto(shot,false,1900))throw new Error('撮影画像を作成できませんでした');
         const blob=await new Promise((res,rej)=>shot.toBlob(b=>b?res(b):rej(new Error('撮影画像を作成できませんでした')),'image/jpeg',0.92));
         // 撮影の合図。カメラは閉じず、そのまま続けて撮れる。
         camShutterFeedback();
@@ -2028,8 +2029,9 @@
             const cv=document.createElement('canvas');cv.width=full.width;cv.height=full.height;
             const cx2=cv.getContext('2d');cx2.drawImage(full,0,0);
             const st=Array.isArray(camStrokesUsed)?camStrokesUsed:[];
-            const bc=makeBoardCanvasRotated(board,st);
             const r=computeBoardRect(full.width,full.height,'free',board.size||'m',boardAspectRotated(board),boardPos);
+            const bs=boardDrawSize(board,r.w,r.h);
+            const bc=makeBoardCanvasRotated(board,st,bs.w,bs.h);
             cx2.drawImage(bc,r.x,r.y,r.w,r.h);
             ph.editedBlob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
             // あとから黒板編集を開いたときにも、手書きが残っているようにする
@@ -4139,6 +4141,15 @@
   }
   const _whiteTextureCache={};
   function getWhiteboardTexture(w,h){
+    // 模様は細かいので、決まった大きさで1枚だけ作り、必要な大きさへ伸ばして使う。
+    // 大きさごとに作り直すと、黒板を作るたびに時間がかかる。
+    const BASE_W=900, BASE_H=600;
+    if(w!==BASE_W||h!==BASE_H){
+      const src=getWhiteboardTexture(BASE_W,BASE_H);
+      const out=document.createElement('canvas');out.width=w;out.height=h;
+      out.getContext('2d').drawImage(src,0,0,BASE_W,BASE_H,0,0,w,h);
+      return out;
+    }
     const key=w+'x'+h;
     if(_whiteTextureCache[key])return _whiteTextureCache[key];
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
@@ -4173,6 +4184,15 @@
   }
   function getChalkTexture(w,h){
     if(boardSurface==='white')return getWhiteboardTexture(w,h);
+    // 模様は細かいので、決まった大きさで1枚だけ作り、必要な大きさへ伸ばして使う。
+    // 大きさごとに作り直すと、黒板を作るたびに時間がかかる。
+    const BASE_W=900, BASE_H=600;
+    if(w!==BASE_W||h!==BASE_H){
+      const src=getChalkTexture(BASE_W,BASE_H);
+      const out=document.createElement('canvas');out.width=w;out.height=h;
+      out.getContext('2d').drawImage(src,0,0,BASE_W,BASE_H,0,0,w,h);
+      return out;
+    }
     const key=w+'x'+h;
     if(_chalkTextureCache[key])return _chalkTextureCache[key];
     const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');
@@ -4570,6 +4590,15 @@
   const BOARD_RENDER_W=1200,BOARD_RENDER_H=800;
   // 黒板の向き（横向き＝3:2／縦向き＝2:3）
   function isPortraitBoard(board){return board&&board.orient==='port';}
+  // 実際に貼る大きさに合わせて、黒板を作る大きさを決める。
+  // 1200x800 で固定して作ると、小さく貼るときに無駄が大きい。
+  function boardDrawSize(board,dstW,dstH){
+    const base=boardRenderSize(board);
+    const scale=Math.min(1,Math.max(dstW/base.w,dstH/base.h)*1.15);   // 少し余裕を持たせる
+    const w=Math.max(360,Math.round(base.w*scale));
+    const h=Math.max(240,Math.round(base.h*scale));
+    return {w,h};
+  }
   function boardRenderSize(board){
     return isPortraitBoard(board)?{w:BOARD_RENDER_H,h:BOARD_RENDER_W}:{w:BOARD_RENDER_W,h:BOARD_RENDER_H};
   }
@@ -4801,7 +4830,14 @@
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));  // 表示を先に反映させる
       const board=readBoardControls();
       const full=document.createElement('canvas');full.width=boardState.image.naturalWidth;full.height=boardState.image.naturalHeight;const ctx=full.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,full.width,full.height);ctx.drawImage(boardState.image,0,0,full.width,full.height);
-      if(board.enabled!==false){await ensureBoardImages(board);const boardCanvas=makeBoardCanvas(board,boardState.strokes);const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h)}
+        if(board.enabled!==false){
+        await ensureBoardImages(board);
+        const r=computeBoardRect(full.width,full.height,board.position||'lb',board.size||'m',boardAspect(board),board.freePos);
+        // 貼る大きさに合わせて作る（大きく作って縮めると、そのぶん時間がかかる）
+        const bs=boardDrawSize(board,r.w,r.h);
+        const boardCanvas=makeBoardCanvas(board,boardState.strokes,bs.w,bs.h);
+        ctx.drawImage(boardCanvas,r.x,r.y,r.w,r.h);
+      }
       const blob=await new Promise((res,rej)=>full.toBlob(b=>b?res(b):rej(new Error('黒板付き写真の保存に失敗しました。')),'image/jpeg',0.92));
       ph.editedBlob=blob;ph.boardData={version:2,scope:'board',enabled:board.enabled,board,strokes:boardState.strokes};ph.editedUpdatedAt=Date.now();ph.updatedAt=Date.now();
       await idbPut('photos',ph);

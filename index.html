@@ -917,8 +917,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v180';
-  const APP_UPDATE_NOTE='撮影時に音と暗転で合図が出るようにしました';
+  const APP_VERSION='v181';
+  const APP_UPDATE_NOTE='撮影の合図（音と暗転）を作り直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1621,29 +1621,42 @@
       const ctx=_camAudioCtx;
       if(ctx.state==='suspended')ctx.resume();
       const t=ctx.currentTime;
-      // カシャッという短い音を、雑音と高い音を重ねて作る
-      const len=Math.floor(ctx.sampleRate*0.05);
-      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
-      const d=buf.getChannelData(0);
-      for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
-      const src=ctx.createBufferSource(); src.buffer=buf;
-      const g=ctx.createGain(); g.gain.setValueAtTime(0.35,t);
-      src.connect(g); g.connect(ctx.destination); src.start(t);
-      const osc=ctx.createOscillator(), g2=ctx.createGain();
-      osc.type='square'; osc.frequency.setValueAtTime(2000,t);
-      g2.gain.setValueAtTime(0.14,t);
-      g2.gain.exponentialRampToValueAtTime(0.001,t+0.045);
-      osc.connect(g2); g2.connect(ctx.destination); osc.start(t); osc.stop(t+0.05);
+      // 「カチッ」を2つの短い打音で作る（幕が開いて閉じる感じ）
+      const click=(at,freq,vol,dur)=>{
+        const osc=ctx.createOscillator(), g=ctx.createGain();
+        osc.type='triangle';
+        osc.frequency.setValueAtTime(freq,at);
+        osc.frequency.exponentialRampToValueAtTime(freq*0.45,at+dur);
+        g.gain.setValueAtTime(0.0001,at);
+        g.gain.exponentialRampToValueAtTime(vol,at+0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001,at+dur);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(at); osc.stop(at+dur+0.01);
+      };
+      click(t,       1250, 0.20, 0.035);
+      click(t+0.075,  900, 0.13, 0.045);
     }catch(e){}
   }
   function camShutterFeedback(){
+    // 画面の土台がもともと黒いので、黒い幕をかぶせても変化が見えない。
+    // 映像そのものを一瞬消して「撮れた」と分かるようにする。
     try{
-      const host=$('cameraDialog')&&$('cameraDialog').firstElementChild;
-      if(host){
-        const fl=document.createElement('div');
-        fl.style.cssText='position:absolute;inset:0;background:#000;z-index:9;pointer-events:none;opacity:1;transition:opacity .22s ease-out';
-        host.appendChild(fl);
-        requestAnimationFrame(()=>{ fl.style.opacity='0'; setTimeout(()=>fl.remove(),300); });
+      const cv=$('camCanvas');
+      if(cv){
+        cv.style.transition='none';
+        cv.style.opacity='0';
+        requestAnimationFrame(()=>{
+          requestAnimationFrame(()=>{
+            cv.style.transition='opacity .22s ease-out';
+            cv.style.opacity='1';
+          });
+        });
+      }
+      // 黒板の枠など、映像の上に重ねているものも一緒に消す
+      const st=$('camStage');
+      if(st){
+        st.style.transition='none';
+        st.style.background='#000';
       }
     }catch(e){}
     camShutterSound();

@@ -586,8 +586,6 @@
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
         <div class="hint" style="margin-top:14px">アプリ内カメラの写り方について相談するときは、下のボタンで調べた内容を見せてください。この端末がどのレンズを使えるかが分かります。</div>
-        <label class="check-row" style="margin-top:10px"><input type="checkbox" id="tapToShootChk" /> 画面をタップしても撮影する</label>
-        <div class="hint" style="margin-top:2px">アプリ内カメラで、映像のどこを触っても撮影できます。片手で持ったとき、親指の届く場所で撮れます。<br>黒板の上と、下のボタンの上は撮影になりません（黒板は指で動かせます）。<br>意図せず撮れてしまう場合は、切ってください。</div>
         <button class="btn outline full" id="camDiagBtn" style="margin-top:8px">カメラの対応状況を調べる</button>
         <pre id="camDiagOut" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text)"></pre>
         <div class="hint keep-hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
@@ -627,6 +625,7 @@
         <button type="button" id="camOrientBtn" title="押すと縦・横が切り替わります" style="min-height:44px;padding:8px 14px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">横黒板</span></button>
         <button type="button" id="camSurfaceBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800"><span class="cam-turn-label">黒板</span></button>
         <button type="button" id="camPhotoOrientBtn" title="保存する写真の向き" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">写真 自動</span></button>
+        <button type="button" id="camTapShootBtn" title="画面のどこを触っても撮影できるようにします" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800"><span class="cam-turn-label">画面で撮影 切</span></button>
         <button type="button" id="camBoardOffBtn" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">黒板なし</span></button>
         <button type="button" id="camCornerBtn" title="黒板を四隅へ動かします（指でも自由に動かせます）" style="min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">右下へ</span></button>
         <button type="button" id="camLensBtn" title="レンズを切り替えます。いちばん広く写るものを選んでください" style="display:none;min-height:44px;padding:8px 13px;font-size:14px;border-radius:8px;border:0;font-weight:800;background:rgba(255,255,255,.9);color:#1a1d20"><span class="cam-turn-label">レンズ</span></button>
@@ -928,8 +927,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v192';
-  const APP_UPDATE_NOTE='画面をタップして撮影する設定を追加しました';
+  const APP_VERSION='v193';
+  const APP_UPDATE_NOTE='「画面で撮影」の切り替えをカメラ画面へ移しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1442,6 +1441,13 @@
     if(po){
       const shape=(camTargetOrient()==='land')?'横':'縦';
       camSetButtonLabel(po,CAM_PHOTO_LABEL[camPhotoMode]+((camPhotoMode==='auto'&&shape)?('・'+shape):''));
+      const tb=$('camTapShootBtn');
+      if(tb){
+        const on=!!settings.tapToShoot;
+        camSetButtonLabel(tb,on?'画面で撮影 入':'画面で撮影 切');
+        tb.style.background=on?'#f5a524':'rgba(255,255,255,.9)';
+        tb.style.color='#1a1d20';
+      }
       const cb=$('camCornerBtn');
       if(cb){
         const i=CAM_CORNERS.findIndex(c=>c.x===camBoardPos.x&&c.y===camBoardPos.y);
@@ -1933,6 +1939,12 @@
     $('camHideUiBtn').addEventListener('click',()=>{ camUiHidden=!camUiHidden; applyCamUi(); });
     // 黒板を四隅へ。押すたびに 右下 → 左下 → 左上 → 右上 と回る。
     // どこに置いたあとでも、指で自由に動かせるのは変わらない。
+    // 画面をタップして撮る の入／切
+    $('camTapShootBtn').addEventListener('click',async()=>{
+      settings.tapToShoot=!settings.tapToShoot;
+      camUpdateButtons();
+      try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('設定の保存に失敗',e); }
+    });
     $('camCornerBtn').addEventListener('click',()=>{
       const i=CAM_CORNERS.findIndex(c=>c.x===camBoardPos.x&&c.y===camBoardPos.y);
       const next=CAM_CORNERS[(i+1+CAM_CORNERS.length)%CAM_CORNERS.length]||CAM_CORNERS[0];
@@ -3010,8 +3022,7 @@
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
     const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
     renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;
-    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'inapp';updateCameraModeHint();}
-    if($('tapToShootChk'))$('tapToShootChk').checked=!!settings.tapToShoot;applyTheme(settings.theme);applyHideHints()}
+    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'inapp';updateCameraModeHint();}applyTheme(settings.theme);applyHideHints()}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -5198,10 +5209,6 @@
   $('printBtn').addEventListener('click',withPreSubmit(printLedger));
   $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
   $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
-  $('tapToShootChk').addEventListener('change',async e=>{
-    settings.tapToShoot=e.target.checked;
-    try{ await idbPut('settings',{key:'main',value:settings}); }catch(err){ console.warn('設定の保存に失敗',err); }
-  });
   $('hideHintsBtn').addEventListener('click',async()=>{
     settings.hideHints=!settings.hideHints;
     applyHideHints();

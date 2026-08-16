@@ -945,8 +945,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v173';
-  const APP_UPDATE_NOTE='拡大・移動の矢印を、周りのボタンと同じ主張に整えました';
+  const APP_VERSION='v174';
+  const APP_UPDATE_NOTE='黒板の向きを変えたときに画面が飛ぶのを直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3492,16 +3492,37 @@
     b.style.color='#fff';
     b.title='いまは'+(port?'縦長':'横長')+'。押すと'+(port?'横長':'縦長')+'に変わります';
   }
+  // 押したボタンが画面の同じ位置に留まるようにする。
+  // 黒板の向きを変えると高さが変わり、そのままだと画面が飛んでしまうため。
+  function keepScrollAnchoredTo(el){
+    const scroller=el.closest('.dialog-body')||document.scrollingElement;
+    const before=el.getBoundingClientRect().top;
+    return ()=>{
+      const fix=()=>{
+        const d=el.getBoundingClientRect().top-before;
+        if(Math.abs(d)>0.5&&scroller)scroller.scrollTop+=d;
+      };
+      fix();
+      requestAnimationFrame(fix);   // 描き直しが終わったあとにもう一度そろえる
+    };
+  }
   function initOrientToggle(){
     const b=$('orientToggleBtn'); if(!b)return;
     b.addEventListener('click',()=>{
+      const restore=keepScrollAnchoredTo(b);
       const sel=$('boardOrient');
       sel.value=(sel.value==='port')?'land':'port';
       sel.dispatchEvent(new Event('input',{bubbles:true}));
       updateOrientToggleBtn();
       renderBoardEditor();
+      restore();
     });
-    $('boardOrient').addEventListener('input',updateOrientToggleBtn);
+    $('boardOrient').addEventListener('input',()=>{
+      const sel=$('boardOrient');
+      const restore=keepScrollAnchoredTo(sel);
+      updateOrientToggleBtn();
+      restore();
+    });
     updateOrientToggleBtn();
   }
   function initBoardZoomButtons(){

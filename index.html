@@ -922,8 +922,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v187';
-  const APP_UPDATE_NOTE='初めからアプリ内カメラにし、選ぶ欄の文字を見やすくしました';
+  const APP_VERSION='v188';
+  const APP_UPDATE_NOTE='初期値がアプリ内カメラにならなかったのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2918,7 +2918,7 @@
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
     const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
     renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;
-    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'native';updateCameraModeHint();}applyTheme(settings.theme);applyHideHints()}
+    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'inapp';updateCameraModeHint();}applyTheme(settings.theme);applyHideHints()}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){

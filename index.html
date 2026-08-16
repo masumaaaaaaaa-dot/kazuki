@@ -926,8 +926,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v189';
-  const APP_UPDATE_NOTE='現場一覧に「選択中」の文字だけ戻しました';
+  const APP_VERSION='v190';
+  const APP_UPDATE_NOTE='アプリ内カメラでMY黒板も選べるようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1217,7 +1217,7 @@
   //   ・端末の傾きセンサーは使わない（機種差で外れるため）。向きは映像そのものの形で決める
   let camStream=null, camFacing='environment', camBoardPos={x:1,y:1};   // 右下から
   const CAM_CORNERS=[{x:1,y:1,label:'右下へ'},{x:0,y:1,label:'左下へ'},{x:0,y:0,label:'左上へ'},{x:1,y:0,label:'右上へ'}];
-  let camSettings={template:null,size:null,orient:null,surface:null,noteSize:null,enabled:true,rotate:0};
+  let camSettings={template:null,size:null,orient:null,surface:null,noteSize:null,enabled:true,rotate:0,myBoardId:null};
   let camTorchOn=false, camZoom=1;
   // 写真の向き： auto=スマホの構え方に合わせる／land=横／port=縦
   const CAM_PHOTO_MODES=['auto','land','port'];
@@ -1245,8 +1245,24 @@
   function camCurrentBoard(){
     if(camBoardObj)return camBoardObj;
     const lb=settings.lastBoard||{};
-    const tmpl=camSettings.template||lb.template||'tajima';
     const p=currentProject();
+    // MY黒板を選んでいるときは、その中身をそのまま使う（打ち込んだ文字も含む）
+    if(camSettings.myBoardId){
+      const mb=myBoards.find(x=>x.id===camSettings.myBoardId);
+      if(mb&&mb.data){
+        const b=applyProjectDefaultsToBoard(cloneBoardData(mb.data),{projectId:p?p.id:''},false);
+        if(camSettings.orient)b.orient=camSettings.orient;
+        if(camSettings.size)b.size=camSettings.size;
+        if(camSettings.surface)b.surface=camSettings.surface;
+        b.rotate=camSettings.rotate||0;
+        b.enabled=camSettings.enabled!==false;
+        b.position='free';
+        camBoardObj=b;
+        return b;
+      }
+      camSettings.myBoardId=null;   // 消されたMY黒板を選んでいた場合
+    }
+    const tmpl=camSettings.template||lb.template||'tajima';
     const board=applyProjectDefaultsToBoard(boardPreset(tmpl,null),{projectId:p?p.id:''},true);
     board.template=tmpl;
     board.orient=camSettings.orient||lb.orient||'land';
@@ -1419,14 +1435,42 @@
     const grid=$('camTemplateGrid'); if(!grid)return;
     const surf=camSettings.surface==='white'?'white':'chalk';
     const cur=camSettings.template;
-    grid.innerHTML=boardTemplateList().map(t=>`
-      <button type="button" data-tmpl="${t.key}" style="padding:0;border:2px solid ${t.key===cur?'#f5a524':'rgba(255,255,255,.25)'};border-radius:10px;overflow:hidden;background:#111;text-align:left">
-        <img src="${templateThumbDataUrl(t.key,surf)}" alt="" style="width:100%;display:block" />
-        <span style="display:block;padding:6px 7px;color:#fff;font-size:11.5px;line-height:1.4">${escapeHtml(t.label)}</span>
-      </button>`).join('');
+    const myId=camSettings.myBoardId;
+    const cell=(sel,img,label,attr)=>`
+      <button type="button" ${attr} style="padding:0;border:2px solid ${sel?'#f5a524':'rgba(255,255,255,.25)'};border-radius:10px;overflow:hidden;background:#111;text-align:left">
+        <img src="${img}" alt="" style="width:100%;display:block" />
+        <span style="display:block;padding:6px 7px;color:#fff;font-size:11.5px;line-height:1.4">${escapeHtml(label)}</span>
+      </button>`;
+    // MY黒板があれば先に出す（よく使うものなので探しやすい位置に）
+    let html='';
+    if(myBoards.length){
+      html+='<div style="grid-column:1 / -1;color:#fff;font-size:12px;font-weight:800;margin:2px 0 -2px">MY黒板</div>';
+      html+=myBoards.map(mb=>cell(!!myId&&mb.id===myId,myBoardThumbDataUrl(mb),mb.name||'MY黒板',
+        `data-myboard="${escapeAttr(mb.id)}"`)).join('');
+      html+='<div style="grid-column:1 / -1;color:#fff;font-size:12px;font-weight:800;margin:8px 0 -2px">黒板テンプレート</div>';
+    }
+    html+=boardTemplateList().map(t=>cell(!myId&&t.key===cur,templateThumbDataUrl(t.key,surf),t.label,
+      `data-tmpl="${escapeAttr(t.key)}"`)).join('');
+    grid.innerHTML=html;
     grid.querySelectorAll('button[data-tmpl]').forEach(b=>{
       b.addEventListener('click',()=>{
         camSettings.template=b.dataset.tmpl;
+        camSettings.myBoardId=null;
+        camMarkBoardDirty();
+        $('camTemplateSheet').style.display='none';
+        camUpdateButtons();
+      });
+    });
+    grid.querySelectorAll('button[data-myboard]').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const mb=myBoards.find(x=>x.id===b.dataset.myboard);
+        camSettings.myBoardId=b.dataset.myboard;
+        if(mb&&mb.data){
+          // MY黒板に入っている向き・大きさ・色をそのまま引き継ぐ
+          camSettings.orient=mb.data.orient||camSettings.orient;
+          camSettings.size=mb.data.size||camSettings.size;
+          camSettings.surface=mb.data.surface||camSettings.surface;
+        }
         camMarkBoardDirty();
         $('camTemplateSheet').style.display='none';
         camUpdateButtons();

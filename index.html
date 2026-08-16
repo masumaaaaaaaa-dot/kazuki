@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v221';
-  const APP_UPDATE_NOTE='縦の写真で黒板が小さくなるのを直しました';
+  const APP_VERSION='v222';
+  const APP_UPDATE_NOTE='「画像を保存」の反応を速くしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2185,12 +2185,17 @@
     const blob = getDisplayBlob(ph);
     const filename=photoFileName(new File([blob],ph.filename||'photo.jpg',{type:blob.type||'image/jpeg'}));
     if(photoDirectoryHandle){
-      await saveBlobToDirectory(blob,filename);
-      alert(`保存先フォルダ「${photoDirectoryHandle.name}」へ画像を保存しました。`);
+      // 保存先がクラウド（ドライブなど）だと数秒かかるので、待たずに裏で進める。
+      const name=photoDirectoryHandle.name;
+      showActionToast(`保存先フォルダ「${name}」へ保存しています…`,'',null,3);
+      saveBlobToDirectory(blob,filename)
+        .then(()=>{ try{ showActionToast(`「${name}」へ画像を保存しました`,'',null,3); }catch(e){} })
+        .catch(err=>{ console.warn('保存先フォルダへの保存に失敗',err);
+          try{ alert('保存先フォルダへ保存できませんでした。保存先の設定をご確認ください。'); }catch(e){} });
       return;
     }
     downloadBlob(blob,filename);
-    alert('保存先が未設定のため、ダウンロードフォルダへ保存しました。');
+    showActionToast('保存先が未設定のため、ダウンロードフォルダへ保存しました','',null,4);
   }
 
   async function compressImage(file,maxW,maxH,quality){
@@ -5411,7 +5416,13 @@
       openPhotoDialog(ph);
       requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
     }
-    if(b.dataset.action==='save-device'){try{await saveRegisteredPhotoToPhone(ph)}catch(err){alert(err.message||'保存に失敗しました。')}}
+    if(b.dataset.action==='save-device'){
+      // 押したことがすぐ分かるようにする
+      const lbl=b.textContent; b.disabled=true; b.textContent='保存中…';
+      try{ await saveRegisteredPhotoToPhone(ph); }
+      catch(err){ alert(err.message||'保存に失敗しました。'); }
+      finally{ b.disabled=false; b.textContent=lbl; }
+    }
     if(b.dataset.action==='up-photo')await movePhoto(id,-1);
     if(b.dataset.action==='down-photo')await movePhoto(id,1);
     if(b.dataset.action==='delete-photo')await deletePhotoWithUndo(ph);

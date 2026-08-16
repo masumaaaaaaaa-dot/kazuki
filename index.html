@@ -154,7 +154,8 @@
     .ledger-head .title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.12em}.ledger-head .page{text-align:right}
     .photo-row-print{height:84.5mm;display:grid;grid-template-columns:118mm 1fr;column-gap:3mm;padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
     .print-photo-box{width:118mm;height:80mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
-    .print-photo-box img{width:100%;height:100%;object-fit:contain;display:block}
+    /* PDFを作る部品は object-fit を扱えないため、上限だけ決めて比率は画像に任せる */
+    .print-photo-box img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
     .print-note{height:80mm;position:relative;padding:0 1.5mm;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 6.75mm,#b9bec5 6.85mm,#b9bec5 7mm);font-size:8.6pt;line-height:7mm;overflow:hidden}
     .print-number{position:absolute;right:1mm;top:-.5mm;font-size:8.5pt;color:#555;background:#fff;padding-left:2mm;z-index:2}
     .note-line{height:7mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.note-line strong{font-weight:700}
@@ -935,8 +936,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v201';
-  const APP_UPDATE_NOTE='テーマカラーを1段10個に収めました';
+  const APP_VERSION='v202';
+  const APP_UPDATE_NOTE='縦向き写真がPDFで伸びる／Excelで左に寄る不具合を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2785,8 +2786,11 @@
             z.file('xl/media/'+mediaName,ab);
             const boxW=430,boxH=(rows.captionBottom-rows.photo+1)*28*96/72-14;
             const ratio=Math.min(boxW/imgEl.naturalWidth,boxH/imgEl.naturalHeight);
-            items.push({col:1,colOff:6,row:rows.photo-1,rowOff:4,
-                        w:Math.round(imgEl.naturalWidth*ratio),h:Math.round(imgEl.naturalHeight*ratio),mediaName});
+            const w=Math.round(imgEl.naturalWidth*ratio), h=Math.round(imgEl.naturalHeight*ratio);
+            // 枠の中で中央に置く。縦向きの写真が左に寄らないように。
+            items.push({col:1,colOff:6+Math.max(0,Math.round((boxW-w)/2)),
+                        row:rows.photo-1,rowOff:4+Math.max(0,Math.round((boxH-h)/2)),
+                        w,h,mediaName});
           }catch(imgErr){ console.warn('写真の埋め込みに失敗',ph.id,imgErr); }
         }
         if(items.length){

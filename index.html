@@ -927,8 +927,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v194';
-  const APP_UPDATE_NOTE='撮影と保存を2倍以上速くしました';
+  const APP_VERSION='v195';
+  const APP_UPDATE_NOTE='シャッターの反応を大きく改善しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2003,20 +2003,24 @@
     const arr=currentPhotos(); let order=arr.length;
     const statusMsg=document.createElement('div'); statusMsg.className='status ok'; statusMsg.style.display='block'; statusMsg.textContent=`${files.length}枚を読み込み中です…`; $('page-photos').prepend(statusMsg);
     try{
-      let deviceSaved=0; let deviceSaveFailed=false;
+      let deviceSaved=0;
       for(const file of files){
         if(saveDeviceCopy && settings.saveCameraCopy){
-          try{
-            await saveOriginalToPhone(file);
-            deviceSaved++;
-          }catch(err){
-            console.warn('スマホ写真フォルダへの保存に失敗',err);
-            deviceSaveFailed=true;
-          }
+          // 保存先フォルダへの書き込みは待たない。
+          // クラウド（ドライブなど）だと数秒かかることがあり、
+          // 待つと撮影ボタンの反応が悪くなるため、裏で進める。
+          deviceSaved++;
+          saveOriginalToPhone(file).catch(err=>{
+            console.warn('保存先フォルダへの保存に失敗',err);
+            try{ showActionToast('保存先フォルダへ保存できませんでした（台帳には保存済み）','',null,5); }catch(e){}
+          });
         }
         const blob=await compressImage(file,1800,1400,.86);
         let shotDate=today();
-        try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
+        // アプリ内カメラで作った画像には撮影日時が入っていないため、読み取らない
+        if(!boardPos){
+          try{ const exifDate=await readExifDateTaken(file); if(exifDate)shotDate=exifDate; }catch(e){}
+        }
         const ph={id:uid('photo'),projectId:currentProjectId,order:order++,blob,filename:file.name||'photo.jpg',category:'施工状況',date:shotDate,workType:'',location:'',pipe:'',slope:'',design:'',actual:'',content:'',remarks:'',boardData:null,editedBlob:null,editedUpdatedAt:0,createdAt:Date.now(),updatedAt:Date.now()};
         // アプリ内カメラで黒板の位置を決めていた場合は、その黒板を貼り付ける
         if(boardPos&&(!camBoard||camBoard.enabled!==false)){
@@ -2044,8 +2048,7 @@
       renderPhotos(); renderProjects();
       let msg=`${files.length}枚の写真を台帳へ保存しました。写真内容は後から入力できます。`;
       if(saveDeviceCopy && settings.saveCameraCopy){
-        if(deviceSaved) msg+=`\n保存先フォルダにも${deviceSaved}枚保存しました。`;
-        if(deviceSaveFailed) msg+='\nスマホ側への保存に失敗した写真があります。保存先の権限を確認してください。';
+        if(deviceSaved) msg+=`\n保存先フォルダにも${deviceSaved}枚保存します。`;
       }
       // 撮影のときは、そのまま続けて撮れるように案内を出す
       if(quiet){ /* カメラを開いたままなので、お知らせは出さない */ }
@@ -2053,9 +2056,6 @@
         showActionToast(`${files.length}枚を保存しました`,'',null,3);
       }else{
         showActionToast(`${files.length}枚を保存しました`,'',null,4);
-      }
-      if(deviceSaveFailed){
-        alert('保存先フォルダへの保存に失敗した写真があります。台帳には保存できています。保存先フォルダの設定をご確認ください。');
       }
     }catch(err){console.error(err);alert('写真の読み込みに失敗しました。容量不足の可能性があります。')}
     finally{statusMsg.remove();$('cameraInput').value='';$('galleryInput').value='';}

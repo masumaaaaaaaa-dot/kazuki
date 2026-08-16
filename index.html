@@ -957,8 +957,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v217';
-  const APP_UPDATE_NOTE='表紙・A4出力・複製・データ控えを枠で囲みました';
+  const APP_VERSION='v218';
+  const APP_UPDATE_NOTE='「写真・黒板を作成」を表紙と同じ見た目にしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1064,7 +1064,7 @@
           <button class="btn order-btn" data-action="down-project" data-id="${p.id}" title="1つ下へ移動" aria-label="1つ下へ移動" ${i===projects.length-1?'disabled':''}>↓</button>
         </div></div>
         <div class="photo-actions">
-          <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
+          <button class="btn cover-btn" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn cover-btn" data-action="edit-project" data-id="${p.id}">表紙</button>
           <button class="btn cover-btn" data-action="output-project" data-id="${p.id}">A4出力</button>
           <button class="btn cover-btn" data-action="duplicate-project" data-id="${p.id}">複製</button>

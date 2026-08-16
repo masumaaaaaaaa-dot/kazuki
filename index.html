@@ -160,9 +160,7 @@
        元のExcelに合わせて黒い点線にしている。 */
     .print-note{height:80mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1.25;overflow:hidden}
     .print-note .rule{position:absolute;left:0;right:0;height:0;border-top:.25mm dotted #000;pointer-events:none}
-    .print-note .rule.first{border-top-style:solid}
     .print-note .note-text{position:relative;z-index:1}
-    .print-number{position:absolute;right:1mm;top:.8mm;font-size:8.5pt;color:#555;background:#fff;padding-left:2mm;z-index:2}
     .note-line{height:8.89mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       display:flex;align-items:flex-end;padding-bottom:1.1mm;box-sizing:border-box}.note-line strong{font-weight:700}
     .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
@@ -942,8 +940,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v204';
-  const APP_UPDATE_NOTE='記入欄の横線と文字の位置をそろえました';
+  const APP_VERSION='v205';
+  const APP_UPDATE_NOTE='A4出力から写真番号と上の実線をなくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2531,7 +2529,7 @@
       html+=`<section class="sheet"><div class="ledger-head">${$('showHeader').checked?`<div>${escapeHtml(p.name)}</div><div class="title">工事写真帳</div><div class="page">${pi+1} / ${chunks.length}</div>`:'<div></div><div></div><div class="page">'+(pi+1)+' / '+chunks.length+'</div>'}</div>`;
       for(let r=0;r<3;r++){
         const ph=chunk[r];
-        if(ph){const globalNo=pi*3+r+1;html+=`<div class="photo-row-print"><div class="print-photo-box"><img src="${ph.dataUrl}"></div><div class="print-note">${printRules()}<div class="print-number">${globalNo}</div><div class="note-text">${noteLines(ph)}</div></div></div>`}
+        if(ph){html+=`<div class="photo-row-print"><div class="print-photo-box"><img src="${ph.dataUrl}"></div><div class="print-note">${printRules()}<div class="note-text">${noteLines(ph)}</div></div></div>`}
         else html+=`<div class="photo-row-print"><div class="print-photo-box blank-photo"></div><div class="print-note">${printRules()}</div></div>`;
       }
       html+=`<div class="ledger-footer"><span>${$('showCompany').checked?escapeHtml(p.company||''):''}</span><span>${escapeHtml(p.number||'')}</span></div></section>`;
@@ -2668,7 +2666,7 @@
     const step=BOX_MM/LINES;
     let out='';
     for(let i=0;i<=LINES;i++){
-      out+=`<div class="rule${i===0?' first':''}" style="top:${(i*step).toFixed(2)}mm"></div>`;
+      out+=`<div class="rule" style="top:${(i*step).toFixed(2)}mm"></div>`;
     }
     return out;
   }

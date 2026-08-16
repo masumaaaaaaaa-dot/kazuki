@@ -257,8 +257,10 @@
         height:100%;width:auto;max-width:100%;max-height:100%;
         min-width:0;min-height:0;margin:0;flex:0 0 auto;
       }
-      #boardDialog .mode-toggle,
-      #boardDialog .draw-tool-bar,
+      /* 左側から追い出すのは「黒板のモード切替」だけ。
+         .mode-toggle は黒板選択のタブにも使っているので、まとめて隠さない。 */
+      #boardDialog .board-wrap > .mode-toggle,
+      #boardDialog .board-wrap > .draw-tool-bar,
       #boardDialog .draw-hint,
       #boardDialog .inline-note{display:none}
       /* 右：操作をまとめる（幅は控えめに） */
@@ -268,6 +270,9 @@
       }
       #boardDialog #landscapeTools{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
       #boardDialog #landscapeTools .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:0}
+      /* 黒板選択のタブ（テンプレート／緑板／横長／MY黒板）は右列で折り返して並べる */
+      #boardDialog #boardPickerTabs{display:flex;flex-wrap:wrap;gap:3px}
+      #boardDialog #boardPickerTabs .btn{flex:1 1 auto;min-width:0;padding:6px 5px;font-size:11px}
       #boardDialog #landscapeTools .mode-toggle .btn{padding:6px 1px;font-size:10.5px;min-width:0;line-height:1.15}
       #boardDialog #landscapeTools .draw-tool-bar{display:flex;flex-wrap:wrap;gap:3px;padding:4px 5px;margin:0;justify-content:center}
       #boardDialog #landscapeTools .swatch-btn{width:20px;height:20px}
@@ -764,7 +769,7 @@
       <input type="hidden" id="boardPhotoId" />
       <div class="board-wrap">
         <div class="mode-toggle" id="boardModeToggle">
-          <button type="button" class="btn tiny-btn active" data-mode="text">✎ 黒板に直接入力</button>
+          <button type="button" class="btn tiny-btn active" data-mode="text">✎ 直接入力</button>
           <button type="button" class="btn tiny-btn outline" data-mode="draw">🖊 手書き</button>
           <button type="button" class="btn tiny-btn outline" data-mode="erase">🧹 消しゴム</button>
         </div>
@@ -912,8 +917,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v178';
-  const APP_UPDATE_NOTE='横向きで黒板が消えていたのを修正しました';
+  const APP_VERSION='v179';
+  const APP_UPDATE_NOTE='横向きで黒板選択のボタンが消えていたのを修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

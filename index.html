@@ -160,6 +160,9 @@
     .board-note-status{font-size:12px;color:var(--muted);margin-top:5px;font-weight:400}
     .board-note-status.over{color:var(--danger);font-weight:800}
     /* 黒板の拡大・移動。1列に並べる */
+    /* 「その場で撮影」の方法を選ぶ欄。いま何を選んでいるかが目に入るように色を付ける */
+    #cameraMode{color:var(--brand-ink);font-weight:800;border-color:var(--brand)}
+    html[data-theme="dark"] #cameraMode{color:#7dd3fc;border-color:var(--brand)}
     .board-move{display:flex;gap:5px;margin-top:8px}
     .board-move .bm-btn{flex:1;min-width:0;height:44px;padding:0;
       display:flex;align-items:center;justify-content:center;
@@ -464,8 +467,8 @@
         <input type="file" id="replaceInput" accept="image/*" hidden />
         <div class="panel" style="margin-top:12px;padding:12px">
           <div style="margin-bottom:10px"><label>「その場で撮影」の方法</label><select id="cameraMode">
-            <option value="native">スマホのカメラを使う（画質優先・おすすめ）</option>
             <option value="inapp">アプリ内カメラ（黒板を見ながら撮る）</option>
+            <option value="native">スマホのカメラを使う（画質優先）</option>
           </select>
           <div class="hint keep-hint" style="margin-top:5px" id="cameraModeHint"></div></div>
           <label class="check-row" style="margin-bottom:8px"><input type="checkbox" id="saveCameraCopy" checked /> 撮影した写真を保存先フォルダにも残す（元画質）</label>
@@ -919,14 +922,14 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v186';
-  const APP_UPDATE_NOTE='現場一覧の「選択中」の色と札をなくしました';
+  const APP_VERSION='v187';
+  const APP_UPDATE_NOTE='初めからアプリ内カメラにし、選ぶ欄の文字を見やすくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, hideHints:false, theme:'light', colorTheme:'default', cameraMode:'native', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, hideHints:false, theme:'light', colorTheme:'default', cameraMode:'inapp', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';

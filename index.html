@@ -917,8 +917,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v179';
-  const APP_UPDATE_NOTE='横向きで黒板選択のボタンが消えていたのを修正しました';
+  const APP_VERSION='v180';
+  const APP_UPDATE_NOTE='撮影時に音と暗転で合図が出るようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1211,7 +1211,7 @@
   // 写真の向き： auto=スマホの構え方に合わせる／land=横／port=縦
   const CAM_PHOTO_MODES=['auto','land','port'];
   const CAM_PHOTO_LABEL={auto:'写真 自動',land:'写真 横',port:'写真 縦'};
-  let camPhotoMode='auto';
+  let camPhotoMode='land';   // 初期は「写真 横」
   let camRaf=0, camBoardObj=null, camBoardCanvas=null;
   let camLensId='', camReorienting=false, camReorientTried={land:false,port:false};
   let camLensList=[], camLensIndex=-1, camLensFiltered=false;
@@ -1588,7 +1588,7 @@
     if(!camSettings.noteSize)camSettings.noteSize=base.noteSize||'m';
     camMarkBoardDirty();
     const sheet=$('camTemplateSheet'); if(sheet)sheet.style.display='none';
-    camTorchOn=false; camZoom=1; camPhotoMode='auto'; camDrag=null;
+    camTorchOn=false; camZoom=1; camPhotoMode='land'; camDrag=null;
     try{ const c1=$('camShotCount'); if(c1)c1.textContent=currentPhotos().length+'枚'; }catch(e){}
     // 画面がつままれて拡大していても、カメラは等倍から始める
     try{
@@ -1611,6 +1611,44 @@
     camStartLoop();
   }
   // カメラの後始末。ダイアログが閉じたときは必ずここを通る（戻るボタン・Escを含む）。
+  // 撮った合図。画面を一瞬黒くして、シャッター音を鳴らす。
+  // 端末が消音のときは音が出ないので、画面の合図は必ず出す。
+  let _camAudioCtx=null;
+  function camShutterSound(){
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+      if(!_camAudioCtx)_camAudioCtx=new AC();
+      const ctx=_camAudioCtx;
+      if(ctx.state==='suspended')ctx.resume();
+      const t=ctx.currentTime;
+      // カシャッという短い音を、雑音と高い音を重ねて作る
+      const len=Math.floor(ctx.sampleRate*0.05);
+      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
+      const src=ctx.createBufferSource(); src.buffer=buf;
+      const g=ctx.createGain(); g.gain.setValueAtTime(0.35,t);
+      src.connect(g); g.connect(ctx.destination); src.start(t);
+      const osc=ctx.createOscillator(), g2=ctx.createGain();
+      osc.type='square'; osc.frequency.setValueAtTime(2000,t);
+      g2.gain.setValueAtTime(0.14,t);
+      g2.gain.exponentialRampToValueAtTime(0.001,t+0.045);
+      osc.connect(g2); g2.connect(ctx.destination); osc.start(t); osc.stop(t+0.05);
+    }catch(e){}
+  }
+  function camShutterFeedback(){
+    try{
+      const host=$('cameraDialog')&&$('cameraDialog').firstElementChild;
+      if(host){
+        const fl=document.createElement('div');
+        fl.style.cssText='position:absolute;inset:0;background:#000;z-index:9;pointer-events:none;opacity:1;transition:opacity .22s ease-out';
+        host.appendChild(fl);
+        requestAnimationFrame(()=>{ fl.style.opacity='0'; setTimeout(()=>fl.remove(),300); });
+      }
+    }catch(e){}
+    camShutterSound();
+    try{ if(navigator.vibrate)navigator.vibrate(18); }catch(e){}
+  }
   function camTeardown(){
     camStopLoop();
     camDrag=null;
@@ -1798,12 +1836,7 @@
         if(!camDrawInto(shot,false,2560))throw new Error('撮影画像を作成できませんでした');
         const blob=await new Promise((res,rej)=>shot.toBlob(b=>b?res(b):rej(new Error('撮影画像を作成できませんでした')),'image/jpeg',0.92));
         // 撮影の合図。カメラは閉じず、そのまま続けて撮れる。
-        try{
-          const fl=document.createElement('div');
-          fl.style.cssText='position:absolute;inset:0;background:#fff;z-index:9;pointer-events:none;transition:opacity .25s';
-          $('cameraDialog').firstElementChild.appendChild(fl);
-          requestAnimationFrame(()=>{fl.style.opacity='0'; setTimeout(()=>fl.remove(),300)});
-        }catch(e){}
+        camShutterFeedback();
         const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
         // 画面と写真が同じキャンバスなので、位置や向きの変換はいっさい不要
         await handleFiles([file],{

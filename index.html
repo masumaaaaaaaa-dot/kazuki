@@ -102,7 +102,7 @@
     .undo-toast .count{flex:0 0 auto;min-width:40px;text-align:center;font-weight:800;font-size:12.5px;
       color:#facc15;background:rgba(250,204,21,.14);border-radius:999px;padding:4px 8px;white-space:nowrap}
 
-    /* 「表紙」だけをテーマカラーで囲む（色と枠だけ。大きさは変えない） */
+    /* 表紙・A4出力・複製・データ控え をテーマカラーで囲む（枠だけ。大きさは変えない） */
     #projectList .cover-btn{border:1.6px solid var(--brand)}
     /* 写真の枠をテーマカラーにする（太さ・大きさはそのまま） */
     #photoList .thumb{border-color:var(--brand)}
@@ -957,8 +957,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v216';
-  const APP_UPDATE_NOTE='「表紙」をテーマカラーで囲みました';
+  const APP_VERSION='v217';
+  const APP_UPDATE_NOTE='表紙・A4出力・複製・データ控えを枠で囲みました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1066,9 +1066,9 @@
         <div class="photo-actions">
           <button class="btn primary" data-action="select-project" data-id="${p.id}">写真・黒板を作成</button>
           <button class="btn cover-btn" data-action="edit-project" data-id="${p.id}">表紙</button>
-          <button class="btn" data-action="output-project" data-id="${p.id}">A4出力</button>
-          <button class="btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
-          <button class="btn" data-action="export-project" data-id="${p.id}">データ控え</button>
+          <button class="btn cover-btn" data-action="output-project" data-id="${p.id}">A4出力</button>
+          <button class="btn cover-btn" data-action="duplicate-project" data-id="${p.id}">複製</button>
+          <button class="btn cover-btn" data-action="export-project" data-id="${p.id}">データ控え</button>
           <button class="btn danger" data-action="delete-project" data-id="${p.id}">削除</button>
         </div></div>`;
     }).join('');

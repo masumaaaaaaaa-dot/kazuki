@@ -223,63 +223,63 @@
     html[data-theme="dark"] .tip-box{background:#0c2320;border-color:#1f4d47}
     #boardDialog{width:min(96vw,900px)}
     #boardDialog .board-stage-viewport{aspect-ratio:3/2}
-    /* 黒板編集：横画面では画面ぜんぶを使い、左に黒板だけ、右に操作をまとめる。
-       上の見出しは場所を取るだけなので出さない。 */
+    /* 黒板編集：横画面では左に黒板、右に操作。
+       黒板は縦横比を保ったまま、収まる範囲でいちばん大きく表示する。 */
     @media(orientation:landscape) and (max-height:600px){
       #boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
       #boardDialog #boardForm{
         display:grid;
-        grid-template-columns:minmax(0,1fr) clamp(300px,38vw,440px);
+        grid-template-columns:minmax(0,1fr) clamp(238px,26vw,320px);
         grid-template-rows:1fr;
         height:100%;gap:8px;padding:8px;box-sizing:border-box;
       }
-      /* 見出しと下のボタン列は、横向きでは使わない（右列にまとめる） */
       #boardDialog .dialog-head{display:none}
       #boardDialog .dialog-foot{display:none}
-      /* dialog-body を2列の入れ物として使う */
-      #boardDialog .dialog-body{
-        display:contents;padding:0;overflow:visible;
-      }
+      #boardDialog .dialog-body{display:contents;padding:0;overflow:visible}
       /* 左：黒板だけ */
       #boardDialog .board-wrap{
         grid-column:1;grid-row:1;
         margin:0;padding:6px;min-width:0;max-width:none;
         display:flex;align-items:center;justify-content:center;overflow:hidden;
       }
-      #boardDialog .board-stage-viewport{width:100%;height:100%;max-width:100%;max-height:100%}
-      /* 左からは操作類を追い出す（右列で操作する） */
+      /* 縦横比はそのまま。幅と高さの両方に収める（引き伸ばさない） */
+      #boardDialog .board-stage-viewport{
+        width:auto;height:auto;max-width:100%;max-height:100%;
+        min-width:0;min-height:0;margin:0;
+      }
       #boardDialog .mode-toggle,
       #boardDialog .draw-tool-bar,
       #boardDialog .draw-hint,
-      #boardDialog .inline-note,
-      #boardDialog .zoom-controls{display:none}
-      /* 右：操作をぜんぶまとめる */
+      #boardDialog .inline-note{display:none}
+      /* 右：操作をまとめる（幅は控えめに） */
       #boardDialog #boardControlsCol{
         grid-column:2;grid-row:1;
-        display:flex;flex-direction:column;min-width:0;
-        overflow:hidden;gap:6px;
+        display:flex;flex-direction:column;min-width:0;overflow:hidden;gap:5px;
       }
-      /* 右列の上部に、モード切替と手書き道具を差し込む場所 */
-      #boardDialog #landscapeTools{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
-      #boardDialog #landscapeTools .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:0}
-      #boardDialog #landscapeTools .mode-toggle .btn{padding:7px 2px;font-size:11.5px;min-width:0}
-      #boardDialog #landscapeTools .draw-tool-bar{display:flex;flex-wrap:wrap;gap:4px;padding:5px 6px;margin:0}
-      #boardDialog #landscapeTools .swatch-btn{width:24px;height:24px}
+      #boardDialog #landscapeTools{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
+      #boardDialog #landscapeTools .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:0}
+      #boardDialog #landscapeTools .mode-toggle .btn{padding:6px 1px;font-size:10.5px;min-width:0;line-height:1.15}
+      #boardDialog #landscapeTools .draw-tool-bar{display:flex;flex-wrap:wrap;gap:3px;padding:4px 5px;margin:0;justify-content:center}
+      #boardDialog #landscapeTools .swatch-btn{width:20px;height:20px}
       #boardDialog #landscapeTools .width-btn,
-      #boardDialog #landscapeTools .icon-btn{width:28px;height:28px}
-      /* 入力欄は縦にスクロール */
+      #boardDialog #landscapeTools .icon-btn{width:24px;height:24px}
+      #boardDialog #landscapeTools .sep{display:none}
+      /* 黒板の拡大・移動の操作 */
+      #boardDialog #landscapeZoom{display:flex;gap:4px;flex:0 0 auto}
+      #boardDialog #landscapeZoom .btn{flex:1;padding:6px 2px;font-size:15px;min-width:0}
       #boardDialog #boardControlsScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
-      #boardDialog #boardControlsCol .tip-box{margin-top:0!important;padding:7px 9px}
-      #boardDialog #boardControlsCol label{font-size:11px;margin-bottom:2px}
+      #boardDialog #boardControlsCol .tip-box{margin-top:0!important;padding:6px 8px}
+      #boardDialog #boardControlsCol .tip-box .hint{display:none}
+      #boardDialog #boardControlsCol label{font-size:10.5px;margin-bottom:2px}
       #boardDialog #boardControlsCol input,
       #boardDialog #boardControlsCol select,
-      #boardDialog #boardControlsCol textarea{font-size:13.5px;padding:6px 8px}
-      #boardDialog #boardControlsCol textarea{min-height:56px}
-      #boardDialog #boardControlsCol h4,
-      #boardDialog #boardControlsCol .tip-box > div:first-child{font-size:12.5px}
-      /* 下の2つのボタンを右列の一番下に固定 */
-      #boardDialog #landscapeActions{display:flex;gap:6px;flex:0 0 auto}
-      #boardDialog #landscapeActions .btn{flex:1;padding:9px 6px;font-size:13px}
+      #boardDialog #boardControlsCol textarea{font-size:12.5px;padding:5px 7px}
+      #boardDialog #boardControlsCol textarea{min-height:48px}
+      #boardDialog #boardControlsCol .btn{font-size:11.5px;padding:6px 6px}
+      /* 横向きでは豆図は扱わない（縦向きで設定する） */
+      #boardDialog #boardImageSlots{display:none!important}
+      #boardDialog #landscapeActions{display:flex;gap:5px;flex:0 0 auto}
+      #boardDialog #landscapeActions .btn{flex:1;padding:8px 3px;font-size:11.5px}
     }
     @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
     /* スマホを横向きにしたとき：黒板だけを大きく表示し、他の入力欄は隠す */
@@ -840,6 +840,15 @@
       </div>
       <div id="boardControlsCol">
       <div id="landscapeTools"></div>
+      <div id="landscapeZoom">
+        <button type="button" class="btn" id="bzOutBtn" title="小さく">−</button>
+        <button type="button" class="btn" id="bzLeftBtn" title="左へ">◀</button>
+        <button type="button" class="btn" id="bzUpBtn" title="上へ">▲</button>
+        <button type="button" class="btn" id="bzDownBtn" title="下へ">▼</button>
+        <button type="button" class="btn" id="bzRightBtn" title="右へ">▶</button>
+        <button type="button" class="btn" id="bzInBtn" title="大きく">＋</button>
+        <button type="button" class="btn" id="bzResetBtn" title="元に戻す">⟲</button>
+      </div>
       <div id="boardControlsScroll">
       <div class="tip-box" style="margin-top:10px">
         <div style="font-weight:800;color:var(--brand2)">現場情報を自動入力</div>
@@ -851,6 +860,7 @@
         <div class="mode-toggle" id="boardPickerTabs">
           <button type="button" class="btn tiny-btn active" data-tab="template">黒板テンプレート</button>
           <button type="button" class="btn tiny-btn" id="surfaceToggleBtn" title="黒板／ホワイトボードの切り替え" style="flex:0 0 auto;min-width:52px;padding:6px 8px"></button>
+          <button type="button" class="btn tiny-btn" id="orientToggleBtn" title="黒板の向き（横長／縦長）の切り替え" style="flex:0 0 auto;min-width:60px;padding:6px 8px"></button>
           <button type="button" class="btn tiny-btn outline" data-tab="my">MY黒板</button>
         </div>
         <div class="tmpl-picker" id="boardTemplatePicker"></div>
@@ -929,8 +939,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v169';
-  const APP_UPDATE_NOTE='画面に設定用の文字が出ていた不具合を修正しました';
+  const APP_VERSION='v170';
+  const APP_UPDATE_NOTE='横向きの黒板編集を整え、向きの切り替えボタンを追加しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3462,6 +3472,40 @@
     }
     if(dlg.open)scheduleBoardEditorRender();
   }
+  // 黒板の拡大・移動ボタン（横向きのとき、指のかわりに使える）
+  // 黒板の向き（横長／縦長）の切り替え。下の「向き」と同じものを操作する。
+  function updateOrientToggleBtn(){
+    const b=$('orientToggleBtn'); if(!b)return;
+    const port=$('boardOrient').value==='port';
+    b.textContent=port?'縦長':'横長';
+    b.classList.toggle('active',true);
+    b.style.background=port?'#0f766e':'#0284c7';
+    b.style.color='#fff';
+    b.title='いまは'+(port?'縦長':'横長')+'。押すと'+(port?'横長':'縦長')+'に変わります';
+  }
+  function initOrientToggle(){
+    const b=$('orientToggleBtn'); if(!b)return;
+    b.addEventListener('click',()=>{
+      const sel=$('boardOrient');
+      sel.value=(sel.value==='port')?'land':'port';
+      sel.dispatchEvent(new Event('input',{bubbles:true}));
+      updateOrientToggleBtn();
+      renderBoardEditor();
+    });
+    $('boardOrient').addEventListener('input',updateOrientToggleBtn);
+    updateOrientToggleBtn();
+  }
+  function initBoardZoomButtons(){
+    const rect=()=>($('boardStageViewport')||{getBoundingClientRect:()=>({left:0,top:0,width:300,height:200})}).getBoundingClientRect();
+    const step=()=>Math.max(24,rect().width*0.12);
+    // 画面の真ん中を軸に拡大する（setBoardZoom は画面上の座標を受け取る）
+    const zoom=(f)=>{ const r=rect(); setBoardZoom(boardZoom.scale*f, r.left+r.width/2, r.top+r.height/2); };
+    const pairs=[['bzInBtn',()=>zoom(1.25)],['bzOutBtn',()=>zoom(1/1.25)],
+      ['bzLeftBtn',()=>panBoardZoom(step(),0)],['bzRightBtn',()=>panBoardZoom(-step(),0)],
+      ['bzUpBtn',()=>panBoardZoom(0,step())],['bzDownBtn',()=>panBoardZoom(0,-step())],
+      ['bzResetBtn',()=>{ boardZoom.scale=1; boardZoom.tx=0; boardZoom.ty=0; applyBoardZoomTransform(); }]];
+    pairs.forEach(([id,fn])=>{ const b=$(id); if(b)b.addEventListener('click',e=>{ e.preventDefault(); fn(); }); });
+  }
   function initImageAdjust(){
     const dlg=$('imgAdjustDialog'); if(!dlg)return;
     const stage=$('imgAdjStage');
@@ -4472,6 +4516,7 @@
     _boardRenderRaf=requestAnimationFrame(()=>{ _boardRenderRaf=0; renderBoardEditor(); });
   }
   function renderBoardEditor(){
+    try{ updateOrientToggleBtn(); }catch(e){}
     if(_boardRenderRaf){ cancelAnimationFrame(_boardRenderRaf); _boardRenderRaf=0; }
     try{ renderBoardImageUI(); }catch(e){ console.warn(e); }
     const board=readBoardControls();
@@ -4914,6 +4959,8 @@
   initInAppCamera();
   initBoardBuilder();
   initImageAdjust();
+  initBoardZoomButtons();
+  initOrientToggle();
   applyBoardLayout();
   window.addEventListener('resize',()=>{ applyBoardLayout(); });
   try{ if(screen.orientation)screen.orientation.addEventListener('change',()=>setTimeout(applyBoardLayout,200)); }catch(e){}

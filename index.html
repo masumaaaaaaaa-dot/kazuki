@@ -102,6 +102,8 @@
     .undo-toast .count{flex:0 0 auto;min-width:40px;text-align:center;font-weight:800;font-size:12.5px;
       color:#facc15;background:rgba(250,204,21,.14);border-radius:999px;padding:4px 8px;white-space:nowrap}
 
+    /* 現場の工事名をテーマカラーにする（文字色だけ） */
+    #projectList .item-title{color:var(--brand)}
     /* 表紙・A4出力・複製・データ控え をテーマカラーで囲む（枠だけ。大きさは変えない） */
     #projectList .cover-btn{border:1.6px solid var(--brand)}
     /* 写真の枠をテーマカラーにする（太さ・大きさはそのまま） */
@@ -957,8 +959,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v218';
-  const APP_UPDATE_NOTE='「写真・黒板を作成」を表紙と同じ見た目にしました';
+  const APP_VERSION='v219';
+  const APP_UPDATE_NOTE='工事名をテーマカラーにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

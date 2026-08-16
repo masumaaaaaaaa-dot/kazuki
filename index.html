@@ -586,6 +586,8 @@
         <div class="hint" style="margin-top:6px">最新にしたはずなのに画面が変わらないときは、下のボタンを押してください。保存済みの現場・写真は消えません。</div>
         <button class="btn outline full" id="forceUpdateBtn" style="margin-top:8px">最新版に更新する</button>
         <div class="hint" style="margin-top:14px">アプリ内カメラの写り方について相談するときは、下のボタンで調べた内容を見せてください。この端末がどのレンズを使えるかが分かります。</div>
+        <label class="check-row" style="margin-top:10px"><input type="checkbox" id="tapToShootChk" /> 画面をタップしても撮影する</label>
+        <div class="hint" style="margin-top:2px">アプリ内カメラで、映像のどこを触っても撮影できます。片手で持ったとき、親指の届く場所で撮れます。<br>黒板の上と、下のボタンの上は撮影になりません（黒板は指で動かせます）。<br>意図せず撮れてしまう場合は、切ってください。</div>
         <button class="btn outline full" id="camDiagBtn" style="margin-top:8px">カメラの対応状況を調べる</button>
         <pre id="camDiagOut" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text)"></pre>
         <div class="hint keep-hint" style="margin-top:12px"><a href="./privacy.html" target="_blank" rel="noopener" style="color:var(--brand-ink);font-weight:700">プライバシーポリシー</a></div>
@@ -926,14 +928,14 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v191';
-  const APP_UPDATE_NOTE='カメラでMY黒板の手書きが反映されなかったのを修正しました';
+  const APP_VERSION='v192';
+  const APP_UPDATE_NOTE='画面をタップして撮影する設定を追加しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
   let projects = [];
   let photos = [];
-  let settings = { company:'', submitTo:'', saveCameraCopy:true, hideHints:false, theme:'light', colorTheme:'default', cameraMode:'inapp', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
+  let settings = { company:'', submitTo:'', saveCameraCopy:true, tapToShoot:false, hideHints:false, theme:'light', colorTheme:'default', cameraMode:'inapp', firstUsedAt:0, firstUsedVersion:'', lastBoard:null };
   let photoDirectoryHandle = null;
   let backupDirectoryHandle = null;
   let currentProjectId = localStorage.getItem('photoLedgerCurrentProject') || '';
@@ -1393,6 +1395,29 @@
   }
   function camDragEnd(){ camDrag=null; }
 
+  // 映像を軽くたたいたら撮影する（設定で入れたときだけ）。
+  // 黒板をつかんだとき、指を動かしたとき、長く押したときは撮らない。
+  let camTapInfo=null;
+  function camTapStart(e){
+    if(!settings.tapToShoot)return;
+    if(camDrag)return;                       // 黒板をつかんでいるときは撮らない
+    const dlg=$('cameraDialog'); if(!dlg||!dlg.open)return;
+    const p=camPointerXY(e);
+    camTapInfo={x:p.x,y:p.y,t:Date.now()};
+  }
+  function camTapMove(e){
+    if(!camTapInfo)return;
+    const p=camPointerXY(e);
+    if(Math.abs(p.x-camTapInfo.x)>12||Math.abs(p.y-camTapInfo.y)>12)camTapInfo=null;  // 動かしたら撮らない
+  }
+  function camTapEnd(){
+    const info=camTapInfo; camTapInfo=null;
+    if(!info||camDrag)return;
+    if(Date.now()-info.t>450)return;         // 長く押したときは撮らない
+    const btn=$('camShutterBtn');
+    if(btn&&btn.dataset.busy!=='1')btn.click();
+  }
+
   function camSetButtonLabel(el,text){
     if(!el)return;
     const s=el.querySelector&&el.querySelector('.cam-turn-label');
@@ -1763,6 +1788,13 @@
     // 黒板を指で動かす
     cv.addEventListener('mousedown',camDragStart);
     cv.addEventListener('touchstart',camDragStart,{passive:false});
+    cv.addEventListener('mousedown',camTapStart);
+    cv.addEventListener('touchstart',camTapStart,{passive:true});
+    window.addEventListener('mousemove',camTapMove);
+    window.addEventListener('touchmove',camTapMove,{passive:true});
+    window.addEventListener('mouseup',camTapEnd);
+    window.addEventListener('touchend',camTapEnd);
+    window.addEventListener('touchcancel',()=>{camTapInfo=null;});
     window.addEventListener('mousemove',camDragMove);
     window.addEventListener('touchmove',camDragMove,{passive:false});
     window.addEventListener('mouseup',camDragEnd);
@@ -2978,7 +3010,8 @@
     const v=$('appVersionLabel'); if(v)v.textContent=APP_VERSION;
     const fu=$('firstUsedLabel'); if(fu)fu.textContent=settings.firstUsedAt?fmtDate(new Date(settings.firstUsedAt).toISOString().slice(0,10)):'-';
     renderColorPicker(); applyColorTheme(settings.colorTheme||'default');$('settingCompany').value=settings.company||'';if($('saveCameraCopy'))$('saveCameraCopy').checked=settings.saveCameraCopy!==false;
-    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'inapp';updateCameraModeHint();}applyTheme(settings.theme);applyHideHints()}
+    if($('cameraMode')){$('cameraMode').value=settings.cameraMode||'inapp';updateCameraModeHint();}
+    if($('tapToShootChk'))$('tapToShootChk').checked=!!settings.tapToShoot;applyTheme(settings.theme);applyHideHints()}
   async function saveSettings(){settings.company=$('settingCompany').value.trim();settings.saveCameraCopy=$('saveCameraCopy')?$('saveCameraCopy').checked:settings.saveCameraCopy!==false;await idbPut('settings',{key:'main',value:settings});alert('設定を保存しました。')}
 
   function boardContext(ph){
@@ -5165,6 +5198,10 @@
   $('printBtn').addEventListener('click',withPreSubmit(printLedger));
   $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
   $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
+  $('tapToShootChk').addEventListener('change',async e=>{
+    settings.tapToShoot=e.target.checked;
+    try{ await idbPut('settings',{key:'main',value:settings}); }catch(err){ console.warn('設定の保存に失敗',err); }
+  });
   $('hideHintsBtn').addEventListener('click',async()=>{
     settings.hideHints=!settings.hideHints;
     applyHideHints();

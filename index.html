@@ -158,12 +158,13 @@
     .print-photo-box img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
         /* 記入欄の横線。背景で描くとPDFに出ないため、実体のある線を並べる。
        元のExcelに合わせて黒い点線にしている。 */
-    .print-note{height:80mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:8.89mm;overflow:hidden}
+    .print-note{height:80mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1.25;overflow:hidden}
     .print-note .rule{position:absolute;left:0;right:0;height:0;border-top:.25mm dotted #000;pointer-events:none}
     .print-note .rule.first{border-top-style:solid}
     .print-note .note-text{position:relative;z-index:1}
-    .print-number{position:absolute;right:1mm;top:-.5mm;font-size:8.5pt;color:#555;background:#fff;padding-left:2mm;z-index:2}
-    .note-line{height:7mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.note-line strong{font-weight:700}
+    .print-number{position:absolute;right:1mm;top:.8mm;font-size:8.5pt;color:#555;background:#fff;padding-left:2mm;z-index:2}
+    .note-line{height:8.89mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      display:flex;align-items:flex-end;padding-bottom:1.1mm;box-sizing:border-box}.note-line strong{font-weight:700}
     .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
     .blank-photo{border:1px solid transparent}
 
@@ -941,8 +942,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v203';
-  const APP_UPDATE_NOTE='記入欄の横線がPDFに出るようにしました';
+  const APP_VERSION='v204';
+  const APP_UPDATE_NOTE='記入欄の横線と文字の位置をそろえました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2188,8 +2189,9 @@
   }
 
   function limitToElevenLines(value){
+    // 記入欄は9行。A4出力の横線と同じ数にそろえる。
     const normalized=String(value||'').replace(/\r\n?/g,'\n');
-    return normalized.split('\n').slice(0,11).join('\n');
+    return normalized.split('\n').slice(0,9).join('\n');
   }
 
   function openPhotoDialog(ph){

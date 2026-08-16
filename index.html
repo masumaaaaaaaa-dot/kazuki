@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v222';
-  const APP_UPDATE_NOTE='「画像を保存」の反応を速くしました';
+  const APP_VERSION='v223';
+  const APP_UPDATE_NOTE='白板で豆図の上の文字が読めない不具合を直しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -4544,7 +4544,12 @@
         if(label){
           ctx.save();
           ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-          if(drew){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
+          if(drew){
+            const onWhite=(data&&data.surface==='white');
+            ctx.shadowColor=onWhite?'rgba(255,255,255,.95)':'rgba(0,0,0,.85)';
+            ctx.shadowBlur=Math.max(3,lblSize*0.35);
+            ctx.fillStyle=onWhite?'#111':'#fff';
+          }
           else ctx.fillStyle=CHALK_WHITE_GET();
           ctx.fillText(label,innerX+padX,g.y+padY);
           ctx.restore();
@@ -4559,7 +4564,12 @@
           const nf=fitNoteFont(ctx,noteText,nW,nMax,Math.round(baseFont*0.9),10);
           ctx.save();
           ctx.font=CHALK_FONT_BOLD(nf.size);ctx.textBaseline='top';
-          if(drew){ ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=Math.max(3,nf.size*0.4); ctx.fillStyle='#fff'; }
+          if(drew){
+            const onWhite=(data&&data.surface==='white');
+            ctx.shadowColor=onWhite?'rgba(255,255,255,.95)':'rgba(0,0,0,.9)';
+            ctx.shadowBlur=Math.max(3,nf.size*0.4);
+            ctx.fillStyle=onWhite?'#111':'#fff';
+          }
           else ctx.fillStyle=CHALK_WHITE_GET();
           const nLine=nH/nMax;
           for(let i=0;i<nf.lines.length&&i<nMax;i++)ctx.fillText(nf.lines[i],innerX+padX,nTop+i*nLine);
@@ -4611,7 +4621,12 @@
       if(sketchLabel){
         ctx.save();
         ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-        if(drewImg){ ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=Math.max(3,lblSize*0.35); ctx.fillStyle='#fff'; }
+        if(drewImg){
+          const onWhite=(data&&data.surface==='white');
+          ctx.shadowColor=onWhite?'rgba(255,255,255,.95)':'rgba(0,0,0,.85)';
+          ctx.shadowBlur=Math.max(3,lblSize*0.35);
+          ctx.fillStyle=onWhite?'#111':'#fff';
+        }
         else ctx.fillStyle=CHALK_WHITE_GET();
         ctx.fillText(sketchLabel,sketchColX+padX,sy+padY);
         ctx.restore();
@@ -4628,7 +4643,13 @@
           const fit=fitNoteFont(ctx,text,noteW,maxLines,Math.max(12,Math.min(Math.round(lineH*0.8),Math.round(innerW*0.071*noteFontScale(data.noteSize)))),10);
           ctx.save();
           ctx.font=CHALK_FONT_BOLD(fit.size);ctx.textBaseline='top';
-          if(drewImg){ ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=Math.max(3,fit.size*0.4); ctx.fillStyle='#fff'; }
+          if(drewImg){
+            // 白板のときは黒い字。ふちに反対色の影を付けて、絵の上でも読めるようにする
+            const onWhite=(data&&data.surface==='white');
+            ctx.shadowColor=onWhite?'rgba(255,255,255,.95)':'rgba(0,0,0,.9)';
+            ctx.shadowBlur=Math.max(3,fit.size*0.4);
+            ctx.fillStyle=onWhite?'#111':'#fff';
+          }
           else ctx.fillStyle=CHALK_WHITE_GET();
           for(let i=0;i<fit.lines.length&&i<maxLines;i++)ctx.fillText(fit.lines[i],sketchColX+padX,textTop+i*lineH);
           ctx.restore();

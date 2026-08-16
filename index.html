@@ -927,8 +927,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v195';
-  const APP_UPDATE_NOTE='シャッターの反応を大きく改善しました';
+  const APP_VERSION='v196';
+  const APP_UPDATE_NOTE='シャッターの反応をさらに改善しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1228,7 +1228,7 @@
   let camLensId='', camReorienting=false, camReorientTried={land:false,port:false};
   let camLensList=[], camLensIndex=-1, camLensFiltered=false;
   let camUiHidden=false, camDrag=null;
-  const CAM_PREVIEW_MAX=1280;   // 画面表示用の解像度上限（描画を軽くするため。保存写真は原寸）
+  const CAM_PREVIEW_MAX=1080;   // 画面表示用の解像度上限（描画を軽くするため。保存写真は原寸）
 
   // 前回使った黒板の設定（黒板編集で保存されたもの）
   function camBoardData(){
@@ -1343,11 +1343,18 @@
     }
     return cv;
   }
-  function camLoop(){
+  // 画面の描き直し。毎秒60回だと古い機種で手いっぱいになり、
+  // シャッターの処理が割り込めなくなるため、30回に抑える。
+  let camLastDraw=0, camPaused=false;
+  function camLoop(ts){
     const dlg=$('cameraDialog');
     if(!dlg||!dlg.open){camRaf=0;return;}
-    camDrawInto($('camCanvas'),true,CAM_PREVIEW_MAX);
     camRaf=requestAnimationFrame(camLoop);
+    if(camPaused)return;                       // 撮影中は描き直さない
+    const now=ts||performance.now();
+    if(now-camLastDraw<32)return;              // 毎秒およそ30回
+    camLastDraw=now;
+    camDrawInto($('camCanvas'),true,CAM_PREVIEW_MAX);
   }
   function camStartLoop(){ if(!camRaf)camRaf=requestAnimationFrame(camLoop); }
   function camStopLoop(){ if(camRaf)cancelAnimationFrame(camRaf); camRaf=0; }
@@ -1407,14 +1414,20 @@
   function camTapMove(e){
     if(!camTapInfo)return;
     const p=camPointerXY(e);
-    if(Math.abs(p.x-camTapInfo.x)>12||Math.abs(p.y-camTapInfo.y)>12)camTapInfo=null;  // 動かしたら撮らない
+    if(Math.abs(p.x-camTapInfo.x)>28||Math.abs(p.y-camTapInfo.y)>28)camTapInfo=null;  // 大きく動かしたときだけ撮らない
   }
   function camTapEnd(){
     const info=camTapInfo; camTapInfo=null;
     if(!info||camDrag)return;
-    if(Date.now()-info.t>450)return;         // 長く押したときは撮らない
+    if(Date.now()-info.t>900)return;          // かなり長く押したときだけ撮らない
     const btn=$('camShutterBtn');
-    if(btn&&btn.dataset.busy!=='1')btn.click();
+    if(!btn)return;
+    if(btn.dataset.busy==='1'){
+      // 前の撮影がまだ終わっていないときは、押したことだけ知らせる
+      try{ if(navigator.vibrate)navigator.vibrate(10); }catch(e){}
+      return;
+    }
+    btn.click();
   }
 
   function camSetButtonLabel(el,text){
@@ -1969,15 +1982,16 @@
       if(shutter&&shutter.dataset.busy==='1')return;
       if(camReorienting)return;   // 映像の取り直し中は撮らない
       if(shutter)shutter.dataset.busy='1';
+      camPaused=true;              // 撮影中は画面の描き直しを止める
       try{
         // 画面に出しているのと同じ描画で、黒板を含まない原寸の写真を作る。
         // 黒板は handleFiles 側が同じ計算で貼るので、画面と仕上がりが必ず一致する。
+        // 押したことがすぐ分かるよう、合図を先に出す
+        camShutterFeedback();
         const shot=document.createElement('canvas');
         // 保存時に1800pxへ縮めるので、はじめからその大きさで作る（二度手間を省く）
         if(!camDrawInto(shot,false,1900))throw new Error('撮影画像を作成できませんでした');
         const blob=await new Promise((res,rej)=>shot.toBlob(b=>b?res(b):rej(new Error('撮影画像を作成できませんでした')),'image/jpeg',0.92));
-        // 撮影の合図。カメラは閉じず、そのまま続けて撮れる。
-        camShutterFeedback();
         const file=new File([blob],`camera_${Date.now()}.jpg`,{type:'image/jpeg'});
         // 画面と写真が同じキャンバスなので、位置や向きの変換はいっさい不要
         await handleFiles([file],{
@@ -1992,6 +2006,7 @@
         console.error(err);
         alert('撮影に失敗しました。もう一度お試しください。');
       }finally{
+        camPaused=false;
         if(shutter)shutter.dataset.busy='';
       }
     });

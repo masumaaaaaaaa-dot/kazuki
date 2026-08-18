@@ -964,7 +964,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v244';
+  const APP_VERSION='v245';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -4971,8 +4971,8 @@
     // 表示位置で開くときは描画が落ち着くまで数回そろえ直して、毎回同じ位置にする。
     const focusScroll=()=>{
       if(focus!=='position')return;
-      const en=$('boardEnabled'); const row=en?en.closest('label'):null;
-      if(row)row.scrollIntoView({block:'start'});
+      const tgt=$('posPickStage')||$('posPickWrap');   // 位置決めの写真を画面の真ん中に
+      if(tgt)tgt.scrollIntoView({block:'center'});
     };
     requestAnimationFrame(()=>{
       const d=$('boardDialog'); if(d)d.scrollTop=0;

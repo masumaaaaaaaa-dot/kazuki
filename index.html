@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v232';
-  const APP_UPDATE_NOTE='ページを切り替えたとき、拡大表示を等倍に戻すようにしました';
+  const APP_VERSION='v235';
+  const APP_UPDATE_NOTE='ページ切替・黒板編集を開くとき、拡大表示を等倍に戻すようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5212,6 +5212,16 @@
     }catch(e){}
     return false;
   }
+  function resetPageZoomForBoard(photoId){
+    try{
+      if(window.visualViewport&&window.visualViewport.scale>1.02){
+        sessionStorage.setItem('photoLedgerOpenBoardAfterReload',photoId);
+        location.replace(location.pathname+'?page=photos');
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
   function showPage(name){
     if(resetPageZoomForNavigation(name))return;
     ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
@@ -5462,7 +5472,7 @@
   });
   $('photoList').addEventListener('click',async e=>{
     const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
-    if(b.dataset.action==='edit-board')await openBoardDialog(ph);
+    if(b.dataset.action==='edit-board'){if(resetPageZoomForBoard(ph.id))return;await openBoardDialog(ph);}
     if(b.dataset.action==='edit-content'){
       openPhotoDialog(ph);
       requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
@@ -5588,7 +5598,16 @@
     await recordFirstUse();
     loadSettingsUI();
     notifyUpdatedIfNeeded();
-    maybeShowWelcome();
+    let reopenedBoard=false;
+    try{
+      const pendingBoardId=sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||'';
+      if(pendingBoardId){
+        sessionStorage.removeItem('photoLedgerOpenBoardAfterReload');
+        const ph=photos.find(x=>x.id===pendingBoardId);
+        if(ph){await openBoardDialog(ph);reopenedBoard=true;}
+      }
+    }catch(e){}
+    if(!reopenedBoard)maybeShowWelcome();
   }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
 })();
 

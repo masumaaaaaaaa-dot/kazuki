@@ -964,7 +964,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v242';
+  const APP_VERSION='v243';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1104,7 +1104,7 @@
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
     host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
       <div style="position:relative">
-        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
+        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}" data-open-board="${p.id}" style="cursor:pointer">
         ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
       </div>
       <div><div class="item-title">No.${i+1}　${escapeHtml((p.content||'').split('\n')[0]||'記入欄は空欄')}${(p.content||'').split('\n').filter(Boolean).length>1?`　ほか${(p.content||'').split('\n').filter(Boolean).length-1}行`:''}</div>
@@ -4924,7 +4924,12 @@
     btn.classList.toggle('active',applied);
     btn.textContent=applied?'✓ 表紙の情報を反映中（もう一度押すと戻す）':'表紙の情報を黒板に反映';
   }
-  async function openBoardDialog(ph){
+  async function openBoardDialog(ph,focus){
+    // 開き位置の指定：引数がなければ一時目印（写真タップ→等倍再開の経路）から受け取る
+    try{
+      const f=sessionStorage.getItem('boardOpenFocus');
+      if(f){ sessionStorage.removeItem('boardOpenFocus'); if(!focus)focus=f; }
+    }catch(_){}
     closeBoardInlineEditor();   // 前の写真の入力欄を残さない
     // 位置決めの黒板は画像を貼り付けているだけなので、消さないと前の写真のものが
     // 描き直しが終わるまで見えてしまう。開いた時点で必ず消しておく。
@@ -4960,11 +4965,16 @@
     renderMyBoardPicker();
     applyBoardLayout();
     $('boardDialog').showModal();
-    // 開いたときは毎回いちばん上（黒板の編集エリア）から表示する
+    // 開いたときは毎回いちばん上（黒板の編集エリア）から表示する。
+    // 写真タップから開いたときだけ「黒板を表示する」が見える位置まで送る。
     requestAnimationFrame(()=>{
       const d=$('boardDialog'); if(d)d.scrollTop=0;
       const body=d?d.querySelector('.dialog-body'):null; if(body)body.scrollTop=0;
       const sc=$('boardControlsScroll'); if(sc)sc.scrollTop=0;
+      if(focus==='position'){
+        const en=$('boardEnabled'); const row=en?en.closest('label'):null;
+        if(row)row.scrollIntoView({block:'start'});
+      }
     });
     ensureBoardImages({images:boardState.images}).then(()=>requestAnimationFrame(renderBoardEditor));
     requestAnimationFrame(renderBoardEditor);
@@ -5638,6 +5648,17 @@
     }
   });
   $('photoList').addEventListener('click',async e=>{
+    // 写真そのものをタップしたら、黒板編集を「黒板を表示する」が見える位置で開く
+    const tImg=e.target.closest('img.thumb[data-open-board]');
+    if(tImg&&!selectMode){
+      const ph2=photos.find(x=>x.id===tImg.dataset.openBoard);
+      if(ph2){
+        try{sessionStorage.setItem('boardOpenFocus','position')}catch(_){}
+        if(resetPageZoomForBoard(ph2.id))return;   // 拡大中は等倍で開き直し（開き位置は上の目印で引き継ぐ）
+        await openBoardDialog(ph2,'position');
+        return;
+      }
+    }
     const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
     if(b.dataset.action==='edit-board'){if(resetPageZoomForBoard(ph.id))return;await openBoardDialog(ph);}
     if(b.dataset.action==='edit-content'){

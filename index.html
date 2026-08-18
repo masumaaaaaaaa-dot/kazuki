@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -23,7 +23,7 @@
       color-scheme:dark;
     }
     *{box-sizing:border-box}
-    html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
+    html,body{margin:0;touch-action:pan-x pan-y;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
     .app-shell{max-width:980px;margin:0 auto;min-height:100vh;padding-bottom:92px}
@@ -955,7 +955,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v227';
+  const APP_VERSION='v228';
   const APP_UPDATE_NOTE='遅い機種でもカメラが滑らかに動くようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1831,7 +1831,7 @@
     camDrag=null;
     try{
       const vp=document.querySelector('meta[name="viewport"]');
-      if(vp)vp.setAttribute('content','width=device-width,initial-scale=1,viewport-fit=cover');
+      if(vp)vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
     }catch(e){}
     if(camStream){ try{camStream.getTracks().forEach(t=>t.stop());}catch(e){} camStream=null; }
     const v=$('camVideo');
@@ -5197,10 +5197,14 @@
   function ensureZoomAllowed(){
     try{
       const vp=document.querySelector('meta[name="viewport"]');
-      const want='width=device-width, initial-scale=1, viewport-fit=cover';
+      const want='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';   // v228から：ページの拡大は常に禁止（8/16以前の挙動に戻す）
       if(vp&&vp.getAttribute('content')!==want)vp.setAttribute('content',want);
     }catch(e){}
   }
+  document.addEventListener('touchmove',function(e){
+    // ページ全体の2本指ピンチ拡大を遮断（アプリ内の2本指機能は各自の処理で動くため影響なし）
+    if(e.touches&&e.touches.length>1){ try{ e.preventDefault(); }catch(_){} }
+  },{passive:false});
   function resetPageZoom(){
     // 指2本でページを拡大したまま別のページへ移動してきたとき、表示を等倍へ戻す。
     // 機種により「上限だけ」では現在の拡大が戻らないため、下限と上限の両方で

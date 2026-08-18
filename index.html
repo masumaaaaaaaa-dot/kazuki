@@ -955,7 +955,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v230';
+  const APP_VERSION='v231';
   const APP_UPDATE_NOTE='遅い機種でもカメラが滑らかに動くようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -2527,7 +2527,6 @@
   }
 
   async function buildPrint(){
-    pageZoomReset();
     const p=currentProject(); const arr=currentPhotos(); if(!p){throw new Error('現場を選択してください。')} if(!arr.length){throw new Error('写真を1枚以上登録してください。')}
     const data=[]; for(const ph of arr)data.push({...ph,dataUrl:await blobToDataURL(getDisplayBlob(ph))});
     let html='';
@@ -5202,95 +5201,8 @@
       if(vp&&vp.getAttribute('content')!==want)vp.setAttribute('content',want);
     }catch(e){}
   }
-  // ---- ページ全体の拡大（アプリ自前の実装） ----
-  // このアプリ（インストール形式）ではブラウザ標準のページ拡大が使えないため、
-  // 黒板編集の黒板と同じ方式で自前の拡大を用意する。ページを切り替えると必ず等倍に戻る。
-  const pageZoom={s:1,tx:0,ty:0,locked:false,el:null,top0:0};
-  function pageZoomTarget(){return document.querySelector('.tab-page.active');}
-  function pageZoomApply(){
-    const el=pageZoom.el; if(!el)return;
-    if(pageZoom.s<=1.02){
-      pageZoom.s=1;pageZoom.tx=0;pageZoom.ty=0;
-      el.style.transform='';el.style.transformOrigin='';
-      if(pageZoom.locked){document.documentElement.style.overflow='';pageZoom.locked=false;}
-      pageZoom.el=null;
-      return;
-    }
-    if(!pageZoom.locked){document.documentElement.style.overflow='hidden';pageZoom.locked=true;}
-    el.style.transformOrigin='0 0';
-    el.style.transform='translate('+pageZoom.tx+'px,'+pageZoom.ty+'px) scale('+pageZoom.s+')';
-  }
-  function pageZoomClamp(){
-    const el=pageZoom.el; if(!el)return;
-    pageZoom.s=Math.min(3,Math.max(1,pageZoom.s));
-    if(!el.offsetWidth)return;   // 画面情報が取れない環境では位置の制限だけ省く
-    const vw=window.innerWidth,vh=window.innerHeight;
-    const cw=el.offsetWidth*pageZoom.s,ch=el.scrollHeight*pageZoom.s;
-    pageZoom.tx=Math.min(0,Math.max(Math.min(0,vw-cw),pageZoom.tx));
-    const availH=vh-(pageZoom.top0||0);
-    pageZoom.ty=Math.min(0,Math.max(Math.min(0,availH-ch),pageZoom.ty));
-  }
-  function pageZoomReset(){
-    if(pageZoom.s>1&&pageZoom.el){
-      const back=Math.max(0,Math.round(-pageZoom.ty/pageZoom.s));
-      pageZoom.s=1;pageZoomApply();
-      window.scrollTo(0,back);   // 見ていた位置を通常スクロールに引き継ぐ
-    }
-  }
-  (function(){
-    let pinch=null,pan=null;
-    const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-    const mid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
-    document.addEventListener('touchstart',function(e){
-      if(e.target&&e.target.closest&&e.target.closest('dialog'))return;   // ダイアログ内（黒板・カメラ等）は各自の操作に任せる
-      const t=e.touches;
-      if(t.length===2){
-        let el=pageZoom.el||pageZoomTarget(); if(!el)return;
-        if(!pageZoom.el){
-          const sy=window.scrollY||document.documentElement.scrollTop||0;
-          pageZoom.el=el;
-          pageZoom.top0=el.getBoundingClientRect().top+sy;
-          pageZoom.tx=0;pageZoom.ty=-sy;pageZoom.s=1.03;   // いまのスクロール位置を取り込んで固定
-          window.scrollTo(0,0);
-          pageZoomApply();
-        }
-        pinch={d0:dist(t)||1,m0:mid(t),s0:pageZoom.s,tx0:pageZoom.tx,ty0:pageZoom.ty};
-        pan=null;
-      }else if(t.length===1&&pageZoom.s>1&&pageZoom.el){
-        pan={x0:t[0].clientX,y0:t[0].clientY,tx0:pageZoom.tx,ty0:pageZoom.ty};
-      }
-    },{passive:false});
-    document.addEventListener('touchmove',function(e){
-      if(e.target&&e.target.closest&&e.target.closest('dialog'))return;
-      const t=e.touches;
-      if(pinch&&t.length>=2){
-        e.preventDefault();
-        const ns=Math.min(3,Math.max(1,pinch.s0*dist(t)/pinch.d0));
-        const m=mid(t);
-        pageZoom.tx=m.x-(pinch.m0.x-pinch.tx0)*(ns/pinch.s0);
-        pageZoom.ty=m.y-(pinch.m0.y-pinch.ty0)*(ns/pinch.s0);
-        pageZoom.s=ns;
-        pageZoomClamp();pageZoomApply();
-      }else if(pan&&t.length===1&&pageZoom.s>1){
-        e.preventDefault();   // 拡大中は1本指でずらして見る（等倍のときは今まで通りのスクロール）
-        pageZoom.tx=pan.tx0+(t[0].clientX-pan.x0);
-        pageZoom.ty=pan.ty0+(t[0].clientY-pan.y0);
-        pageZoomClamp();pageZoomApply();
-      }
-    },{passive:false});
-    const end=function(e){
-      if(e.touches.length<2)pinch=null;
-      if(e.touches.length===0){
-        pan=null;
-        if(pageZoom.s>1&&pageZoom.s<=1.06)pageZoomReset();   // ほぼ等倍まで戻したら完全に解除
-      }
-    };
-    document.addEventListener('touchend',end);
-    document.addEventListener('touchcancel',end);
-    window.addEventListener('beforeprint',pageZoomReset);   // 印刷・PDFの前は必ず等倍
-  })();
   function showPage(name){
-    pageZoomReset();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
+    ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
 
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());

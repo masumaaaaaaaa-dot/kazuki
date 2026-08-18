@@ -955,8 +955,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v235';
-  const APP_UPDATE_NOTE='ページ切替・黒板編集を開くとき、拡大表示を等倍に戻すようにしました';
+  const APP_VERSION='v236';
+  const APP_UPDATE_NOTE='ページ切替と編集画面から戻るとき、拡大表示を等倍に戻すようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5222,6 +5222,29 @@
     }catch(e){}
     return false;
   }
+  let pageZoomReloadPending=false;
+  function activePageName(){
+    try{
+      const el=document.querySelector('.tab-page.active');
+      if(el&&el.id&&el.id.indexOf('page-')===0)return el.id.slice(5);
+    }catch(e){}
+    return 'projects';
+  }
+  // When a top-level dialog is closed, return to the current page at native 1x.
+  // Nested board dialogs are excluded so unsaved board edits are not discarded.
+  function resetPageZoomAfterDialogClose(){
+    try{
+      if(document.hidden||pageZoomReloadPending)return false;
+      if(!(window.visualViewport&&window.visualViewport.scale>1.02))return false;
+      if(document.querySelector('dialog[open]'))return false;
+      localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');
+      const name=activePageName();
+      pageZoomReloadPending=true;
+      setTimeout(()=>location.replace(location.pathname+'?page='+name),0);
+      return true;
+    }catch(e){pageZoomReloadPending=false;}
+    return false;
+  }
   function showPage(name){
     if(resetPageZoomForNavigation(name))return;
     ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
@@ -5292,6 +5315,11 @@
   $('undoDrawBtn').addEventListener('click',()=>{ boardState.strokes.pop(); renderBoardEditor(); });
   $('clearDrawBtn').addEventListener('click',()=>{ boardState.strokes=[]; renderBoardEditor(); });
   $('boardDialog').addEventListener('close',()=>{ closeBoardInlineEditor(); });
+  // Browser-native pinch zoom survives dialog close on this device.
+  // Reset only when returning from a top-level dialog to a normal page.
+  ['projectDialog','photoDialog','boardDialog','cameraDialog','welcomeDialog'].forEach(id=>{
+    const dlg=$(id); if(dlg)dlg.addEventListener('close',resetPageZoomAfterDialogClose);
+  });
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
   $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
   const drawCanvas=$('boardDrawCanvas'); drawCanvas.addEventListener('pointerdown',onBoardPointerDown); drawCanvas.addEventListener('pointermove',onBoardPointerMove); ['pointerup','pointerleave','pointercancel'].forEach(ev=>drawCanvas.addEventListener(ev,onBoardPointerUp));

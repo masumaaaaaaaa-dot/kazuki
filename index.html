@@ -955,7 +955,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v226';
+  const APP_VERSION='v227';
   const APP_UPDATE_NOTE='遅い機種でもカメラが滑らかに動くようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -5203,12 +5203,15 @@
   }
   function resetPageZoom(){
     // 指2本でページを拡大したまま別のページへ移動してきたとき、表示を等倍へ戻す。
-    // maximum-scale=1 を一瞬だけ当てて等倍化し、すぐ既定に戻す（以後の拡大操作は自由なまま）。
+    // 機種により「上限だけ」では現在の拡大が戻らないため、下限と上限の両方で
+    // 等倍に固定してから解除する（解除後の拡大操作は自由なまま）。
     try{
       const vp=document.querySelector('meta[name="viewport"]');
       if(!vp)return;
-      vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
-      setTimeout(ensureZoomAllowed,250);
+      const clamp='width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+      vp.setAttribute('content',clamp);
+      setTimeout(()=>{ try{ vp.setAttribute('content',clamp); }catch(e){} },60);   // 反映が遅い端末向けに当て直し
+      setTimeout(ensureZoomAllowed,450);
     }catch(e){}
   }
   function showPage(name){

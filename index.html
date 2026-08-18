@@ -963,8 +963,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v237';
-  const APP_UPDATE_NOTE='拡大後の画面切替を滑らかにし、記入欄を開くときも等倍に戻すようにしました';
+  const APP_VERSION='v238';
+  const APP_UPDATE_NOTE='拡大後のページ切替で途中画面を見せず、データ表示完了後に画面を出すようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5633,7 +5633,8 @@
       activatePage(_pg);
       let _pendingOverlay=false;
       try{_pendingOverlay=!!(sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||sessionStorage.getItem('photoLedgerOpenNoteAfterReload'));}catch(e){}
-      if(!_pendingOverlay)document.documentElement.classList.remove('zoom-reload-mask');
+      // 表示解除は IndexedDB の読み込みと写真一覧の復元が終わってから行う。
+      // ここで解除すると、データ未読込の空状態が一瞬見えてしまう。
     }else{
       document.documentElement.classList.remove('zoom-reload-mask');
     }

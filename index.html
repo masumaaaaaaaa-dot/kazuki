@@ -30,7 +30,8 @@
       color-scheme:dark;
     }
     *{box-sizing:border-box}
-    html.zoom-reload-mask body{visibility:hidden}
+    html.zoom-reload-mask{background:var(--bg)}
+    html.zoom-reload-mask body{visibility:hidden;pointer-events:none}
     html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
@@ -963,8 +964,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v238';
-  const APP_UPDATE_NOTE='拡大後のページ切替で途中画面を見せず、データ表示完了後に画面を出すようにしました';
+  const APP_VERSION='v239';
+  const APP_UPDATE_NOTE='画面切替の拡大リセットを全ダイアログまで拡張し、再読込直前の一瞬表示も隠すようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1174,6 +1175,7 @@
     const e=reiwaToIso(g('ey'),g('em'),g('ed')); $('projectEnd').value=e;
   }
   function openProjectDialog(p=null){
+    if(resetPageZoomForProjectDialog(p))return;
     $('projectDialogTitle').textContent=p?'表紙を編集':'新しい現場（表紙の内容）';
     $('projectId').value=p?.id||''; $('projectName').value=p?.name||''; $('projectAddress').value=p?.address||'';
     $('projectSubmitTo').value=p?.submitTo||''; $('projectNumber').value=p?.number||'';
@@ -3413,6 +3415,7 @@
     });
   }
   function openBoardBuilder(editId){
+    if(resetPageZoomForBoardNested('builder',{editId:editId||''}))return;
     const list=boardDefs();
     const cur=editId?list.find(b=>b.id===editId):null;
     if(cur){
@@ -3692,6 +3695,7 @@
     imgAdjScheduleDraw();
   }
   function openImageAdjust(key){
+    if(resetPageZoomForBoardNested('image-adjust',{imageKey:key}))return;
     const src=(boardState.images||{})[key];
     if(!src){alert('先に画像を貼ってください。');return}
     const a=(boardState.imageAdjusts||{})[key]||{};
@@ -5209,38 +5213,14 @@
       if(vp&&vp.getAttribute('content')!==want)vp.setAttribute('content',want);
     }catch(e){}
   }
-  // ブラウザ標準の拡大中だけ、行き先を指定して読み込み直す。
-  // 読み込み直後は等倍で始まるため、拡大を禁止せずにページ切替時だけ戻せる。
-  function resetPageZoomForNavigation(name){
-    try{
-      if(window.visualViewport&&window.visualViewport.scale>1.02){
-        location.replace(location.pathname+'?page='+name);
-        return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  function resetPageZoomForBoard(photoId){
-    try{
-      if(window.visualViewport&&window.visualViewport.scale>1.02){
-        sessionStorage.setItem('photoLedgerOpenBoardAfterReload',photoId);
-        location.replace(location.pathname+'?page=photos');
-        return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  function resetPageZoomForPhotoNote(photoId){
-    try{
-      if(window.visualViewport&&window.visualViewport.scale>1.02){
-        sessionStorage.setItem('photoLedgerOpenNoteAfterReload',photoId);
-        location.replace(location.pathname+'?page=photos');
-        return true;
-      }
-    }catch(e){}
-    return false;
-  }
+  // ブラウザ標準のページ拡大は JavaScript から倍率を直接1倍へ戻せないため、
+  // 「画面を移る瞬間だけ再読込する」方式で統一する。黒板内専用ズームとは別物。
+  const ZOOM_ROUTE_KEY='photoLedgerZoomRouteV239';
+  const ZOOM_BOARD_DRAFT_KEY='zoomBoardDraftV239';
   let pageZoomReloadPending=false;
+  function isPageZoomed(){
+    try{return !!(window.visualViewport&&window.visualViewport.scale>1.02)}catch(e){return false}
+  }
   function activePageName(){
     try{
       const el=document.querySelector('.tab-page.active');
@@ -5248,20 +5228,115 @@
     }catch(e){}
     return 'projects';
   }
-  // When a top-level dialog is closed, return to the current page at native 1x.
-  // Nested board dialogs are excluded so unsaved board edits are not discarded.
-  function resetPageZoomAfterDialogClose(){
+  function putZoomRoute(route){
+    try{sessionStorage.setItem(ZOOM_ROUTE_KEY,JSON.stringify(route||{}));}catch(e){}
+  }
+  function beginZoomReload(route){
+    if(pageZoomReloadPending)return true;
+    pageZoomReloadPending=true;
+    const r=Object.assign({kind:'page',page:activePageName()},route||{});
+    if(!['projects','photos','output','settings'].includes(r.page))r.page=activePageName();
+    try{localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');}catch(e){}
+    putZoomRoute(r);
+    // 新しいページ側だけで隠すと、unload直前の1フレームに元画面が変形して見える端末がある。
+    // 先に現在画面を同じ背景色で伏せてから再読込する。
+    try{document.documentElement.classList.add('zoom-reload-mask');}catch(e){}
+    requestAnimationFrame(()=>location.replace(location.pathname+'?page='+encodeURIComponent(r.page)));
+    return true;
+  }
+  function resetPageZoomForNavigation(name){
+    return isPageZoomed()?beginZoomReload({kind:'page',page:name}):false;
+  }
+  function resetPageZoomForBoard(photoId){
+    return isPageZoomed()?beginZoomReload({kind:'board',page:'photos',photoId}):false;
+  }
+  function resetPageZoomForPhotoNote(photoId){
+    return isPageZoomed()?beginZoomReload({kind:'note',page:'photos',photoId}):false;
+  }
+  function resetPageZoomForProjectDialog(p){
+    return isPageZoomed()?beginZoomReload({kind:'project',page:'projects',projectId:p&&p.id?p.id:''}):false;
+  }
+  function captureBoardDraftForZoom(){
     try{
-      if(document.hidden||pageZoomReloadPending)return false;
-      if(!(window.visualViewport&&window.visualViewport.scale>1.02))return false;
-      if(document.querySelector('dialog[open]'))return false;
-      localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');
-      const name=activePageName();
-      pageZoomReloadPending=true;
-      setTimeout(()=>location.replace(location.pathname+'?page='+name),0);
-      return true;
-    }catch(e){pageZoomReloadPending=false;}
-    return false;
+      if(!$('boardDialog')||!$('boardDialog').open||!boardState.photoId)return null;
+      closeBoardInlineEditor();
+      return {
+        photoId:boardState.photoId,
+        board:cloneBoardData(readBoardControls()),
+        strokes:cloneBoardData(boardState.strokes||[]),
+        interactionMode:boardState.interactionMode||'text',
+        projectInfoApplied:!!boardState.projectInfoApplied,
+        beforeApplySnapshot:boardState.beforeApplySnapshot?cloneBoardData(boardState.beforeApplySnapshot):null
+      };
+    }catch(e){console.warn('黒板の一時退避に失敗',e);return null}
+  }
+  async function beginBoardDraftZoomReload(route){
+    if(pageZoomReloadPending)return true;
+    if(!isPageZoomed())return false;
+    pageZoomReloadPending=true;
+    const draft=captureBoardDraftForZoom();
+    if(!draft){pageZoomReloadPending=false;return beginZoomReload(route)}
+    try{
+      await idbPut('settings',{key:ZOOM_BOARD_DRAFT_KEY,value:draft});
+    }catch(e){
+      pageZoomReloadPending=false;
+      console.warn('黒板の一時退避を保存できませんでした',e);
+      return false;
+    }
+    const r=Object.assign({kind:'resume-board',page:'photos'},route||{});
+    try{localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');}catch(e){}
+    putZoomRoute(r);
+    try{document.documentElement.classList.add('zoom-reload-mask');}catch(e){}
+    requestAnimationFrame(()=>location.replace(location.pathname+'?page=photos'));
+    return true;
+  }
+  function resetPageZoomForBoardNested(kind,payload){
+    if(!isPageZoomed())return false;
+    beginBoardDraftZoomReload(Object.assign({nested:kind},payload||{}));
+    return true;
+  }
+  async function readZoomBoardDraft(){
+    try{
+      const ss=await idbGetAll('settings');
+      const row=ss.find(x=>x.key===ZOOM_BOARD_DRAFT_KEY);
+      return row&&row.value?row.value:null;
+    }catch(e){return null}
+  }
+  async function clearZoomBoardDraft(){try{await idbDelete('settings',ZOOM_BOARD_DRAFT_KEY)}catch(e){}}
+  async function restoreBoardDraftAfterReload(draft){
+    if(!draft||!draft.photoId)return false;
+    const ph=photos.find(x=>x.id===draft.photoId);if(!ph)return false;
+    await openBoardDialog(ph);
+    if(draft.board)fillBoardControls(cloneBoardData(draft.board));
+    boardState.strokes=cloneBoardData(draft.strokes||[]);
+    boardState.interactionMode=draft.interactionMode||'text';
+    boardState.projectInfoApplied=!!draft.projectInfoApplied;
+    boardState.beforeApplySnapshot=draft.beforeApplySnapshot?cloneBoardData(draft.beforeApplySnapshot):null;
+    setApplyProjectBtnState(boardState.projectInfoApplied);
+    const modeWrap=$('boardModeToggle');
+    if(modeWrap)modeWrap.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode===boardState.interactionMode));
+    const showTools=boardState.interactionMode!=='text';
+    const toolBar=$('drawToolBar');if(toolBar)toolBar.classList.toggle('show',showTools);
+    const dHint=$('drawHint');if(dHint)dHint.classList.toggle('show',showTools);
+    resetBoardZoom();
+    renderBoardEditor();
+    return true;
+  }
+  // 閉じる操作もすべて確認する。黒板の子画面から戻る場合は、
+  // 未保存の黒板を一時退避してから等倍で同じ黒板編集へ復帰する。
+  function resetPageZoomAfterDialogClose(closedId){
+    setTimeout(()=>{
+      try{
+        if(document.hidden||pageZoomReloadPending||!isPageZoomed())return;
+        const boardStillOpen=$('boardDialog')&&$('boardDialog').open;
+        if(boardStillOpen&&(closedId==='boardBuilderDialog'||closedId==='imgAdjustDialog')){
+          beginBoardDraftZoomReload({kind:'resume-board',page:'photos'});
+          return;
+        }
+        if(document.querySelector('dialog[open]'))return;
+        beginZoomReload({kind:'page',page:activePageName()});
+      }catch(e){pageZoomReloadPending=false;}
+    },0);
   }
   function activatePage(name){
     ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();
@@ -5338,9 +5413,9 @@
   $('clearDrawBtn').addEventListener('click',()=>{ boardState.strokes=[]; renderBoardEditor(); });
   $('boardDialog').addEventListener('close',()=>{ closeBoardInlineEditor(); });
   // Browser-native pinch zoom survives dialog close on this device.
-  // Reset only when returning from a top-level dialog to a normal page.
-  ['projectDialog','photoDialog','boardDialog','cameraDialog','welcomeDialog'].forEach(id=>{
-    const dlg=$(id); if(dlg)dlg.addEventListener('close',resetPageZoomAfterDialogClose);
+  // Top-level 5画面＋黒板内の子画面2つ、合計7ダイアログをすべて監視する。
+  ['projectDialog','photoDialog','boardDialog','cameraDialog','welcomeDialog','boardBuilderDialog','imgAdjustDialog'].forEach(id=>{
+    const dlg=$(id); if(dlg)dlg.addEventListener('close',()=>resetPageZoomAfterDialogClose(id));
   });
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
   $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
@@ -5658,25 +5733,45 @@
     notifyUpdatedIfNeeded();
     let reopenedOverlay=false;
     try{
-      const pendingBoardId=sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||'';
-      if(pendingBoardId){
+      let route=null;
+      try{
+        const raw=sessionStorage.getItem(ZOOM_ROUTE_KEY);
+        if(raw){route=JSON.parse(raw);sessionStorage.removeItem(ZOOM_ROUTE_KEY)}
+      }catch(e){}
+      // v233〜v238から更新直後でも、古い一時キーが残っていれば一度だけ引き継ぐ。
+      if(!route){
+        const oldBoard=sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||'';
+        const oldNote=sessionStorage.getItem('photoLedgerOpenNoteAfterReload')||'';
         sessionStorage.removeItem('photoLedgerOpenBoardAfterReload');
-        const ph=photos.find(x=>x.id===pendingBoardId);
-        if(ph){await openBoardDialog(ph);reopenedOverlay=true;}
-      }
-      const pendingNoteId=sessionStorage.getItem('photoLedgerOpenNoteAfterReload')||'';
-      if(!reopenedOverlay&&pendingNoteId){
         sessionStorage.removeItem('photoLedgerOpenNoteAfterReload');
-        const ph=photos.find(x=>x.id===pendingNoteId);
+        if(oldBoard)route={kind:'board',page:'photos',photoId:oldBoard};
+        else if(oldNote)route={kind:'note',page:'photos',photoId:oldNote};
+      }
+      if(route&&route.kind==='board'){
+        const ph=photos.find(x=>x.id===route.photoId);
+        if(ph){await openBoardDialog(ph);reopenedOverlay=true;}
+      }else if(route&&route.kind==='note'){
+        const ph=photos.find(x=>x.id===route.photoId);
         if(ph){
           openPhotoDialog(ph);
           requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
           reopenedOverlay=true;
         }
-      }else if(pendingNoteId){
-        sessionStorage.removeItem('photoLedgerOpenNoteAfterReload');
+      }else if(route&&route.kind==='project'){
+        const p=route.projectId?projects.find(x=>x.id===route.projectId):null;
+        openProjectDialog(p||null);reopenedOverlay=true;
+      }else if(route&&route.kind==='resume-board'){
+        const draft=await readZoomBoardDraft();
+        if(await restoreBoardDraftAfterReload(draft)){
+          reopenedOverlay=true;
+          await clearZoomBoardDraft();
+          if(route.nested==='builder')openBoardBuilder(route.editId||'');
+          if(route.nested==='image-adjust'&&route.imageKey)openImageAdjust(route.imageKey);
+        }else{
+          await clearZoomBoardDraft();
+        }
       }
-    }catch(e){}
+    }catch(e){console.warn('拡大解除後の画面復帰に失敗',e)}
     document.documentElement.classList.remove('zoom-reload-mask');
     if(!reopenedOverlay)maybeShowWelcome();
   }).catch(err=>{document.documentElement.classList.remove('zoom-reload-mask');console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});

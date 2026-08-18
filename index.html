@@ -9,6 +9,13 @@
   <title>工事写真台帳</title>
   <link rel="manifest" href="manifest.json?v=20260816a" />
   <link rel="icon" href="icon-192.png" />
+  <script>
+    // 拡大解除の再読み込み時は、行き先ページを確定するまで元ページを一瞬も見せない。
+    try{
+      const p=new URLSearchParams(location.search).get('page');
+      if(p&&['projects','photos','output','settings'].includes(p))document.documentElement.classList.add('zoom-reload-mask');
+    }catch(e){}
+  </script>
   <style>
     :root{
       --brand:#0f766e; --brand2:#115e59; --brand-ink:#0f766e; --accent:#f59e0b; --on-brand:#fff; --bg:#f3f4f6;
@@ -23,6 +30,7 @@
       color-scheme:dark;
     }
     *{box-sizing:border-box}
+    html.zoom-reload-mask body{visibility:hidden}
     html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",Meiryo,sans-serif}
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
@@ -955,8 +963,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v236';
-  const APP_UPDATE_NOTE='ページ切替と編集画面から戻るとき、拡大表示を等倍に戻すようにしました';
+  const APP_VERSION='v237';
+  const APP_UPDATE_NOTE='拡大後の画面切替を滑らかにし、記入欄を開くときも等倍に戻すようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5222,6 +5230,16 @@
     }catch(e){}
     return false;
   }
+  function resetPageZoomForPhotoNote(photoId){
+    try{
+      if(window.visualViewport&&window.visualViewport.scale>1.02){
+        sessionStorage.setItem('photoLedgerOpenNoteAfterReload',photoId);
+        location.replace(location.pathname+'?page=photos');
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
   let pageZoomReloadPending=false;
   function activePageName(){
     try{
@@ -5245,9 +5263,13 @@
     }catch(e){pageZoomReloadPending=false;}
     return false;
   }
+  function activatePage(name){
+    ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();
+  }
   function showPage(name){
     if(resetPageZoomForNavigation(name))return;
-    ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();}
+    activatePage(name);
+  }
 
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
   $('newProjectBtn').addEventListener('click',()=>openProjectDialog());
@@ -5502,6 +5524,7 @@
     const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
     if(b.dataset.action==='edit-board'){if(resetPageZoomForBoard(ph.id))return;await openBoardDialog(ph);}
     if(b.dataset.action==='edit-content'){
+      if(resetPageZoomForPhotoNote(ph.id))return;
       openPhotoDialog(ph);
       requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
     }
@@ -5602,13 +5625,19 @@
     $('welcomeDialog').close();
   });
   setTopbarArt('projects');
-  // ショートカットから開いたときに、そのページを表示する
+  // ショートカット／拡大解除の再読み込みでは、最初の描画より前に行き先を確定する。
+  // 黒板・記入欄を再度開く予定があるときは、そのダイアログが開くまで表示を伏せておく。
   try{
     const _pg=new URLSearchParams(location.search).get('page');
     if(_pg&&['projects','photos','output','settings'].includes(_pg)){
-      window.addEventListener('load',()=>setTimeout(()=>showPage(_pg),300));
+      activatePage(_pg);
+      let _pendingOverlay=false;
+      try{_pendingOverlay=!!(sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||sessionStorage.getItem('photoLedgerOpenNoteAfterReload'));}catch(e){}
+      if(!_pendingOverlay)document.documentElement.classList.remove('zoom-reload-mask');
+    }else{
+      document.documentElement.classList.remove('zoom-reload-mask');
     }
-  }catch(e){}
+  }catch(e){document.documentElement.classList.remove('zoom-reload-mask');}
   // 利用開始日を記録（将来の料金プラン変更時に、以前から使っている方を判別するため）
   async function recordFirstUse(){
     try{
@@ -5626,17 +5655,30 @@
     await recordFirstUse();
     loadSettingsUI();
     notifyUpdatedIfNeeded();
-    let reopenedBoard=false;
+    let reopenedOverlay=false;
     try{
       const pendingBoardId=sessionStorage.getItem('photoLedgerOpenBoardAfterReload')||'';
       if(pendingBoardId){
         sessionStorage.removeItem('photoLedgerOpenBoardAfterReload');
         const ph=photos.find(x=>x.id===pendingBoardId);
-        if(ph){await openBoardDialog(ph);reopenedBoard=true;}
+        if(ph){await openBoardDialog(ph);reopenedOverlay=true;}
+      }
+      const pendingNoteId=sessionStorage.getItem('photoLedgerOpenNoteAfterReload')||'';
+      if(!reopenedOverlay&&pendingNoteId){
+        sessionStorage.removeItem('photoLedgerOpenNoteAfterReload');
+        const ph=photos.find(x=>x.id===pendingNoteId);
+        if(ph){
+          openPhotoDialog(ph);
+          requestAnimationFrame(()=>{ const ta=$('photoContent'); if(ta){ta.scrollIntoView({block:'center'});ta.focus()} });
+          reopenedOverlay=true;
+        }
+      }else if(pendingNoteId){
+        sessionStorage.removeItem('photoLedgerOpenNoteAfterReload');
       }
     }catch(e){}
-    if(!reopenedBoard)maybeShowWelcome();
-  }).catch(err=>{console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
+    document.documentElement.classList.remove('zoom-reload-mask');
+    if(!reopenedOverlay)maybeShowWelcome();
+  }).catch(err=>{document.documentElement.classList.remove('zoom-reload-mask');console.error(err);alert('アプリの保存領域を開けませんでした。Chromeで開き直してください。')});
 })();
 
 </script>

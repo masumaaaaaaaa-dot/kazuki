@@ -955,7 +955,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v225';
+  const APP_VERSION='v226';
   const APP_UPDATE_NOTE='遅い機種でもカメラが滑らかに動くようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1095,7 +1095,7 @@
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
     host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
       <div style="position:relative">
-        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}">
+        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}" data-open-board="${p.id}" style="cursor:pointer">
         ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
       </div>
       <div><div class="item-title">No.${i+1}　${escapeHtml((p.content||'').split('\n')[0]||'記入欄は空欄')}${(p.content||'').split('\n').filter(Boolean).length>1?`　ほか${(p.content||'').split('\n').filter(Boolean).length-1}行`:''}</div>
@@ -4784,8 +4784,8 @@
     const wrap=$('posPickWrap'); if(!wrap)return;
     const board=readBoardControls();
     const on=board.enabled!==false;      // 位置の指定に関わらず、いつでも確認できる
-    wrap.style.display=on?'block':'none';
-    if(!on)return;
+    wrap.style.display='block';          // 写真は常に表示し、黒板だけを出し入れする
+    const boxOnOff=$('posPickBoard'); if(boxOnOff)boxOnOff.style.display=on?'block':'none';
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);
     if(!ph)return;
     const img=$('posPickPhoto');
@@ -4910,7 +4910,17 @@
     btn.classList.toggle('active',applied);
     btn.textContent=applied?'✓ 表紙の情報を反映中（もう一度押すと戻す）':'表紙の情報を黒板に反映';
   }
-  async function openBoardDialog(ph){
+  function resetPageZoom(){
+    // ページ全体を指2本で拡大したまま閉じた場合に備え、開いた瞬間だけ等倍へ戻す。
+    // maximum-scale=1 を一瞬だけ当てて、すぐ元に戻す（以後の拡大操作は自由なまま）。
+    try{
+      const vp=document.querySelector('meta[name="viewport"]');
+      if(!vp)return;
+      vp.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover');
+      setTimeout(()=>{ try{ vp.setAttribute('content','width=device-width, initial-scale=1, viewport-fit=cover'); }catch(e){} },250);
+    }catch(e){}
+  }
+  async function openBoardDialog(ph,focus){
     closeBoardInlineEditor();   // 前の写真の入力欄を残さない
     // 位置決めの黒板は画像を貼り付けているだけなので、消さないと前の写真のものが
     // 描き直しが終わるまで見えてしまう。開いた時点で必ず消しておく。
@@ -4945,7 +4955,17 @@
     switchBoardPickerTab('template');
     renderMyBoardPicker();
     applyBoardLayout();
+    resetPageZoom();   // 前回ページごと拡大したまま閉じていても、開いたときは等倍に戻す
     $('boardDialog').showModal();
+    // 開く場所：黒板ボタンからは毎回いちばん上、写真タップからは「黒板を表示する」が見える位置
+    requestAnimationFrame(()=>{
+      const body=document.querySelector('#boardDialog .dialog-body'); if(body)body.scrollTop=0;
+      const sc=$('boardControlsScroll'); if(sc)sc.scrollTop=0;
+      if(focus==='position'){
+        const en=$('boardEnabled'); const row=en?en.closest('label'):null;
+        if(row)row.scrollIntoView({block:'start'});
+      }
+    });
     ensureBoardImages({images:boardState.images}).then(()=>requestAnimationFrame(renderBoardEditor));
     requestAnimationFrame(renderBoardEditor);
   }
@@ -5449,6 +5469,9 @@
     }
   });
   $('photoList').addEventListener('click',async e=>{
+    // 写真そのものをタップしたら、黒板編集を「黒板を表示する」が見える位置で開く
+    const tImg=e.target.closest('img.thumb[data-open-board]');
+    if(tImg&&!selectMode){const ph2=photos.find(x=>x.id===tImg.dataset.openBoard);if(ph2){await openBoardDialog(ph2,'position');return;}}
     const b=e.target.closest('button[data-action]');if(!b)return;const id=b.dataset.id;const ph=photos.find(x=>x.id===id);if(!ph)return;
     if(b.dataset.action==='edit-board')await openBoardDialog(ph);
     if(b.dataset.action==='edit-content'){

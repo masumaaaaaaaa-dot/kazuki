@@ -767,7 +767,7 @@
 
 <dialog id="projectDialog">
   <form method="dialog" id="projectForm">
-    <div class="dialog-head"><h3 id="projectDialogTitle">現場情報</h3><button class="btn" value="cancel" type="button" onclick="document.getElementById('projectDialog').close()">閉じる</button></div>
+    <div class="dialog-head"><h3 id="projectDialogTitle">現場情報</h3><button class="btn" value="cancel" type="button" onclick="window.photoLedgerCloseDialog('projectDialog')">閉じる</button></div>
     <div class="dialog-body">
       <p class="hint" style="margin:0 0 10px">表紙をタップすると、その場で直接書き込めます。ここで入力した内容は、印刷・Excelの表紙になるほか、黒板の自動入力や現場一覧の表示にも使われます。</p>
       <input type="hidden" id="projectId" />
@@ -791,13 +791,13 @@
       </div>
       <div style="margin-top:10px"><label>備考</label><textarea id="projectRemarks"></textarea></div>
     </div>
-    <div class="dialog-foot"><button type="button" class="btn" onclick="document.getElementById('projectDialog').close()">取消</button><button type="submit" class="btn primary">保存</button></div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="window.photoLedgerCloseDialog('projectDialog')">取消</button><button type="submit" class="btn primary">保存</button></div>
   </form>
 </dialog>
 
 <dialog id="photoDialog">
   <form method="dialog" id="photoForm">
-    <div class="dialog-head"><h3>記入欄の編集</h3><button class="btn" type="button" onclick="document.getElementById('photoDialog').close()">閉じる</button></div>
+    <div class="dialog-head"><h3>記入欄の編集</h3><button class="btn" type="button" onclick="window.photoLedgerCloseDialog('photoDialog')">閉じる</button></div>
     <div class="dialog-body">
       <input type="hidden" id="photoId" />
       <div style="text-align:center;margin-bottom:10px"><img id="photoEditPreview" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid #cbd5e1" /></div>
@@ -805,13 +805,13 @@
       <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder=""></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
       <div style="margin-top:10px"><label>備考</label><textarea id="photoRemarks" placeholder="補足事項"></textarea></div>
     </div>
-    <div class="dialog-foot"><button type="button" class="btn" onclick="document.getElementById('photoDialog').close()">取消</button><button type="submit" class="btn primary">保存</button></div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="window.photoLedgerCloseDialog('photoDialog')">取消</button><button type="submit" class="btn primary">保存</button></div>
   </form>
 </dialog>
 
 <dialog id="boardDialog">
   <form method="dialog" id="boardForm">
-    <div class="dialog-head"><h3>黒板編集</h3><button class="btn" type="button" onclick="document.getElementById('boardDialog').close()">閉じる</button></div>
+    <div class="dialog-head"><h3>黒板編集</h3><button class="btn" type="button" onclick="window.photoLedgerCloseDialog('boardDialog')">閉じる</button></div>
     <div class="dialog-body">
       <input type="hidden" id="boardPhotoId" />
       <div class="board-wrap">
@@ -964,8 +964,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v239';
-  const APP_UPDATE_NOTE='画面切替の拡大リセットを全ダイアログまで拡張し、再読込直前の一瞬表示も隠すようにしました';
+  const APP_VERSION='v240';
+  const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1195,7 +1195,7 @@
     if(old&&typeof old.order==='number')p.order=old.order;   // 手で並べ替えた位置を保つ
     await idbPut('projects',p);
     if(!old)await placeNewProjectFirst(p);                   // 新しい現場は先頭に置く
-    currentProjectId=id; $('projectDialog').close(); await loadAll();
+    currentProjectId=id; if(resetPageZoomBeforeDialogClose('projectDialog'))return; $('projectDialog').close(); await loadAll();
   }
 
   function exifBufToStr(dv,offset,length){let s='';for(let i=0;i<length;i++)s+=String.fromCharCode(dv.getUint8(offset+i));return s;}
@@ -1858,8 +1858,10 @@
   }
   function closeCameraDialog(){
     const dlg=$('cameraDialog');
-    if(dlg&&dlg.open)dlg.close();   // close イベントで camTeardown が走る
-    else camTeardown();
+    if(dlg&&dlg.open){
+      if(resetPageZoomBeforeDialogClose('cameraDialog'))return;
+      dlg.close();   // close イベントで camTeardown が走る
+    }else camTeardown();
   }
   function initInAppCamera(){
     const dlg=$('cameraDialog'), cv=$('camCanvas');
@@ -2245,7 +2247,7 @@
   async function savePhoto(e){
     e.preventDefault(); const ph=photos.find(x=>x.id===$('photoId').value); if(!ph)return;
     ph.date=$('photoDate').value||ph.date;ph.content=limitToElevenLines($('photoContent').value).trim();ph.remarks=$('photoRemarks').value.trim();ph.updatedAt=Date.now();
-    await idbPut('photos',ph);$('photoDialog').close();renderPhotos();
+    await idbPut('photos',ph);if(resetPageZoomBeforeDialogClose('photoDialog'))return;$('photoDialog').close();renderPhotos();
   }
 
   // ---- 削除の取り消し（直前の1件だけ戻せる） ----
@@ -3435,7 +3437,7 @@
   }
   function initBoardBuilder(){
     const dlg=$('boardBuilderDialog'); if(!dlg)return;
-    const close=()=>dlg.close();
+    const close=()=>{if(resetPageZoomBeforeDialogClose('boardBuilderDialog'))return;dlg.close();};
     $('boardBuilderCloseBtn').addEventListener('click',close);
     $('bbCancelBtn').addEventListener('click',close);
     $('bbName').addEventListener('input',e=>{bbState.name=e.target.value;bbRenderPreview();});
@@ -3446,12 +3448,12 @@
       if(!bbState.id)return;
       if(!confirm('この黒板を削除します。よろしいですか？\n（この黒板を使って保存済みの写真は、そのまま残ります）'))return;
       await saveBoardDefs(boardDefs().filter(b=>b.id!==bbState.id));
-      close();
       const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
       buildTemplatePickerOnce();
       const sel=$('boardTemplate');
       if(!sel.value||sel.value.indexOf('custom:')===0){ sel.value='tajima'; sel.dispatchEvent(new Event('change')); }
       renderTemplatePicker(sel.value);
+      close();
     });
     $('bbSaveBtn').addEventListener('click',async()=>{
       const name=($('bbName').value||'').trim();
@@ -3467,7 +3469,6 @@
         list.push({id:bbState.id,name,def,createdAt:Date.now(),updatedAt:Date.now()});
       }
       await saveBoardDefs(list);
-      close();
       const wrap=$('boardTemplatePicker'); if(wrap)wrap.dataset.built='';
       buildTemplatePickerOnce();
       const sel=$('boardTemplate');
@@ -3475,6 +3476,7 @@
       // 作った黒板の項目を実際に読み込ませる（選び直したのと同じ動き）
       sel.dispatchEvent(new Event('change'));
       renderTemplatePicker(sel.value);
+      close();
     });
     $('openBoardBuilderBtn').addEventListener('click',()=>{
       const cur=$('boardTemplate').value||'';
@@ -3805,12 +3807,12 @@
   function initImageAdjust(){
     const dlg=$('imgAdjustDialog'); if(!dlg)return;
     const stage=$('imgAdjStage');
-    const close=()=>dlg.close();
+    const close=()=>{if(resetPageZoomBeforeDialogClose('imgAdjustDialog'))return;dlg.close();};
     $('imgAdjCloseBtn').addEventListener('click',close);
     $('imgAdjOkBtn').addEventListener('click',()=>{
       boardState.imageAdjusts=boardState.imageAdjusts||{};
       boardState.imageAdjusts[imgAdjState.key]={zoom:imgAdjState.zoom,x:imgAdjState.x,y:imgAdjState.y};
-      close(); renderBoardEditor();
+      renderBoardEditor(); close();
     });
     $('imgAdjZoomIn').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom+0.2,true));
     $('imgAdjZoomOut').addEventListener('click',()=>imgAdjSetZoom(imgAdjState.zoom-0.2,true));
@@ -4989,7 +4991,7 @@
       await idbPut('photos',ph);
       settings.lastBoard={template:board.template,orient:board.orient,position:board.position,size:board.size,noteSize:board.noteSize,surface:board.surface};
       try{ await idbPut('settings',{key:'main',value:settings}); }catch(e){ console.warn('黒板設定の記憶に失敗',e); }
-      $('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();
+      if(resetPageZoomBeforeDialogClose('boardDialog'))return;$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();
       // 出来上がりは画面下のお知らせで伝える（押すたびに確認を押さなくてよい）
       showActionToast('黒板付き写真を保存しました','',null,4);
     }catch(err){
@@ -5029,7 +5031,7 @@
   }
   async function resetEditedPhoto(){
     const ph=photos.find(x=>x.id===$('boardPhotoId').value);if(!ph)return;if(!confirm('黒板付き写真と手書きを消して、元写真に戻しますか？'))return;
-    ph.editedBlob=null;ph.boardData=null;ph.editedUpdatedAt=0;ph.updatedAt=Date.now();await idbPut('photos',ph);boardState.strokes=[];$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('元写真に戻しました。');
+    ph.editedBlob=null;ph.boardData=null;ph.editedUpdatedAt=0;ph.updatedAt=Date.now();await idbPut('photos',ph);boardState.strokes=[];if(resetPageZoomBeforeDialogClose('boardDialog'))return;$('boardDialog').close();revokePhotoUrl(ph.id);renderPhotos();alert('元写真に戻しました。');
   }
   function pointerPos(ev,canvas){const rect=canvas.getBoundingClientRect();return{x:(ev.clientX-rect.left)/rect.width,y:(ev.clientY-rect.top)/rect.height}}
   function startDraw(ev){if(!$('boardDialog').open)return;const stroke={mode:$('drawMode').value,color:$('drawColor').value,width:Number($('drawWidth').value),points:[pointerPos(ev,$('boardDrawCanvas'))]};boardState.currentStroke=stroke;boardState.drawing=true;boardState.strokes.push(stroke);renderBoardEditor()}
@@ -5215,8 +5217,8 @@
   }
   // ブラウザ標準のページ拡大は JavaScript から倍率を直接1倍へ戻せないため、
   // 「画面を移る瞬間だけ再読込する」方式で統一する。黒板内専用ズームとは別物。
-  const ZOOM_ROUTE_KEY='photoLedgerZoomRouteV239';
-  const ZOOM_BOARD_DRAFT_KEY='zoomBoardDraftV239';
+  const ZOOM_ROUTE_KEY='photoLedgerZoomRouteV240';
+  const ZOOM_BOARD_DRAFT_KEY='zoomBoardDraftV240';
   let pageZoomReloadPending=false;
   function isPageZoomed(){
     try{return !!(window.visualViewport&&window.visualViewport.scale>1.02)}catch(e){return false}
@@ -5231,16 +5233,25 @@
   function putZoomRoute(route){
     try{sessionStorage.setItem(ZOOM_ROUTE_KEY,JSON.stringify(route||{}));}catch(e){}
   }
+  function showZoomReloadMaskNow(){
+    try{
+      document.documentElement.classList.add('zoom-reload-mask');
+      // class付与を次の描画待ちにせず、Android Chromeの閉じる直前の1フレームを出さない。
+      void document.documentElement.offsetHeight;
+    }catch(e){}
+  }
+  function hideZoomReloadMaskAfterAbort(){
+    try{document.documentElement.classList.remove('zoom-reload-mask');}catch(e){}
+  }
   function beginZoomReload(route){
     if(pageZoomReloadPending)return true;
     pageZoomReloadPending=true;
+    // 保存・DOM変更より先に伏せる。押下状態や閉じた下の画面を1フレームも見せない。
+    showZoomReloadMaskNow();
     const r=Object.assign({kind:'page',page:activePageName()},route||{});
     if(!['projects','photos','output','settings'].includes(r.page))r.page=activePageName();
     try{localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');}catch(e){}
     putZoomRoute(r);
-    // 新しいページ側だけで隠すと、unload直前の1フレームに元画面が変形して見える端末がある。
-    // 先に現在画面を同じ背景色で伏せてから再読込する。
-    try{document.documentElement.classList.add('zoom-reload-mask');}catch(e){}
     requestAnimationFrame(()=>location.replace(location.pathname+'?page='+encodeURIComponent(r.page)));
     return true;
   }
@@ -5274,19 +5285,25 @@
     if(pageZoomReloadPending)return true;
     if(!isPageZoomed())return false;
     pageZoomReloadPending=true;
+    // IndexedDBへ退避する前に伏せる。ここを待つと拡大済み黒板が一瞬再描画される。
+    showZoomReloadMaskNow();
     const draft=captureBoardDraftForZoom();
-    if(!draft){pageZoomReloadPending=false;return beginZoomReload(route)}
+    if(!draft){
+      pageZoomReloadPending=false;
+      hideZoomReloadMaskAfterAbort();
+      return beginZoomReload(route);
+    }
     try{
       await idbPut('settings',{key:ZOOM_BOARD_DRAFT_KEY,value:draft});
     }catch(e){
       pageZoomReloadPending=false;
+      hideZoomReloadMaskAfterAbort();
       console.warn('黒板の一時退避を保存できませんでした',e);
       return false;
     }
     const r=Object.assign({kind:'resume-board',page:'photos'},route||{});
     try{localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');}catch(e){}
     putZoomRoute(r);
-    try{document.documentElement.classList.add('zoom-reload-mask');}catch(e){}
     requestAnimationFrame(()=>location.replace(location.pathname+'?page=photos'));
     return true;
   }
@@ -5322,22 +5339,38 @@
     renderBoardEditor();
     return true;
   }
-  // 閉じる操作もすべて確認する。黒板の子画面から戻る場合は、
-  // 未保存の黒板を一時退避してから等倍で同じ黒板編集へ復帰する。
+  // 「閉じた後」ではなく「閉じる前」に拡大解除へ入る。
+  // Android下部の戻るで子画面が消えた直後、下の拡大済み画面が見えるのを防ぐ。
+  function resetPageZoomBeforeDialogClose(closedId){
+    try{
+      if(document.hidden||pageZoomReloadPending||!isPageZoomed())return false;
+      const boardStillOpen=$('boardDialog')&&$('boardDialog').open;
+      if(boardStillOpen&&(closedId==='boardBuilderDialog'||closedId==='imgAdjustDialog')){
+        beginBoardDraftZoomReload({kind:'resume-board',page:'photos'});
+        return true;
+      }
+      let page=activePageName();
+      if(closedId==='projectDialog')page='projects';
+      if(closedId==='photoDialog'||closedId==='boardDialog'||closedId==='cameraDialog')page='photos';
+      beginZoomReload({kind:'page',page});
+      return true;
+    }catch(e){pageZoomReloadPending=false;hideZoomReloadMaskAfterAbort();return false;}
+  }
+  // 念のため、閉じた後の取りこぼしも監視する。
   function resetPageZoomAfterDialogClose(closedId){
     setTimeout(()=>{
       try{
         if(document.hidden||pageZoomReloadPending||!isPageZoomed())return;
-        const boardStillOpen=$('boardDialog')&&$('boardDialog').open;
-        if(boardStillOpen&&(closedId==='boardBuilderDialog'||closedId==='imgAdjustDialog')){
-          beginBoardDraftZoomReload({kind:'resume-board',page:'photos'});
-          return;
-        }
         if(document.querySelector('dialog[open]'))return;
-        beginZoomReload({kind:'page',page:activePageName()});
-      }catch(e){pageZoomReloadPending=false;}
+        resetPageZoomBeforeDialogClose(closedId);
+      }catch(e){pageZoomReloadPending=false;hideZoomReloadMaskAfterAbort();}
     },0);
   }
+  window.photoLedgerCloseDialog=function(id){
+    const dlg=$(id);if(!dlg||!dlg.open)return;
+    if(resetPageZoomBeforeDialogClose(id))return;
+    dlg.close();
+  };
   function activatePage(name){
     ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();
   }
@@ -5415,7 +5448,10 @@
   // Browser-native pinch zoom survives dialog close on this device.
   // Top-level 5画面＋黒板内の子画面2つ、合計7ダイアログをすべて監視する。
   ['projectDialog','photoDialog','boardDialog','cameraDialog','welcomeDialog','boardBuilderDialog','imgAdjustDialog'].forEach(id=>{
-    const dlg=$(id); if(dlg)dlg.addEventListener('close',()=>resetPageZoomAfterDialogClose(id));
+    const dlg=$(id); if(!dlg)return;
+    // Android下部の戻るはcancelがcloseより先。ここでcloseを止め、先にマスクして等倍復帰へ入る。
+    dlg.addEventListener('cancel',e=>{if(resetPageZoomBeforeDialogClose(id))e.preventDefault();});
+    dlg.addEventListener('close',()=>resetPageZoomAfterDialogClose(id));
   });
   $('saveBoardBtn').addEventListener('click',saveBoardEdits);
   $('resetOriginalBtn').addEventListener('click',resetEditedPhoto);
@@ -5697,6 +5733,7 @@
   }
   $('welcomeCloseBtn').addEventListener('click',()=>{
     try{localStorage.setItem('photoLedgerWelcomed','1')}catch(e){}
+    if(resetPageZoomBeforeDialogClose('welcomeDialog'))return;
     $('welcomeDialog').close();
   });
   setTopbarArt('projects');

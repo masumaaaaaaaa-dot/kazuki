@@ -341,7 +341,7 @@
       #boardDialog #landscapeActions{display:flex;gap:5px;flex:0 0 auto;position:sticky;bottom:0;background:var(--card);padding-top:4px}
       #boardDialog #landscapeActions .btn{flex:1;padding:8px 3px;font-size:11.5px}
     }
-    @media(max-width:620px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
+    @media(max-width:900px){#boardDialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}#boardDialog .dialog-body{padding-bottom:100px}}
     /* スマホを横向きにしたとき：黒板だけを大きく表示し、他の入力欄は隠す */
     /* 黒板編集：横画面では左に黒板、右に操作欄を並べる。
        以前は操作欄をまるごと隠していたため、横向きだと何もできなかった。 */
@@ -967,7 +967,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v248';
+  const APP_VERSION='v249';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;

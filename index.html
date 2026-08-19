@@ -967,7 +967,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v252';
+  const APP_VERSION='v253';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -4159,8 +4159,11 @@
     const noteW=innerW-notePadX*2;
     const noteLineH=(bodyH-notePadY*2)/noteMaxLines;
     const noteFontSize=Math.max(14,Math.min(Math.floor(noteLineH*0.82),Math.floor(innerW*0.038*noteFontScale(noteSize))));
+    // 欄（工事名など）の文字の基準は、「記入欄の文字の大きさ」設定に左右されない標準で固定する
+    const noteLineHStd=(bodyH-notePadY*2)/noteLinesFor('m');
+    const rowFontBase=Math.max(14,Math.min(Math.floor(noteLineHStd*0.82),Math.floor(innerW*0.038)));
     const by=innerY+innerH-bottomH;
-    return {pad,innerX,innerY,innerW,innerH,rowH,labelW,bottomH,count,bodyY,bodyH,noteX,noteY,noteW,noteLineH,noteFontSize,noteMaxLines,by};
+    return {pad,innerX,innerY,innerW,innerH,rowH,labelW,bottomH,count,bodyY,bodyH,noteX,noteY,noteW,noteLineH,noteFontSize,noteMaxLines,rowFontBase,by};
   }
   function wrapTextLines(ctx,text,maxW){
     const rawLines=String(text||'').replace(/\r\n?/g,'\n').split('\n');
@@ -4449,7 +4452,7 @@
     ctx.shadowColor=CHALK_GLOW_GET();ctx.shadowBlur=Math.max(1,w*0.0022);
     ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
     const rows=data.top||[];ctx.fillStyle=CHALK_WHITE_GET();
-    const baseRowFont=Math.min(m.noteFontSize,Math.floor(m.rowH*0.62));
+    const baseRowFont=Math.min(m.rowFontBase,Math.floor(m.rowH*0.62));   // 欄の文字は設定に連動させない（長文時の自動縮小は従来どおり）
     const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
     const labelMaxW=Math.max(10,m.labelW-14);
     const valueMaxW=Math.max(10,m.innerW-m.labelW-16);

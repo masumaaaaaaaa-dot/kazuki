@@ -524,7 +524,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="item-head"><h2 style="flex:1">登録写真</h2><span class="badge" id="photoCount">0枚</span></div>
+        <div class="item-head"><h2 style="flex:1" id="photoListTitle">登録写真</h2><span class="badge" id="photoCount">0枚</span></div>
         <div class="btn-row" style="margin-bottom:10px">
           <button class="btn tiny-btn outline" id="selectModeBtn">まとめて選ぶ</button>
         </div>
@@ -964,7 +964,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v245';
+  const APP_VERSION='v246';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -1053,6 +1053,8 @@
   function currentPhotos(){return photos.filter(p=>p.projectId===currentProjectId).sort((a,b)=>(a.order||0)-(b.order||0))}
   function updateCurrentLabel(){
     const p=currentProject(); $('currentProjectLabel').textContent=p?`${p.name}${p.address?'｜'+p.address:''}`:'現場を選択してください';
+    // 写真ページの見出しは、表紙に書いた工事名（現場の名前）を表示する
+    const t=$('photoListTitle'); if(t)t.textContent=(p&&String(p.name||'').trim())?p.name:'登録写真';
     localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');
   }
 

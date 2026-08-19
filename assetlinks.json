@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "jp.co.nichi.koujishashin",
+        "sha256_cert_fingerprints": ["A1:A5:86:FB:4F:4D:B0:5B:28:43:64:A2:25:A7:AF:0A:D9:1A:57:EB:A7:2D:0B:35:F7:52:1B:A2:8E:C7:7E:E9"]
+      }
+    }]

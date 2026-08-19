@@ -43,25 +43,60 @@
   ],
   "screenshots": [
     {
-      "src": "1_photos.png",
-      "sizes": "824x1784",
+      "src": "1_photos.png?v=20260819",
+      "sizes": "1080x2058",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "登録した写真の一覧"
     },
     {
-      "src": "2_board.png",
-      "sizes": "824x1784",
+      "src": "2_board.png?v=20260819",
+      "sizes": "1080x2058",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "黒板の編集"
     },
     {
-      "src": "3_output.png",
-      "sizes": "824x1784",
+      "src": "4_hand.png?v=20260819",
+      "sizes": "1080x2058",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "A4・Excelでの出力"
+      "label": "黒板への手書き"
+    },
+    {
+      "src": "5_camera.png?v=20260819",
+      "sizes": "1080x2058",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "黒板を見ながら撮影"
+    },
+    {
+      "src": "6_template.png?v=20260819",
+      "sizes": "1080x2058",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "黒板テンプレート"
+    },
+    {
+      "src": "7_cover.png?v=20260819",
+      "sizes": "1080x2058",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "表紙の編集"
+    },
+    {
+      "src": "8_cover_out.png?v=20260819",
+      "sizes": "1080x2058",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A4出力（表紙）"
+    },
+    {
+      "src": "3_output.png?v=20260819",
+      "sizes": "1080x2058",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A4出力（台帳ページ）"
     }
   ],
   "shortcuts": [

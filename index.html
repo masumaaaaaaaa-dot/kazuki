@@ -967,7 +967,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v251';
+  const APP_VERSION='v252';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
@@ -4843,7 +4843,8 @@
         box.style.backgroundColor=board.surface==='white'?'rgba(250,250,250,.85)':'rgba(60,84,74,.85)';
       }
     };
-    const ready=()=>{ const st1=$('posPickStage'); if(st1)st1.style.visibility=''; draw(); };
+    const ready=()=>{ const st1=$('posPickStage'); if(st1)st1.style.visibility=''; draw();
+      if(boardOpenReveal){ const f=boardOpenReveal; boardOpenReveal=null; requestAnimationFrame(f); } };
     if(img.complete&&img.naturalWidth)ready(); else img.onload=ready;
     posPickState={draw};
   }
@@ -4933,6 +4934,7 @@
     btn.classList.toggle('active',applied);
     btn.textContent=applied?'✓ 表紙の情報を反映中（もう一度押すと戻す）':'表紙の情報を黒板に反映';
   }
+  let boardOpenReveal=null;   // 写真タップで開くとき、写真の読み込み完了に合わせて表示するための合図
   async function openBoardDialog(ph,focus){
     // 開き位置の指定：引数がなければ一時目印（写真タップ→等倍再開の経路）から受け取る
     try{
@@ -4974,9 +4976,16 @@
     renderMyBoardPicker();
     applyBoardLayout();
     if(focus==='position'){
-      // 写真の位置までスクロールが決まる前に、いちばん上の黒板が一瞬見えてしまうのを防ぐ。
+      // 写真の読み込みと開き位置の両方が決まるまで、中身を一切見せない
+      //（いちばん上の黒板や、読み込み前のぺしゃんこな写真枠が一瞬見えるのを防ぐ）
       const dm=$('boardDialog'); if(dm)dm.style.visibility='hidden';
-      setTimeout(()=>{ const dm2=$('boardDialog'); if(dm2)dm2.style.visibility=''; },350);   // 保険：必ず表示に戻す
+      const im0=$('posPickPhoto');
+      if(im0&&im0.complete&&im0.naturalWidth){
+        boardOpenReveal=null;   // 写真は読み込み済み。位置決めだけで表示してよい
+      }else{
+        boardOpenReveal=()=>{ focusScroll(); const dm2=$('boardDialog'); if(dm2)dm2.style.visibility=''; };
+      }
+      setTimeout(()=>{ boardOpenReveal=null; const dm3=$('boardDialog'); if(dm3)dm3.style.visibility=''; },800);   // 保険：必ず表示に戻す
     }
     $('boardDialog').showModal();
     // 開いたときは毎回いちばん上（黒板の編集エリア）から表示する。
@@ -5000,7 +5009,7 @@
       const body=d?d.querySelector('.dialog-body'):null; if(body){body.scrollTop=0;body.scrollLeft=0;}
       const sc=$('boardControlsScroll'); if(sc){sc.scrollTop=0;sc.scrollLeft=0;}
       focusScroll();
-      if(d)d.style.visibility='';   // 位置が決まったので表示
+      if(d&&!boardOpenReveal)d.style.visibility='';   // 写真待ちが無ければ表示（待ちがあれば読み込み完了時に表示）
     });
     setTimeout(focusScroll,150);
     setTimeout(focusScroll,450);

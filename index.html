@@ -368,6 +368,9 @@
     html[data-theme="dark"] .nav-btn.active{color:var(--brand)}
     html[data-theme="dark"] dialog{background:var(--card);color:var(--text)}
     html[data-theme="dark"] dialog::backdrop{background:rgba(0,0,0,.7)}
+    /* 黒板編集だけは、両脇に透ける後ろの画面を見せず、白（ダーク時は画面色）でスッキリ見せる */
+    #boardDialog::backdrop{background:#ffffff}
+    html[data-theme="dark"] #boardDialog::backdrop{background:#0e1015}
     html[data-theme="dark"] .dialog-head,html[data-theme="dark"] .dialog-foot{background:var(--card);border-color:var(--line)}
     html[data-theme="dark"] .preview-wrap{background:#05070a}
     html[data-theme="dark"] .status.ok{background:#0b2e22;color:#4ade80}
@@ -964,7 +967,7 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v247';
+  const APP_VERSION='v248';
   const APP_UPDATE_NOTE='拡大中の黒板子画面を開く時とAndroidの戻る時に出る一瞬の表示を、閉じる前から隠すよう修正しました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;

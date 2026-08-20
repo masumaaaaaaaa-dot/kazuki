@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v266';
-  const APP_UPDATE_NOTE='6枚様式のExcelを、印刷（PDF）と同じ寸法・見出し・フッターで作るようにしました';
+  const APP_VERSION='v267';
+  const APP_UPDATE_NOTE='6枚様式のExcelで左右の写真がくっついていたのを直しました（列の幅の計算ミス）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2735,7 +2735,8 @@
   // 6枚様式の紙面寸法は A4印刷(PDF)の6枚様式と同じ値から起こす（.sheet 余白 上9/左右10/下8mm、見出し10mm+2mm、
   // 写真93.5×68mm、記入欄の点線6.2mm刻み2本、コマの上下余白2.2mm、フッターは下から4mm）
   const MM2PT=72/25.4, MM2PX=96/25.4;
-  const XL_MDW=8;   // Excelの列幅1文字ぶんのpx（標準フォント ＭＳ Ｐゴシック11＝8px。元シートのB列63.63＝63文字＋5px÷8 から確認）
+  // Excelの列の表示幅（px）≒ 列幅の値×7px＋5px。v266の実機画面（列幅44.125→約316px、既定幅8.43→65px）から確認（v266では×8と誤認し写真が列からはみ出した）
+  const XL_MDW=7, XL_COL_PAD=5;
   const ALBUM6_COL_PX=Math.round(93.5*MM2PX);            // B列・E列の幅（px）＝写真の幅93.5mm
   const ALBUM6_PHOTO_ROW_PT=+(68*MM2PT/5).toFixed(2);     // 写真5行の1行ぶん（68mm÷5）
   const ALBUM6_NOTE_ROW_PT=+(6.2*MM2PT).toFixed(2);       // 記入欄1行＝点線の間隔6.2mm
@@ -2780,9 +2781,9 @@
       for(let i=0;i<5;i++){ const r=base+5+i, s=i===0?st.note1:(i===1?st.note2:24), hid=i>=2?' hidden="1"':''; rows+=`<row r="${r}" spans="2:5" ht="${ALBUM6_NOTE_ROW_PT}"${hid} customHeight="1" ${D}>${cell('B'+r,s,(slotB&&i<2)?slotB.lines[i]:'')}${cell('E'+r,s,(slotE&&i<2)?slotE.lines[i]:'')}</row>`; }
       rows+=`<row r="${base+10}" spans="2:5" ht="${ALBUM6_GAP_ROW_PT}" customHeight="1" ${D}/>`;
     }
-    // 列幅は印刷と同じ：A=2mm（左余白の一部）、B/E=93.5mm（写真）、C+D=3mm（列の間）。Excelの列幅はpx÷8（1文字ぶん）で記録する
-    const colW=(px)=>(px/XL_MDW).toFixed(4);
-    const cols=`<cols><col min="1" max="1" width="${colW(Math.round(2*MM2PX))}" style="25" customWidth="1"/><col min="2" max="2" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/><col min="3" max="4" width="${colW(Math.round(1.5*MM2PX))}" customWidth="1"/><col min="5" max="5" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/></cols>`;
+    // 列幅：B/E=93.5mm（写真の幅ぴったり。列幅の値＝(px−5)÷7）。A=0.5（約2mm・左余白の一部）、C/D=0.714ずつ（列の間。合わせて約3〜5mm）
+    const colW=(px)=>((px-XL_COL_PAD)/XL_MDW).toFixed(4);
+    const cols=`<cols><col min="1" max="1" width="0.5" style="25" customWidth="1"/><col min="2" max="2" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/><col min="3" max="4" width="0.714" customWidth="1"/><col min="5" max="5" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/></cols>`;
     let out=xml;
     out=out.replace(/<dimension ref="[^"]*"\/>/,'<dimension ref="A1:E35"/>');
     out=out.replace(/<cols>[\s\S]*?<\/cols>/,cols);
@@ -2791,9 +2792,10 @@
     out=out.replace(/<selection [^>]*\/>/,'<selection activeCell="B3" sqref="B3:B7"/>');
     // 1行目の空セルF1（印刷範囲がF列まで広がる元）は外す。マクロが読むのはA1〜E1だけ
     out=out.replace(/<c r="F1"[^>]*\/>/,'');
-    // 用紙の余白（インチ）：印刷と同じ 左10mm(=余白8mm+A列2mm)・右9mm・上21mm（見出し9mm+10mm+2mm）・下12mm。見出しは上から12mm、フッターは下から4mm
+    // 用紙の余白（インチ）：印刷と同じ 左10mm(=余白9mm+A列約1〜2mm)・右6.5mm・上21mm（見出し9mm+10mm+2mm）・下12mm。見出しは上から12mm、フッターは下から4mm
+    // 横幅の検算：列の合計は最大194.3mm（8+353+20+353px）＋余白15.5mm＝209.8mm＜210mm
     const inch=(mm)=>(mm/25.4).toFixed(5);
-    out=out.replace(/<pageMargins [^>]*\/>/,`<pageMargins left="${inch(8)}" right="${inch(9)}" top="${inch(21)}" bottom="${inch(12)}" header="${inch(12)}" footer="${inch(4)}"/>`);
+    out=out.replace(/<pageMargins [^>]*\/>/,`<pageMargins left="${inch(9)}" right="${inch(6.5)}" top="${inch(21)}" bottom="${inch(12)}" header="${inch(12)}" footer="${inch(4)}"/>`);
     // 見出しとフッター（印刷と同じ並び：左=工事名／中=工事写真帳／右=ページ、左下=会社名／右下=工事番号）
     // 書き方は「&amp;大きさ → &amp;"フォント" → 文字」の順。大きさの直後に数字の文字が来ると「&amp;91」のように読まれてしまうため、フォント指定を間に挟む
     const F='&amp;&quot;ＭＳ Ｐゴシック,標準&quot;', FB='&amp;&quot;ＭＳ Ｐゴシック,太字&quot;';

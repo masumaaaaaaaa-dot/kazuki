@@ -967,8 +967,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v257';
-  const APP_UPDATE_NOTE='アプリのアイコンとインストール画面の紹介文を新しくしました';
+  const APP_VERSION='v258';
+  const APP_UPDATE_NOTE='写真ページの見出しに、工事名の下へ工事場所も表示するようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1057,7 +1057,13 @@
   function updateCurrentLabel(){
     const p=currentProject(); $('currentProjectLabel').textContent=p?`${p.name}${p.address?'｜'+p.address:''}`:'現場を選択してください';
     // 写真ページの見出しは、表紙に書いた工事名（現場の名前）を表示する
-    const t=$('photoListTitle'); if(t)t.textContent=(p&&String(p.name||'').trim())?p.name:'登録写真';
+    // 工事場所が入力されている場合は、工事名の下に少し小さく表示する
+    const t=$('photoListTitle');
+    if(t){
+      const nm=(p&&String(p.name||'').trim())?p.name:'登録写真';
+      const ad=(p&&String(p.address||'').trim())?p.address:'';
+      t.innerHTML=escapeHtml(nm)+(ad?`<div style="font-size:.62em;font-weight:400;color:var(--muted);margin-top:2px">${escapeHtml(ad)}</div>`:'');
+    }
     localStorage.setItem('photoLedgerCurrentProject',currentProjectId||'');
   }
 

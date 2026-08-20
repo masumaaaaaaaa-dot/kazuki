@@ -579,7 +579,7 @@
         <div class="btn-row" style="margin-top:10px">
           <button class="btn outline full" id="excelBtn">📊 Excelで出力（編集可）</button>
         </div>
-        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ、最大90枚収録）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsm）を作成します。パソコンのExcelで開くと、元のテンプレートと同じように「余白」部分の右クリックから写真の取り込みなどの操作ができます（マクロを有効にする必要があります）。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。</p>
+        <p class="hint" style="margin-bottom:0;margin-top:6px">正式な「工事写真帳」の書式（表紙＋アルバムページ。上の「写真配置」に合わせて3枚様式＝最大90枚／6枚様式＝最大180枚）に、現場情報と写真・記入内容を自動で流し込んだExcelファイル（.xlsm）を作成します。パソコンのExcelで開くと、元のテンプレートと同じように「余白」部分の右クリックから写真の取り込みなどの操作ができます（マクロを有効にする必要があります）。設定の「バックアップの保存先フォルダ」を指定している場合は、そのフォルダに保存されます（未設定の場合はダウンロードフォルダに保存されます）。</p>
       </div>
       <div id="outputStatus" class="status"></div>
       <div class="card" id="previewCard" style="display:none">
@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v263';
-  const APP_UPDATE_NOTE='6枚様式で記入欄の下にあった区切り線（実線）をなくしました';
+  const APP_VERSION='v264';
+  const APP_UPDATE_NOTE='Excelファイルも6枚様式で作れるようになりました（A4出力の「写真配置」で6枚を選んでExcelを押してください）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2723,6 +2723,48 @@
   const ALBUM_SLOTS_PER_SHEET=3,ALBUM_SHEET_COUNT=30,ALBUM_MAX_PHOTOS=ALBUM_SLOTS_PER_SHEET*ALBUM_SHEET_COUNT;
   // 各コマの写真開始行とコメント行（テンプレートの並びに合わせている）
   const ALBUM_SLOT_ROWS=[{photo:3,captionTop:4,captionBottom:12},{photo:14,captionTop:15,captionBottom:23},{photo:25,captionTop:26,captionBottom:34}];
+  // ---- 6枚様式（Excel）：テンプレートのマクロが持つ「６枚タイプ」と同じマス目 ----
+  // 2列(B列/E列)×3段。1コマ＝写真5行(36pt・縦に結合)＋「No.」行(20pt)＋記入欄4行(20pt)＋空白1行(15pt)＝11行
+  // 並びは印刷と同じ「左→右、上→下」（隠し1行目のB1=1＝横－縦）。1ページ分の高さは3枚様式と同じ900pt
+  const ALBUM6_SLOTS_PER_SHEET=6;
+  const ALBUM6_SLOT_ROWS=[
+    {col:'B',photo:3, captionTop:9, captionBottom:12},{col:'E',photo:3, captionTop:9, captionBottom:12},
+    {col:'B',photo:14,captionTop:20,captionBottom:23},{col:'E',photo:14,captionTop:20,captionBottom:23},
+    {col:'B',photo:25,captionTop:31,captionBottom:34},{col:'E',photo:25,captionTop:31,captionBottom:34}];
+  function xlAlbumSheetTo6(xml,slots){
+    // 既存のアルバムシート（3枚様式）を、シート名とマクロ用コードはそのままに6枚様式のマス目へ組み替える。
+    // 行1（マクロの設定値・非表示）は残して A1=4(6枚タイプ)・B1=1(横－縦)・D1=2(2列) に書き替える。
+    // セルの書式は3枚様式と同じ番号を使う：28=「余白」(写真枠)、27=「No.」、23=記入欄1行目(上に実線)、24=記入欄2行目以降(点線)
+    // slots[コマ番号0〜5]={lines:[記入欄の文字…]}：写真を置くコマは「余白」の文字を入れず、記入欄の文字をそのまま書き込む
+    // （空のままの記入欄も書式付きのセルとして残すので、点線が消えない）
+    slots=slots||[];
+    const row1m=/<row[^>]*\sr="1"[^>]*>[\s\S]*?<\/row>/.exec(xml);
+    if(!row1m)throw new Error('アルバムシートの設定行（1行目）が見つかりません');
+    const row1=row1m[0];
+    const D='x14ac:dyDescent="0.2"';
+    const cell=(ref,s,text)=>text?`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(text)}</t></is></c>`:`<c r="${ref}" s="${s}"/>`;
+    let rows=`<row r="2" spans="2:5" ht="15" customHeight="1" ${D}/>`, merges='';
+    for(let k=0;k<3;k++){
+      const base=3+k*11;
+      const slotB=slots[k*2], slotE=slots[k*2+1];
+      for(let i=0;i<5;i++){ const r=base+i; rows+=`<row r="${r}" spans="2:5" ht="36" customHeight="1" ${D}>${cell('B'+r,28,(i===0&&!slotB)?'余白':'')}${cell('E'+r,28,(i===0&&!slotE)?'余白':'')}</row>`; }
+      merges+=`<mergeCell ref="B${base}:B${base+4}"/><mergeCell ref="E${base}:E${base+4}"/>`;
+      const rn=base+5;
+      rows+=`<row r="${rn}" spans="2:5" ht="20" customHeight="1" ${D}>${cell('B'+rn,27,'No.'+(k*2+1))}${cell('E'+rn,27,'No.'+(k*2+2))}</row>`;
+      for(let i=0;i<4;i++){ const r=base+6+i, s=i===0?23:24; rows+=`<row r="${r}" spans="2:5" ht="20" customHeight="1" ${D}>${cell('B'+r,s,slotB?slotB.lines[i]:'')}${cell('E'+r,s,slotE?slotE.lines[i]:'')}</row>`; }
+      rows+=`<row r="${base+10}" spans="2:5" ht="15" customHeight="1" ${D}/>`;
+    }
+    // 列幅はマクロの６枚タイプと同じ（A=4.5, B=43, C=2.5, D=2.5, E=43, F=8, G=8。数値は元シートと同じ補正幅+0.63で記録）
+    const cols='<cols><col min="1" max="1" width="5.1328125" style="25" customWidth="1"/><col min="2" max="2" width="43.6328125" customWidth="1"/><col min="3" max="4" width="3.1328125" customWidth="1"/><col min="5" max="5" width="43.6328125" customWidth="1"/><col min="6" max="7" width="8.6328125" customWidth="1"/></cols>';
+    let out=xml;
+    out=out.replace(/<dimension ref="[^"]*"\/>/,'<dimension ref="A1:F35"/>');
+    out=out.replace(/<cols>[\s\S]*?<\/cols>/,cols);
+    out=out.replace(/<sheetData>[\s\S]*?<\/sheetData>/,'<sheetData>'+row1+rows+'</sheetData>');
+    out=out.replace(/<mergeCells[^>]*>[\s\S]*?<\/mergeCells>/,'<mergeCells count="6">'+merges+'</mergeCells>');
+    out=out.replace(/<selection [^>]*\/>/,'<selection activeCell="B3" sqref="B3:B7"/>');
+    out=xlSetCell(out,'A1','4',{number:true}); out=xlSetCell(out,'B1','1',{number:true}); out=xlSetCell(out,'D1','2',{number:true});
+    return out;
+  }
   // ---- ここから：元の .xlsm を作り直さずに必要な箇所だけ書き込む処理 ----
   function xlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function xlColNum(c){let n=0;for(let i=0;i<c.length;i++)n=n*26+(c.charCodeAt(i)-64);return n;}
@@ -2803,8 +2845,10 @@
     const p=currentProject(); const arr=currentPhotos();
     if(!p){setOutputStatus('現場を選択してください。','err');return}
     if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}
-    if($('layoutSetting')&&$('layoutSetting').value==='6'){setOutputStatus('Excelは今のところ3枚様式のみ対応のため、3枚様式で作成します（6枚様式のExcelは次の更新で対応予定）。','ok');}
-    else setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
+    // A4出力の「写真配置」が6枚のときはExcelも6枚様式で作る（3枚のときは今までどおり）
+    const six=!!($('layoutSetting')&&$('layoutSetting').value==='6');
+    const slotsPerSheet=six?ALBUM6_SLOTS_PER_SHEET:ALBUM_SLOTS_PER_SHEET, maxPhotos=slotsPerSheet*ALBUM_SHEET_COUNT;
+    setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
     let templateBuf;
     try{
       const r=await fetch('./photo_album_template.xlsm');
@@ -2873,12 +2917,20 @@
       // アルバムへ写真とコメントを書き込み
       let ctXml=await z.file('[Content_Types].xml').async('string');
       const usedExts=new Set(); const drawingParts=[];
-      const overLimit=arr.length>ALBUM_MAX_PHOTOS;
-      const fillCount=Math.min(arr.length,ALBUM_MAX_PHOTOS);
+      const overLimit=arr.length>maxPhotos;
+      const fillCount=Math.min(arr.length,maxPhotos);
       const perSheet={};
       for(let i=0;i<fillCount;i++){
-        const sheetIdx=Math.floor(i/ALBUM_SLOTS_PER_SHEET);
-        (perSheet[sheetIdx]=perSheet[sheetIdx]||[]).push({ph:arr[i],slot:i%ALBUM_SLOTS_PER_SHEET,no:i});
+        const sheetIdx=Math.floor(i/slotsPerSheet);
+        (perSheet[sheetIdx]=perSheet[sheetIdx]||[]).push({ph:arr[i],slot:i%slotsPerSheet,no:i});
+      }
+      // 6枚様式：アルバムシート30枚すべてを6枚のマス目に組み替える（3枚様式のときは何もしない）
+      // 写真の無いシートはここで。写真のあるシートは下のループで記入欄の文字ごと組み替える
+      if(six){
+        for(let si=0;si<ALBUM_SHEET_COUNT;si++){
+          const path6=sheetPath[albumSheetName(si)]; if(!path6||perSheet[si])continue;
+          z.file(path6, xlAlbumSheetTo6(await z.file(path6).async('string')));
+        }
       }
       let mediaSeq=0;
       for(const key of Object.keys(perSheet)){
@@ -2886,15 +2938,23 @@
         const name=albumSheetName(sheetIdx);
         const path=sheetPath[name];
         if(!path)continue;
-        setOutputStatus(`Excelファイルを作成中です…（${sheetIdx*ALBUM_SLOTS_PER_SHEET+1}/${fillCount}枚目あたりを処理しています）`,'ok');
+        setOutputStatus(`Excelファイルを作成中です…（${sheetIdx*slotsPerSheet+1}/${fillCount}枚目あたりを処理しています）`,'ok');
         let sh=await z.file(path).async('string');
+        if(six){
+          // 6枚様式：記入欄の文字（内容＋備考を1行ずつ、最大4行）はマス目の組み替えと同時に書き込む
+          const slots6=[];
+          for(const entry of perSheet[key]){ const ph=entry.ph; slots6[entry.slot]={lines:[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n').slice(0,4)}; }
+          sh=xlAlbumSheetTo6(sh,slots6);
+        }
         const items=[];
         for(const entry of perSheet[key]){
-          const ph=entry.ph, rows=ALBUM_SLOT_ROWS[entry.slot];
-          // コメントは1行ずつ、罫線に合わせて書き込む
-          const lines=[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n');
-          const maxLines=rows.captionBottom-rows.captionTop+1;
-          for(let li=0;li<maxLines;li++) sh=xlSetCell(sh,'C'+(rows.captionTop+li), lines[li]||'');
+          const ph=entry.ph, rows=six?ALBUM6_SLOT_ROWS[entry.slot]:ALBUM_SLOT_ROWS[entry.slot];
+          if(!six){
+            // コメントは1行ずつ、罫線に合わせて書き込む
+            const lines=[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n');
+            const maxLines=rows.captionBottom-rows.captionTop+1;
+            for(let li=0;li<maxLines;li++) sh=xlSetCell(sh,'C'+(rows.captionTop+li), lines[li]||'');
+          }
           try{
             const blobPh=ph.editedBlob||ph.blob;
             const [ab,imgEl]=await Promise.all([blobPh.arrayBuffer(),loadImageElement(blobPh)]);
@@ -2903,11 +2963,12 @@
             mediaSeq++;
             const mediaName=`appimg${mediaSeq}.${ext}`;
             z.file('xl/media/'+mediaName,ab);
-            const boxW=430,boxH=(rows.captionBottom-rows.photo+1)*28*96/72-14;
+            // 写真枠の大きさ（px）。3枚=B列63文字幅×10行(28pt)、6枚=B/E列43文字幅×5行(36pt)。余白ぶんを差し引く
+            const boxW=six?290:430,boxH=six?(5*36*96/72-14):((rows.captionBottom-rows.photo+1)*28*96/72-14);
             const ratio=Math.min(boxW/imgEl.naturalWidth,boxH/imgEl.naturalHeight);
             const w=Math.round(imgEl.naturalWidth*ratio), h=Math.round(imgEl.naturalHeight*ratio);
             // 枠の中で中央に置く。縦向きの写真が左に寄らないように。
-            items.push({col:1,colOff:6+Math.max(0,Math.round((boxW-w)/2)),
+            items.push({col:(six&&rows.col==='E')?4:1,colOff:6+Math.max(0,Math.round((boxW-w)/2)),
                         row:rows.photo-1,rowOff:4+Math.max(0,Math.round((boxH-h)/2)),
                         w,h,mediaName});
           }catch(imgErr){ console.warn('写真の埋め込みに失敗',ph.id,imgErr); }
@@ -2926,7 +2987,7 @@
         }
         // コメント欄に数字だけを書いた場合の注意マークを抑制
         sh=sh.replace(/<ignoredErrors>[\s\S]*?<\/ignoredErrors>/,'');
-        const ig='<ignoredErrors><ignoredError sqref="C3:C34" numberStoredAsText="1"/></ignoredErrors>';
+        const ig=`<ignoredErrors><ignoredError sqref="${six?'B3:E35':'C3:C34'}" numberStoredAsText="1"/></ignoredErrors>`;
         sh=/<drawing\s/.test(sh) ? sh.replace(/<drawing/,ig+'<drawing') : sh.replace('</worksheet>',ig+'</worksheet>');
         z.file(path,sh);
       }
@@ -2946,7 +3007,7 @@
       const stampName=`${(p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.xlsm`;
       const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12',compression:'DEFLATE'});
       const result=await saveToBackupFolderOrDownload(blob,stampName);
-      const overMsg=overLimit?`（写真が${ALBUM_MAX_PHOTOS}枚を超えていたため、最初の${ALBUM_MAX_PHOTOS}枚のみ収録しています）`:'';
+      const overMsg=overLimit?`（写真が${maxPhotos}枚を超えていたため、最初の${maxPhotos}枚のみ収録しています）`:'';
       if(result.savedTo==='folder')setOutputStatus(`Excelファイルを「${backupDirectoryHandle.name}」に保存しました。${overMsg}`,'ok');
       else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。'+overMsg,'ok');
       else setOutputStatus('Excelファイルをダウンロードフォルダに保存しました。'+overMsg,'ok');

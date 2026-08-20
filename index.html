@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v267';
-  const APP_UPDATE_NOTE='6枚様式のExcelで左右の写真がくっついていたのを直しました（列の幅の計算ミス）';
+  const APP_VERSION='v268';
+  const APP_UPDATE_NOTE='3枚様式のExcelで、記入欄の文字がない行の点線が消えていたのを直しました（9行すべてに点線が出ます）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2998,10 +2998,11 @@
         for(const entry of perSheet[key]){
           const ph=entry.ph, rows=six?ALBUM6_SLOT_ROWS[entry.slot]:ALBUM_SLOT_ROWS[entry.slot];
           if(!six){
-            // コメントは1行ずつ、罫線に合わせて書き込む
+            // コメントは1行ずつ、罫線に合わせて書き込む。文字のない行はテンプレートのセル（点線の書式）をそのまま残す
+            // （以前は空文字を書き込むとセルごと消えて、その行の点線が出なくなっていた。v268で修正）
             const lines=[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n');
             const maxLines=rows.captionBottom-rows.captionTop+1;
-            for(let li=0;li<maxLines;li++) sh=xlSetCell(sh,'C'+(rows.captionTop+li), lines[li]||'');
+            for(let li=0;li<maxLines;li++) if(lines[li]) sh=xlSetCell(sh,'C'+(rows.captionTop+li), lines[li]);
           }
           try{
             const blobPh=ph.editedBlob||ph.blob;

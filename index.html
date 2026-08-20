@@ -49,7 +49,7 @@
     .topbar-row{display:flex;align-items:center;gap:10px}
     .topbar h1{font-size:20px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .project-chip{font-size:12px;opacity:.93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw;margin-top:4px}
-    .install-btn{border:1px solid rgba(255,255,255,.75);background:transparent;color:#fff;border-radius:9px;padding:7px 10px;font-size:12px;display:none}
+    .install-btn{border:1px solid currentColor;background:transparent;color:inherit;border-radius:9px;padding:7px 10px;font-size:12px;display:none}
     .content{padding:14px}
     .tab-page{display:none}.tab-page.active{display:block}
     .card{background:var(--card);border:1px solid #e5e9ef;border-radius:14px;box-shadow:var(--shadow);padding:14px;margin-bottom:13px}
@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v268';
-  const APP_UPDATE_NOTE='3枚様式のExcelで、記入欄の文字がない行の点線が消えていたのを直しました（9行すべてに点線が出ます）';
+  const APP_VERSION='v269';
+  const APP_UPDATE_NOTE='保存データを端末が勝手に消さないよう保護／電波なしでもPDF・Excelが作れるよう部品を先読み／ライト画面で「アプリをインストール」の文字が見えにくかったのを修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5892,6 +5892,11 @@
   $('installBtn').addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('installBtn').style.display='none'});
   window.addEventListener('appinstalled',()=>{$('installBtn').style.display='none'});
 
+  // 端末の空き容量が減ったときに、ブラウザが保存データ（写真・現場情報）を自動で消さないよう「保持」を求める
+  // （インストール済みアプリでは通常そのまま認められる。認められなくても動作に影響はない）
+  if(navigator.storage && navigator.storage.persist){
+    navigator.storage.persist().then(ok=>{ if(!ok)console.warn('保存データの保持は認められませんでした（ブラウザの判断）'); }).catch(()=>{});
+  }
   // 新しいバージョンが公開されたら知らせる
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{

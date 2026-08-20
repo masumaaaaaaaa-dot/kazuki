@@ -187,7 +187,7 @@
     .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
     .blank-photo{border:1px solid transparent}
     .grid6{display:grid;grid-template-columns:1fr 1fr;column-gap:3mm}
-    .photo-cell6{padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
+    .photo-cell6{padding:2.2mm 0;break-inside:avoid}
     .print-photo-box6{width:93.5mm;height:68mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
     .print-photo-box6 img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
     .print-note6{height:12.7mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1;overflow:hidden}
@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v262';
-  const APP_UPDATE_NOTE='6枚様式で2行目の点線が薄く見える問題を修正しました';
+  const APP_VERSION='v263';
+  const APP_UPDATE_NOTE='6枚様式で記入欄の下にあった区切り線（実線）をなくしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;

@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v265';
-  const APP_UPDATE_NOTE='6枚様式のExcelを印刷と同じ見た目に直しました（「No.」をなくし、記入欄は点線2行、段の間を詰めました）';
+  const APP_VERSION='v266';
+  const APP_UPDATE_NOTE='6枚様式のExcelを、印刷（PDF）と同じ寸法・見出し・フッターで作るようにしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2732,47 +2732,74 @@
     {col:'B',photo:3, captionTop:8, captionBottom:9}, {col:'E',photo:3, captionTop:8, captionBottom:9},
     {col:'B',photo:14,captionTop:19,captionBottom:20},{col:'E',photo:14,captionTop:19,captionBottom:20},
     {col:'B',photo:25,captionTop:30,captionBottom:31},{col:'E',photo:25,captionTop:30,captionBottom:31}];
+  // 6枚様式の紙面寸法は A4印刷(PDF)の6枚様式と同じ値から起こす（.sheet 余白 上9/左右10/下8mm、見出し10mm+2mm、
+  // 写真93.5×68mm、記入欄の点線6.2mm刻み2本、コマの上下余白2.2mm、フッターは下から4mm）
+  const MM2PT=72/25.4, MM2PX=96/25.4;
+  const XL_MDW=8;   // Excelの列幅1文字ぶんのpx（標準フォント ＭＳ Ｐゴシック11＝8px。元シートのB列63.63＝63文字＋5px÷8 から確認）
+  const ALBUM6_COL_PX=Math.round(93.5*MM2PX);            // B列・E列の幅（px）＝写真の幅93.5mm
+  const ALBUM6_PHOTO_ROW_PT=+(68*MM2PT/5).toFixed(2);     // 写真5行の1行ぶん（68mm÷5）
+  const ALBUM6_NOTE_ROW_PT=+(6.2*MM2PT).toFixed(2);       // 記入欄1行＝点線の間隔6.2mm
+  const ALBUM6_GAP_ROW_PT=+(4.7*MM2PT).toFixed(2);        // コマとコマの間（上下余白2.2mm×2＋記入欄の枠の余り0.3mm）
+  const ALBUM6_TOP_ROW_PT=+(2.2*MM2PT).toFixed(2);        // 1段目の上の余白2.2mm
   function xlStylesAddNote6(stylesXml){
-    // 6枚様式の記入欄1行目用の書式（下だけ点線・上に線なし）を styles.xml に1つ足し、その番号を返す。
-    // 3枚様式の記入欄1行目(23)は上に実線が付いていて、写真のすぐ下に線が出てしまうため
-    const bm=/<borders count="(\d+)">/.exec(stylesXml), xm=/<cellXfs count="(\d+)">/.exec(stylesXml);
-    if(!bm||!xm)throw new Error('styles.xml の形式が想定と違います');
-    const borderId=+bm[1], xfId=+xm[1];
-    let out=stylesXml.replace(bm[0],`<borders count="${borderId+1}">`).replace(xm[0],`<cellXfs count="${xfId+1}">`);
+    // 6枚様式の記入欄用の書式を styles.xml に足し、その番号を返す。
+    //  ・文字は印刷と同じ大きさに近い9pt（3枚様式の記入欄は11pt）
+    //  ・1行目＝下だけ点線（3枚様式の1行目(23)は上に実線が付いていて、写真のすぐ下に線が出てしまうため）
+    //  ・2行目＝上下とも点線（3枚様式の2行目以降(24)と同じ罫線）
+    const fm=/<fonts count="(\d+)"/.exec(stylesXml), bm=/<borders count="(\d+)">/.exec(stylesXml), xm=/<cellXfs count="(\d+)">/.exec(stylesXml);
+    if(!fm||!bm||!xm)throw new Error('styles.xml の形式が想定と違います');
+    const fontId=+fm[1], borderId=+bm[1], xfId=+xm[1];
+    let out=stylesXml.replace(fm[0],`<fonts count="${fontId+1}"`).replace(bm[0],`<borders count="${borderId+1}">`).replace(xm[0],`<cellXfs count="${xfId+2}">`);
+    out=out.replace('</fonts>','<font><sz val="9"/><color rgb="FF000000"/><name val="ＭＳ Ｐゴシック"/><family val="3"/><charset val="128"/></font></fonts>');
     out=out.replace('</borders>','<border><left/><right/><top/><bottom style="dotted"><color rgb="FF000000"/></bottom><diagonal/></border></borders>');
-    out=out.replace('</cellXfs>',`<xf numFmtId="0" fontId="10" fillId="0" borderId="${borderId}" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" shrinkToFit="1"/></xf></cellXfs>`);
-    return {xml:out,styleId:xfId};
+    const xf=(b)=>`<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="${b}" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" shrinkToFit="1"/></xf>`;
+    out=out.replace('</cellXfs>',xf(borderId)+xf(12)+'</cellXfs>');   // 12＝既存の「上下とも点線」の罫線
+    return {xml:out,note1:xfId,note2:xfId+1};
   }
-  function xlAlbumSheetTo6(xml,slots,noteStyle1){
+  function xlHeaderText(s){return xlEsc(String(s==null?'':s).replace(/&/g,'&&'));}   // ヘッダー/フッター用（& は && と書く決まり）
+  function xlAlbumSheetTo6(xml,slots,st,hf){
     // 既存のアルバムシート（3枚様式）を、シート名とマクロ用コードはそのままに6枚様式のマス目へ組み替える。
     // 行1（マクロの設定値・非表示）は残して A1=4(6枚タイプ)・B1=1(横－縦)・D1=2(2列)・E1=0(番号行なし) に書き替える。
-    // セルの書式は3枚様式と同じ番号を使う：28=「余白」(写真枠)、24=記入欄2行目以降(点線)。記入欄1行目は noteStyle1（下だけ点線）
+    // セルの書式：28=「余白」(写真枠・3枚様式と同じ)、st.note1=記入欄1行目(下だけ点線)、st.note2=記入欄2行目(上下点線)、非表示行は24
     // slots[コマ番号0〜5]={lines:[記入欄の文字…]}：写真を置くコマは「余白」の文字を入れず、記入欄の文字をそのまま書き込む
     // （空のままの記入欄も書式付きのセルとして残すので、点線が消えない）
-    slots=slots||[];
+    // hf={name,title,page,company,number}：印刷と同じ見出し（工事名／工事写真帳／ページ）とフッター（会社名／工事番号）
+    slots=slots||[]; hf=hf||{};
     const row1m=/<row[^>]*\sr="1"[^>]*>[\s\S]*?<\/row>/.exec(xml);
     if(!row1m)throw new Error('アルバムシートの設定行（1行目）が見つかりません');
     const row1=row1m[0];
     const D='x14ac:dyDescent="0.2"';
     const cell=(ref,s,text)=>text?`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(text)}</t></is></c>`:`<c r="${ref}" s="${s}"/>`;
-    let rows=`<row r="2" spans="2:5" ht="15" customHeight="1" ${D}/>`, merges='';
+    let rows=`<row r="2" spans="2:5" ht="${ALBUM6_TOP_ROW_PT}" customHeight="1" ${D}/>`, merges='';
     for(let k=0;k<3;k++){
       const base=3+k*11;
       const slotB=slots[k*2], slotE=slots[k*2+1];
-      for(let i=0;i<5;i++){ const r=base+i; rows+=`<row r="${r}" spans="2:5" ht="36" customHeight="1" ${D}>${cell('B'+r,28,(i===0&&!slotB)?'余白':'')}${cell('E'+r,28,(i===0&&!slotE)?'余白':'')}</row>`; }
+      for(let i=0;i<5;i++){ const r=base+i; rows+=`<row r="${r}" spans="2:5" ht="${ALBUM6_PHOTO_ROW_PT}" customHeight="1" ${D}>${cell('B'+r,28,(i===0&&!slotB)?'余白':'')}${cell('E'+r,28,(i===0&&!slotE)?'余白':'')}</row>`; }
       merges+=`<mergeCell ref="B${base}:B${base+4}"/><mergeCell ref="E${base}:E${base+4}"/>`;
-      // 記入欄5行：1・2行目だけ表示（20pt・点線）、3〜5行目はマクロの行数合わせのため非表示
-      for(let i=0;i<5;i++){ const r=base+5+i, s=i===0?noteStyle1:24, hid=i>=2?' hidden="1"':''; rows+=`<row r="${r}" spans="2:5" ht="20"${hid} customHeight="1" ${D}>${cell('B'+r,s,(slotB&&i<2)?slotB.lines[i]:'')}${cell('E'+r,s,(slotE&&i<2)?slotE.lines[i]:'')}</row>`; }
-      rows+=`<row r="${base+10}" spans="2:5" ht="15" customHeight="1" ${D}/>`;
+      // 記入欄5行：1・2行目だけ表示（6.2mm・点線）、3〜5行目はマクロの行数合わせのため非表示
+      for(let i=0;i<5;i++){ const r=base+5+i, s=i===0?st.note1:(i===1?st.note2:24), hid=i>=2?' hidden="1"':''; rows+=`<row r="${r}" spans="2:5" ht="${ALBUM6_NOTE_ROW_PT}"${hid} customHeight="1" ${D}>${cell('B'+r,s,(slotB&&i<2)?slotB.lines[i]:'')}${cell('E'+r,s,(slotE&&i<2)?slotE.lines[i]:'')}</row>`; }
+      rows+=`<row r="${base+10}" spans="2:5" ht="${ALBUM6_GAP_ROW_PT}" customHeight="1" ${D}/>`;
     }
-    // 列幅はマクロの６枚タイプと同じ（A=4.5, B=43, C=2.5, D=2.5, E=43, F=8, G=8。数値は元シートと同じ補正幅+0.63で記録）
-    const cols='<cols><col min="1" max="1" width="5.1328125" style="25" customWidth="1"/><col min="2" max="2" width="43.6328125" customWidth="1"/><col min="3" max="4" width="3.1328125" customWidth="1"/><col min="5" max="5" width="43.6328125" customWidth="1"/><col min="6" max="7" width="8.6328125" customWidth="1"/></cols>';
+    // 列幅は印刷と同じ：A=2mm（左余白の一部）、B/E=93.5mm（写真）、C+D=3mm（列の間）。Excelの列幅はpx÷8（1文字ぶん）で記録する
+    const colW=(px)=>(px/XL_MDW).toFixed(4);
+    const cols=`<cols><col min="1" max="1" width="${colW(Math.round(2*MM2PX))}" style="25" customWidth="1"/><col min="2" max="2" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/><col min="3" max="4" width="${colW(Math.round(1.5*MM2PX))}" customWidth="1"/><col min="5" max="5" width="${colW(ALBUM6_COL_PX)}" customWidth="1"/></cols>`;
     let out=xml;
-    out=out.replace(/<dimension ref="[^"]*"\/>/,'<dimension ref="A1:F35"/>');
+    out=out.replace(/<dimension ref="[^"]*"\/>/,'<dimension ref="A1:E35"/>');
     out=out.replace(/<cols>[\s\S]*?<\/cols>/,cols);
     out=out.replace(/<sheetData>[\s\S]*?<\/sheetData>/,'<sheetData>'+row1+rows+'</sheetData>');
     out=out.replace(/<mergeCells[^>]*>[\s\S]*?<\/mergeCells>/,'<mergeCells count="6">'+merges+'</mergeCells>');
     out=out.replace(/<selection [^>]*\/>/,'<selection activeCell="B3" sqref="B3:B7"/>');
+    // 1行目の空セルF1（印刷範囲がF列まで広がる元）は外す。マクロが読むのはA1〜E1だけ
+    out=out.replace(/<c r="F1"[^>]*\/>/,'');
+    // 用紙の余白（インチ）：印刷と同じ 左10mm(=余白8mm+A列2mm)・右9mm・上21mm（見出し9mm+10mm+2mm）・下12mm。見出しは上から12mm、フッターは下から4mm
+    const inch=(mm)=>(mm/25.4).toFixed(5);
+    out=out.replace(/<pageMargins [^>]*\/>/,`<pageMargins left="${inch(8)}" right="${inch(9)}" top="${inch(21)}" bottom="${inch(12)}" header="${inch(12)}" footer="${inch(4)}"/>`);
+    // 見出しとフッター（印刷と同じ並び：左=工事名／中=工事写真帳／右=ページ、左下=会社名／右下=工事番号）
+    // 書き方は「&amp;大きさ → &amp;"フォント" → 文字」の順。大きさの直後に数字の文字が来ると「&amp;91」のように読まれてしまうため、フォント指定を間に挟む
+    const F='&amp;&quot;ＭＳ Ｐゴシック,標準&quot;', FB='&amp;&quot;ＭＳ Ｐゴシック,太字&quot;';
+    const head=(hf.title?`&amp;L&amp;9${F}${xlHeaderText(hf.name)}&amp;C&amp;13${FB}${xlHeaderText('工事写真帳')}`:'')+`&amp;R&amp;9${F}${xlHeaderText(hf.page)}`;
+    const foot=`&amp;L&amp;8&amp;K555555${F}${xlHeaderText(hf.company)}&amp;R&amp;8&amp;K555555${F}${xlHeaderText(hf.number)}`;
+    out=out.replace(/<headerFooter[^>]*\/>|<headerFooter[^>]*>[\s\S]*?<\/headerFooter>/,`<headerFooter alignWithMargins="0"><oddHeader>${head}</oddHeader><oddFooter>${foot}</oddFooter></headerFooter>`);
     out=xlSetCell(out,'A1','4',{number:true}); out=xlSetCell(out,'B1','1',{number:true}); out=xlSetCell(out,'D1','2',{number:true}); out=xlSetCell(out,'E1','0',{number:true});
     return out;
   }
@@ -2937,14 +2964,18 @@
       }
       // 6枚様式：アルバムシート30枚すべてを6枚のマス目に組み替える（3枚様式のときは何もしない）
       // 写真の無いシートはここで。写真のあるシートは下のループで記入欄の文字ごと組み替える
-      let noteStyle6=0;
+      let st6=null, hf6=null;
       if(six){
-        // 記入欄1行目用の書式を styles.xml に追加（6枚様式のときだけ）
-        const st6=xlStylesAddNote6(await z.file('xl/styles.xml').async('string'));
-        z.file('xl/styles.xml',st6.xml); noteStyle6=st6.styleId;
+        // 記入欄用の書式を styles.xml に追加（6枚様式のときだけ）
+        st6=xlStylesAddNote6(await z.file('xl/styles.xml').async('string'));
+        z.file('xl/styles.xml',st6.xml);
+        // 見出し・フッターの内容は印刷（A4出力ページのチェック）と同じにする
+        const pages6=Math.ceil(fillCount/slotsPerSheet);
+        hf6=(sheetIdx)=>({title:!!($('showHeader')&&$('showHeader').checked), name:p.name||'', page:sheetIdx<pages6?`${sheetIdx+1} / ${pages6}`:'',
+                          company:($('showCompany')&&$('showCompany').checked)?(p.company||''):'', number:p.number||''});
         for(let si=0;si<ALBUM_SHEET_COUNT;si++){
           const path6=sheetPath[albumSheetName(si)]; if(!path6||perSheet[si])continue;
-          z.file(path6, xlAlbumSheetTo6(await z.file(path6).async('string'),null,noteStyle6));
+          z.file(path6, xlAlbumSheetTo6(await z.file(path6).async('string'),null,st6,hf6(si)));
         }
       }
       let mediaSeq=0;
@@ -2959,7 +2990,7 @@
           // 6枚様式：記入欄の文字（内容＋備考を1行ずつ、最大2行）はマス目の組み替えと同時に書き込む
           const slots6=[];
           for(const entry of perSheet[key]){ const ph=entry.ph; slots6[entry.slot]={lines:[ph.content||'',ph.remarks||''].filter(Boolean).join('\n').split('\n').slice(0,2)}; }
-          sh=xlAlbumSheetTo6(sh,slots6,noteStyle6);
+          sh=xlAlbumSheetTo6(sh,slots6,st6,hf6(sheetIdx));
         }
         const items=[];
         for(const entry of perSheet[key]){
@@ -2978,13 +3009,14 @@
             mediaSeq++;
             const mediaName=`appimg${mediaSeq}.${ext}`;
             z.file('xl/media/'+mediaName,ab);
-            // 写真枠の大きさ（px）。3枚=B列63文字幅×10行(28pt)、6枚=B/E列43文字幅×5行(36pt)。余白ぶんを差し引く
-            const boxW=six?290:430,boxH=six?(5*36*96/72-14):((rows.captionBottom-rows.photo+1)*28*96/72-14);
+            // 写真枠の大きさ（px）。3枚=B列63文字幅×10行(28pt)から余白14pxを引く。6枚=93.5×68mmの枠いっぱい（印刷と同じ、余白は左右上下2px）
+            const pad=six?2:0;
+            const boxW=six?(ALBUM6_COL_PX-pad*2):430,boxH=six?(Math.round(5*ALBUM6_PHOTO_ROW_PT*96/72)-pad*2):((rows.captionBottom-rows.photo+1)*28*96/72-14);
             const ratio=Math.min(boxW/imgEl.naturalWidth,boxH/imgEl.naturalHeight);
             const w=Math.round(imgEl.naturalWidth*ratio), h=Math.round(imgEl.naturalHeight*ratio);
             // 枠の中で中央に置く。縦向きの写真が左に寄らないように。
-            items.push({col:(six&&rows.col==='E')?4:1,colOff:6+Math.max(0,Math.round((boxW-w)/2)),
-                        row:rows.photo-1,rowOff:4+Math.max(0,Math.round((boxH-h)/2)),
+            items.push({col:(six&&rows.col==='E')?4:1,colOff:(six?pad:6)+Math.max(0,Math.round((boxW-w)/2)),
+                        row:rows.photo-1,rowOff:(six?pad:4)+Math.max(0,Math.round((boxH-h)/2)),
                         w,h,mediaName});
           }catch(imgErr){ console.warn('写真の埋め込みに失敗',ph.id,imgErr); }
         }

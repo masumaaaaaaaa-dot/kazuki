@@ -186,6 +186,14 @@
       display:flex;align-items:flex-end;padding-bottom:1.1mm;box-sizing:border-box}.note-line strong{font-weight:700}
     .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
     .blank-photo{border:1px solid transparent}
+    .grid6{display:grid;grid-template-columns:1fr 1fr;column-gap:3mm}
+    .photo-cell6{padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
+    .print-photo-box6{width:93.5mm;height:68mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
+    .print-photo-box6 img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
+    .print-note6{height:13mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1.25;overflow:hidden}
+    .print-note6 .rule{position:absolute;left:0;right:0;height:0;border-top:.25mm dotted #000;pointer-events:none}
+    .print-note6 .note-text{position:relative;z-index:1}
+    .note-line6{height:6.5mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:flex-end;padding-bottom:.8mm}
 
         .board-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:10px}
     .board-stage-viewport{position:relative;max-width:100%;margin:0 auto;overflow:hidden;border-radius:8px;touch-action:none;background:#e5e9ef}
@@ -552,7 +560,7 @@
           </div>
           <div>
             <label>写真配置</label>
-            <input value="A4縦・1ページ3枚・左写真／右内容" disabled />
+            <select id="layoutSetting"><option value="3">A4縦・1ページ3枚・左写真／右内容</option><option value="6">A4縦・1ページ6枚・写真の下に記入欄2行</option></select>
           </div>
         </div>
         <div class="grid two" style="margin-top:10px">
@@ -967,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v258';
-  const APP_UPDATE_NOTE='写真ページの見出しに、工事名の下へ工事場所も表示するようにしました';
+  const APP_VERSION='v259';
+  const APP_UPDATE_NOTE='A4出力に「1ページ6枚（写真の下に記入欄2行）」の様式を追加しました（印刷・PDF・画面表示）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2549,6 +2557,25 @@
     return lines.slice(0,11).join('');
   }
 
+  function printRules6(){
+    // 6枚様式：記入欄2行。13mmの枠を2等分して線を引く（上端の線は引かない）
+    const BOX_MM=13, LINES=2;
+    const step=BOX_MM/LINES;
+    let out='';
+    for(let i=1;i<=LINES;i++) out+=`<div class="rule" style="top:${(i*step).toFixed(2)}mm"></div>`;
+    return out;
+  }
+  function noteLines6(ph){
+    // 3枚様式のnoteLinesと同じ優先順で、最大2行だけ表示する
+    const lines=[];
+    const freeLines=limitToElevenLines(ph.content||'').split('\n');
+    for(const text of freeLines){ if(text.trim()) lines.push(`<div class="note-line6">${escapeHtml(text.trim())}</div>`); }
+    const add=(label,val)=>{if(val)lines.push(`<div class="note-line6"><strong>${escapeHtml(label)}：</strong>${escapeHtml(val)}</div>`)};
+    add('工種',ph.workType); add('測点',ph.location); add('管種',ph.pipe); add('勾配',ph.slope); add('設計値',ph.design); add('実測値',ph.actual); add('備考',ph.remarks);
+    while(lines.length<2) lines.push('<div class="note-line6">&nbsp;</div>');
+    return lines.slice(0,2).join('');
+  }
+
   async function buildPrint(){
     const p=currentProject(); const arr=currentPhotos(); if(!p){throw new Error('現場を選択してください。')} if(!arr.length){throw new Error('写真を1枚以上登録してください。')}
     const data=[]; for(const ph of arr)data.push({...ph,dataUrl:await blobToDataURL(getDisplayBlob(ph))});
@@ -2581,6 +2608,20 @@
           </table>
         </section>`;
       }
+    }
+    const perPage=($('layoutSetting')&&$('layoutSetting').value==='6')?6:3;
+    if(perPage===6){
+      const chunks6=[];for(let i=0;i<data.length;i+=6)chunks6.push(data.slice(i,i+6));
+      chunks6.forEach((chunk,pi)=>{
+        html+=`<section class="sheet"><div class="ledger-head">${$('showHeader').checked?`<div>${escapeHtml(p.name)}</div><div class="title">工事写真帳</div><div class="page">${pi+1} / ${chunks6.length}</div>`:'<div></div><div></div><div class="page">'+(pi+1)+' / '+chunks6.length+'</div>'}</div><div class="grid6">`;
+        for(let r=0;r<6;r++){
+          const ph=chunk[r];
+          if(ph){html+=`<div class="photo-cell6"><div class="print-photo-box6"><img src="${ph.dataUrl}"></div><div class="print-note6">${printRules6()}<div class="note-text">${noteLines6(ph)}</div></div></div>`}
+          else html+=`<div class="photo-cell6"><div class="print-photo-box6 blank-photo"></div><div class="print-note6">${printRules6()}</div></div>`;
+        }
+        html+=`</div><div class="ledger-footer"><span>${$('showCompany').checked?escapeHtml(p.company||''):''}</span><span>${escapeHtml(p.number||'')}</span></div></section>`;
+      });
+      $('printRoot').innerHTML=html; return html;
     }
     const chunks=[];for(let i=0;i<data.length;i+=3)chunks.push(data.slice(i,i+3));
     chunks.forEach((chunk,pi)=>{
@@ -2760,7 +2801,8 @@
     const p=currentProject(); const arr=currentPhotos();
     if(!p){setOutputStatus('現場を選択してください。','err');return}
     if(!arr.length){setOutputStatus('写真を1枚以上登録してください。','err');return}
-    setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
+    if($('layoutSetting')&&$('layoutSetting').value==='6'){setOutputStatus('Excelは今のところ3枚様式のみ対応のため、3枚様式で作成します（6枚様式のExcelは次の更新で対応予定）。','ok');}
+    else setOutputStatus('Excelファイルを作成中です…（写真台帳テンプレートを読み込んでいます）','ok');
     let templateBuf;
     try{
       const r=await fetch('./photo_album_template.xlsm');

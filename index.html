@@ -190,10 +190,10 @@
     .photo-cell6{padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
     .print-photo-box6{width:93.5mm;height:68mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
     .print-photo-box6 img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
-    .print-note6{height:13mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1.25;overflow:hidden}
+    .print-note6{height:12.4mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1;overflow:hidden}
     .print-note6 .rule{position:absolute;left:0;right:0;height:0;border-top:.25mm dotted #000;pointer-events:none}
     .print-note6 .note-text{position:relative;z-index:1}
-    .note-line6{height:6.5mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:flex-end;padding-bottom:.8mm}
+    .note-line6{height:6.2mm;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:flex-end;padding-bottom:1mm;box-sizing:border-box}
 
         .board-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:10px}
     .board-stage-viewport{position:relative;max-width:100%;margin:0 auto;overflow:hidden;border-radius:8px;touch-action:none;background:#e5e9ef}
@@ -975,8 +975,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v259';
-  const APP_UPDATE_NOTE='A4出力に「1ページ6枚（写真の下に記入欄2行）」の様式を追加しました（印刷・PDF・画面表示）';
+  const APP_VERSION='v261';
+  const APP_UPDATE_NOTE='6枚様式の記入欄を2行に確定し、線と文字の間隔を全行そろえました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2558,8 +2558,9 @@
   }
 
   function printRules6(){
-    // 6枚様式：記入欄2行。13mmの枠を2等分して線を引く（上端の線は引かない）
-    const BOX_MM=13, LINES=2;
+    // 6枚様式：記入欄2行。12.4mmの枠を2等分して線を引く（上端の線は引かない）
+    // 行の箱(note-line6)も同じ6.2mm刻みなので、どの行も文字と線の間隔が同じになる
+    const BOX_MM=12.4, LINES=2;
     const step=BOX_MM/LINES;
     let out='';
     for(let i=1;i<=LINES;i++) out+=`<div class="rule" style="top:${(i*step).toFixed(2)}mm"></div>`;

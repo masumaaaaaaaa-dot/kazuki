@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "jp.co.masuma.koujishashin",
-        "sha256_cert_fingerprints": ["C2:1E:6C:CE:F9:0E:90:16:59:A7:A9:A0:51:7A:42:F4:EA:D0:29:91:02:10:CB:3B:41:F6:54:A1:84:6C:16:F3"]
+        "sha256_cert_fingerprints": ["45:57:FD:08:D5:04:FB:5D:88:62:D6:2D:F3:86:C7:CF:49:76:60:66:64:DF:3A:17:69:F1:9A:BF:2F:E3:AB:D8"]
       }
     }]

@@ -62,7 +62,6 @@
     .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#e2e8f0;color:#1e293b}
     .btn.primary{background:var(--brand);color:var(--on-brand)}.btn.accent{background:var(--accent);color:#fff}.btn.danger{background:#fee4e2;color:var(--danger)}.btn.outline{background:#fff;color:var(--brand-ink);border:1px solid var(--brand)}
     .btn.full{width:100%}.btn-row{display:flex;gap:8px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:120px}
-    #sharePdfBtn:disabled{opacity:.45;cursor:default}   /* PDFを作るまでは薄く表示（v272） */
     .btn.outline.active{background:var(--brand);color:#fff;border-color:var(--brand)}
     .empty{padding:28px 12px;text-align:center;color:var(--muted);border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa}
     .project-item,.photo-item{background:#fff;border:1px solid #dfe5ec;border-radius:12px;padding:11px;margin-bottom:9px}
@@ -580,9 +579,9 @@
         <p class="hint" style="margin-bottom:0;margin-top:6px">上の「印刷・PDF保存」と違い、保存先を選ぶ画面を出さずに、設定の「バックアップの保存先フォルダ」へ直接PDFファイルを保存します（未設定の場合はダウンロードフォルダに保存されます）。写真も含めて、印刷プレビューと同じ内容がPDFになります。</p>
         <div id="sharePdfWrap" style="display:none">
           <div class="btn-row" style="margin-top:10px">
-            <button class="btn outline full" id="sharePdfBtn" disabled>📤 作ったPDFを共有（LINE・Gmail・ドライブなど）</button>
+            <button class="btn outline full" id="sharePdfBtn">📤 PDFを共有（LINE・Gmail・ドライブなど）</button>
           </div>
-          <p class="hint" id="sharePdfHint" style="margin-bottom:0;margin-top:6px">まず上の「PDFで保存」でPDFを作ると、このボタンが押せるようになります。押すとスマホの「共有」画面が開き、LINEやGmailで送ったり、ドライブのフォルダに保存したりできます。</p>
+          <p class="hint" id="sharePdfHint" style="margin-bottom:0;margin-top:6px">押すとPDFを作って、そのままスマホの「共有」画面を開きます（ファイルの保存はしません）。LINEやGmailで送ったり、ドライブのフォルダに保存したりできます。写真が多くてPDF作成に時間がかかったときは「もう一度押してください」と出るので、もう一度押すと共有画面が開きます。</p>
         </div>
         <div class="btn-row" style="margin-top:10px">
           <button class="btn outline full" id="excelBtn">📊 Excelで出力（編集可）</button>
@@ -983,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v272';
-  const APP_UPDATE_NOTE='A4出力に「作ったPDFを共有」ボタンを追加（「PDFで保存」のあとに押すと、スマホの共有画面からLINE・Gmail・ドライブなどへ送れます）';
+  const APP_VERSION='v273';
+  const APP_UPDATE_NOTE='A4出力に「PDFを共有」ボタンを追加：押すだけでPDFを作り、保存せずにスマホの共有画面（LINE・Gmail・ドライブなど）へ渡せます';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2656,12 +2655,20 @@
     }catch(e){setOutputStatus(e.message,'err')}
   }
   function setOutputStatus(msg,type){const el=$('outputStatus');el.textContent=msg;el.className='status '+type;}
-  // ---- 作ったPDFを共有する（スマホの「共有」画面＝Web Share API。LINE・Gmail・ドライブ保存など）----
+  // ---- PDFを共有する（スマホの「共有」画面＝Web Share API。LINE・Gmail・ドライブ保存など）----
   // ・共有画面にPDFを渡せる端末でだけボタンを出す（パソコンや古い機種では出ない）
-  // ・共有画面は「ボタンを押してすぐ」でないと開けない決まり（5秒以内）のため、PDFは先に「PDFで保存」で作っておき、
-  //   このボタンでは覚えておいたPDFをそのまま渡す（写真が多くてPDF作成に時間がかかっても失敗しない）
-  // ・Excel(.xlsm)はブラウザの決まりで共有画面に渡せないため対象外（ダウンロードフォルダから送ってもらう）
-  let lastPdf=null;   // {blob, filename}
+  // ・押すとPDFを作り（ファイル保存はしない）、そのまま共有画面を開く
+  // ・共有画面は「ボタンを押してから約5秒以内」でないと開けない決まり（transient activation）。写真が多くてPDF作成が
+  //   それより長くかかったときは、作ったPDFを覚えておき「もう一度押してください」と案内する（2回目はすぐ開く）
+  // ・覚えておくPDFは、現場・写真・出力設定が同じ（署名が一致）で、作ってから3分以内のときだけ使い回す（古い内容を送らないため）
+  // ・Excel(.xlsm)はブラウザの決まりで共有画面に渡せないため対象外（ダウンロードフォルダから「ファイル」アプリで共有）
+  let lastPdf=null;   // {blob, filename, sig, at}
+  const PDF_REUSE_MS=3*60*1000;
+  function pdfSignature(){
+    const p=currentProject();
+    return [p?p.id:'',p?(p.updatedAt||0):0,$('layoutSetting').value,$('coverSetting').value,$('showHeader').checked?1:0,$('showCompany').checked?1:0,
+      currentPhotos().map(x=>`${x.id}:${x.updatedAt||0}:${x.order||0}:${x.editedBlob?x.editedBlob.size:0}:${x.blob?x.blob.size:0}`).join(',')].join('|');
+  }
   function canSharePdf(){
     try{
       if(!navigator.canShare||!navigator.share)return false;
@@ -2669,28 +2676,32 @@
     }catch(e){return false}
   }
   function updateSharePdfUI(){
-    const wrap=$('sharePdfWrap'), btn=$('sharePdfBtn'), hint=$('sharePdfHint');
-    if(!wrap||!btn||!hint)return;
-    if(!canSharePdf()){wrap.style.display='none';return}
-    wrap.style.display='';
-    btn.disabled=!lastPdf;
-    hint.textContent=lastPdf
-      ?`共有するファイル：${lastPdf.filename}（いま作ったPDF）。押すとスマホの「共有」画面が開き、LINEやGmailで送ったり、ドライブのフォルダに保存したりできます。`
-      :'まず上の「PDFで保存」でPDFを作ると、このボタンが押せるようになります。押すとスマホの「共有」画面が開き、LINEやGmailで送ったり、ドライブのフォルダに保存したりできます。';
+    const wrap=$('sharePdfWrap'); if(!wrap)return;
+    wrap.style.display=canSharePdf()?'':'none';
   }
+  function rememberPdf(blob,filename){ lastPdf={blob,filename,sig:pdfSignature(),at:Date.now()}; }
   async function sharePdf(){
-    if(!lastPdf){alert('先に上の「PDFで保存」でPDFを作ってください。');return}
-    const file=new File([lastPdf.blob],lastPdf.filename,{type:'application/pdf'});
-    if(!(navigator.canShare&&navigator.canShare({files:[file]}))){
-      alert('この端末では共有画面にPDFを渡せません。ダウンロードフォルダ（または保存先フォルダ）のPDFを「ファイル」アプリから共有してください。');return;
+    if(!canSharePdf()){
+      alert('この端末では共有画面にPDFを渡せません。「PDFで保存」で保存したPDFを「ファイル」アプリから共有してください。');return;
     }
     try{
+      const sig=pdfSignature();
+      if(!(lastPdf&&lastPdf.sig===sig&&(Date.now()-lastPdf.at)<PDF_REUSE_MS)){
+        const {blob,filename}=await buildPdfFile();   // 時間がかかるのはここ
+        rememberPdf(blob,filename);
+      }
+      const file=new File([lastPdf.blob],lastPdf.filename,{type:'application/pdf'});
+      if(navigator.userActivation&&!navigator.userActivation.isActive){
+        setOutputStatus('PDFができました。もう一度「PDFを共有」ボタンを押すと、共有画面が開きます。','ok');return;
+      }
       await navigator.share({files:[file],title:lastPdf.filename});
       setOutputStatus('共有画面にPDFを渡しました。送り先のアプリで続きを進めてください。','ok');
     }catch(e){
-      if(e&&e.name==='AbortError')return;   // 送り先を選ばずに閉じた
-      console.warn('PDFの共有に失敗',e);
-      alert('共有できませんでした。もう一度「共有」ボタンを押してください。\nそれでもだめなときは、ダウンロードフォルダ（または保存先フォルダ）のPDFを「ファイル」アプリから共有してください。');
+      if(e&&e.name==='AbortError'){ setOutputStatus('共有を取りやめました。','ok'); return; }   // 送り先を選ばずに閉じた
+      if(e&&e.name==='NotAllowedError'){ setOutputStatus('PDFができました。もう一度「PDFを共有」ボタンを押すと、共有画面が開きます。','ok'); return; }
+      console.error(e);
+      setOutputStatus(e.message||'PDFの作成に失敗しました。','err');
+      alert('共有できませんでした。もう一度「PDFを共有」ボタンを押してください。\nそれでもだめなときは、「PDFで保存」で保存したPDFを「ファイル」アプリから共有してください。');
     }
   }
   async function waitForPrintImages(){
@@ -2723,11 +2734,12 @@
     html2canvas:['./html2canvas.min.js','./lib/html2canvas.min.js','https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'],
     jspdf:['./jspdf.umd.min.js','./lib/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'],
   };
-  async function exportPdf(){
+  // PDFを作って {blob, filename} を返す（保存はしない）。失敗は例外で返す。部品の読み込み→印刷用HTML→1ページずつ画像化→jsPDF
+  async function buildPdfFile(){
     setOutputStatus('PDFの準備をしています…','ok');
     const okH=await ensureLib(()=>typeof html2canvas!=='undefined',LIB_SRC.html2canvas);
     const okJ=await ensureLib(()=>typeof window.jspdf!=='undefined',LIB_SRC.jspdf);
-    if(!okH||!okJ){setOutputStatus('PDF保存に必要な部品を読み込めませんでした。必要なファイル（jszip.min.js など）がアップロードされているか、またはインターネットに接続しているかご確認ください。','err');return}
+    if(!okH||!okJ)throw new Error('PDF保存に必要な部品を読み込めませんでした。必要なファイル（jszip.min.js など）がアップロードされているか、またはインターネットに接続しているかご確認ください。');
     setOutputStatus('PDFを作成中です…（写真の枚数によって少し時間がかかります）','ok');
     const root=$('printRoot');
     const prevCss=root.style.cssText;
@@ -2750,13 +2762,18 @@
       const p=currentProject();
       const filename=`${(p&&p.name||'工事写真帳').replace(/[\\/:*?"<>|]/g,'_')}_${today()}_${hhmmStamp()}.pdf`;
       const blob=pdf.output('blob');
-      lastPdf={blob,filename}; updateSharePdfUI();   // 「共有」ボタン用に覚えておく（v272）
+      return {blob,filename};
+    }finally{ root.style.cssText=prevCss; }
+  }
+  async function exportPdf(){
+    try{
+      const {blob,filename}=await buildPdfFile();
+      rememberPdf(blob,filename);   // 「PDFを共有」ですぐ渡せるよう覚えておく（v273）
       const result=await saveToBackupFolderOrDownload(blob,filename);
       if(result.savedTo==='folder')setOutputStatus(`PDFファイルを「${backupDirectoryHandle.name}」に保存しました。`,'ok');
       else if(result.error)setOutputStatus('保存先フォルダに保存できなかったため、ダウンロードフォルダに保存しました。','ok');
       else setOutputStatus('PDFファイルをダウンロードフォルダに保存しました。','ok');
     }catch(e){console.error(e);setOutputStatus(e.message||'PDFの作成に失敗しました。','err')}
-    finally{ root.style.cssText=prevCss; }
   }
   function estimateRowHeightPt(...texts){
     const lines=Math.max(1,...texts.map(t=>String(t||'').split('\n').length));
@@ -5837,7 +5854,15 @@
   $('printBtn').addEventListener('click',withPreSubmit(printLedger));
   $('excelBtn').addEventListener('click',withPreSubmit(exportExcel));
   $('pdfSaveBtn').addEventListener('click',withPreSubmit(exportPdf));
-  $('sharePdfBtn').addEventListener('click',sharePdf); updateSharePdfUI();   // 共有に対応した端末でだけボタンを出す（v272）
+  // 「PDFを共有」：提出前の確認は、同じ内容のPDFを覚えていない（＝これから作る）ときだけ出す。
+  // 「もう一度押してください」のあとの2回目は、同じ内容なので確認を繰り返さない（時間切れを防ぐ）（v273）
+  $('sharePdfBtn').addEventListener('click',async()=>{
+    const sig=pdfSignature();
+    const cached=!!(lastPdf&&lastPdf.sig===sig&&(Date.now()-lastPdf.at)<PDF_REUSE_MS);
+    if(!cached&&!confirmPreSubmit())return;
+    await sharePdf();
+  });
+  updateSharePdfUI();   // 共有に対応した端末でだけボタンを出す（v272・v273）
   $('hideHintsBtn').addEventListener('click',async()=>{
     settings.hideHints=!settings.hideHints;
     applyHideHints();

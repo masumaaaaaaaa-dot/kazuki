@@ -510,7 +510,7 @@
     <section id="page-photos" class="tab-page">
       <div class="card">
         <h2>写真を登録</h2>
-        <p class="hint">写真を撮影・選択すると、そのまま自動保存されます。写真横の記入欄は空欄のままでよく、必要な写真だけ後から最大11行まで入力できます。</p>
+        <p class="hint">写真を撮影・選択すると、そのまま自動保存されます。写真横の記入欄は空欄のままでよく、必要な写真だけ後から最大9行まで入力できます。</p>
         <div class="btn-row">
           <button class="btn primary" id="cameraBtn">📷 その場で撮影</button>
           <button class="btn outline" id="galleryBtn">🏞️ 写真を選ぶ</button>
@@ -814,7 +814,7 @@
       <input type="hidden" id="photoId" />
       <div style="text-align:center;margin-bottom:10px"><img id="photoEditPreview" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid #cbd5e1" /></div>
       <div><label>撮影日</label><input id="photoDate" type="date" /></div>
-      <div style="margin-top:10px"><label>写真横の記入欄（11行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder=""></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大11行まで分けて入力できます。</div></div>
+      <div style="margin-top:10px"><label>写真横の記入欄（9行まで・改行できます）</label><textarea id="photoContent" rows="11" maxlength="600" placeholder=""></textarea><div class="hint" style="margin-top:4px">スマホの改行キーで最大9行まで分けて入力できます。</div></div>
       <div style="margin-top:10px"><label>備考</label><textarea id="photoRemarks" placeholder="補足事項"></textarea></div>
     </div>
     <div class="dialog-foot"><button type="button" class="btn" onclick="window.photoLedgerCloseDialog('photoDialog')">取消</button><button type="submit" class="btn primary">保存</button></div>
@@ -976,8 +976,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v270';
-  const APP_UPDATE_NOTE='A4出力（3枚様式）の記入欄をExcelの印刷と同じ形に：No.の行（通し番号）＋点線9行、文字を一回り大きく、写真の間の灰色の横線を廃止';
+  const APP_VERSION='v271';
+  const APP_UPDATE_NOTE='PDF保存を大幅に高速化（写真が多くても遅くならない）／写真一覧を軽く／記入欄の案内を「9行まで」に修正／写真が多いときの全体バックアップに注意表示';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1124,7 +1124,7 @@
     if(!arr.length){host.innerHTML='<div class="empty">写真はまだ登録されていません。<br>「その場で撮影」または「写真を選ぶ」から追加してください。</div>';return}
     host.innerHTML=arr.map((p,i)=>`<div class="photo-item">
       <div style="position:relative">
-        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}" data-open-board="${p.id}" style="cursor:pointer">
+        <img class="thumb" src="${getPhotoUrl(p)}" alt="写真${i+1}" data-open-board="${p.id}" style="cursor:pointer" loading="lazy" decoding="async">
         ${selectMode?`<label style="position:absolute;left:4px;top:4px;background:rgba(255,255,255,.92);border-radius:6px;padding:3px 5px;display:flex;align-items:center"><input type="checkbox" class="bulk-check" data-id="${p.id}" ${selectedPhotoIds.has(p.id)?'checked':''} style="width:20px;height:20px;margin:0" /></label>`:''}
       </div>
       <div><div class="item-title">No.${i+1}　${escapeHtml((p.content||'').split('\n')[0]||'記入欄は空欄')}${(p.content||'').split('\n').filter(Boolean).length>1?`　ほか${(p.content||'').split('\n').filter(Boolean).length-1}行`:''}</div>
@@ -2548,7 +2548,7 @@
     const lines=[];
     // いちばん上は「No.」の行（写真の通し番号。Excelの3枚様式と同じ並び）
     lines.push(`<div class="note-line">No.${no}</div>`);
-    // 自由記入欄は、入力した改行どおり最大11行をラベルなしで表示する。
+    // 自由記入欄は、入力した改行どおり最大9行をラベルなしで表示する。
     const freeLines=limitToElevenLines(ph.content||'').split('\n');
     for(const text of freeLines){
       if(text.trim()) lines.push(`<div class="note-line">${escapeHtml(text.trim())}</div>`);
@@ -2696,7 +2696,9 @@
       const {jsPDF}=window.jspdf;
       const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
       for(let i=0;i<sheets.length;i++){
-        const canvas=await html2canvas(sheets[i],{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+        // 撮っているページ以外（アプリ本体・プレビュー・他のページ）は複製しない：写真が増えても1ページあたりの時間が増えないようにする（v271）
+        const sheet=sheets[i];
+        const canvas=await html2canvas(sheet,{scale:2,useCORS:true,backgroundColor:'#ffffff',ignoreElements:el=>!(el.contains(sheet)||sheet.contains(el)||el.closest('head'))});
         const imgData=canvas.toDataURL('image/jpeg',0.92);
         if(i>0)pdf.addPage();
         pdf.addImage(imgData,'JPEG',0,0,210,297);
@@ -3141,7 +3143,14 @@
     downloadBlob(blob,filename);
     return {savedTo:'download'};
   }
+  const BACKUP_WARN_MB=200;   // 全体バックアップで注意を出す写真の合計容量（目安：約350枚）
   async function backup(){
+    // 全部の写真を1つのファイルにまとめる作りのため、写真が多いと端末のメモリ不足で失敗したり復元できないことがある。
+    // 合計が大きいときは、続ける前に「現場ごとのデータ控え」を勧める（v271）
+    const totalMB=photos.reduce((s,p)=>s+((p.blob&&p.blob.size)||0)+((p.editedBlob&&p.editedBlob.size)||0),0)/1e6;
+    if(totalMB>BACKUP_WARN_MB){
+      if(!confirm(`写真の合計が約${Math.round(totalMB)}MB（${photos.length}枚）あります。\n\n写真が多いと、まとめてのバックアップは端末のメモリ不足で失敗したり、復元できないことがあります。\n大事な現場は、現場一覧の「データ控え」ボタンで現場ごとに分けて保存するのがおすすめです。\n\nこのまま全体のバックアップを続けますか？`))return;
+    }
     const {blob,filename,failed}=await buildBackupPayload();
     settings.lastBackupAt=Date.now();
     setTimeout(renderBackupStatus,0);

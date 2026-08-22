@@ -173,16 +173,17 @@
     .cover-form td.gap{padding:0 0 12mm}
     .ledger-head{height:10mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:1px solid #777;margin-bottom:2mm;font-size:9pt}
     .ledger-head .title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.12em}.ledger-head .page{text-align:right}
-    .photo-row-print{height:84.5mm;display:grid;grid-template-columns:118mm 1fr;column-gap:3mm;padding:2.2mm 0;border-bottom:1px solid #9ca3af;break-inside:avoid}
+    .photo-row-print{height:84.5mm;display:grid;grid-template-columns:118mm 1fr;column-gap:3mm;padding:2.2mm 0;break-inside:avoid}
     .print-photo-box{width:118mm;height:80mm;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden}
     /* PDFを作る部品は object-fit を扱えないため、上限だけ決めて比率は画像に任せる */
     .print-photo-box img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:0 auto}
         /* 記入欄の横線。背景で描くとPDFに出ないため、実体のある線を並べる。
        元のExcelに合わせて黒い点線にしている。 */
-    .print-note{height:80mm;position:relative;padding:0 1.5mm;font-size:8.6pt;line-height:1.25;overflow:hidden}
+    .print-note{height:80.3mm;position:relative;padding:0 1.5mm;font-size:9.5pt;line-height:1.25;overflow:hidden}
     .print-note .rule{position:absolute;left:0;right:0;height:0;border-top:.25mm dotted #000;pointer-events:none}
+    .print-note .rule.solid{border-top:.3mm solid #000}
     .print-note .note-text{position:relative;z-index:1}
-    .note-line{height:8.89mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    .note-line{height:8mm;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       display:flex;align-items:flex-end;padding-bottom:1.1mm;box-sizing:border-box}.note-line strong{font-weight:700}
     .ledger-footer{position:absolute;left:10mm;right:10mm;bottom:4mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#555}
     .blank-photo{border:1px solid transparent}
@@ -975,8 +976,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v269';
-  const APP_UPDATE_NOTE='保存データを端末が勝手に消さないよう保護／電波なしでもPDF・Excelが作れるよう部品を先読み／ライト画面で「アプリをインストール」の文字が見えにくかったのを修正';
+  const APP_VERSION='v270';
+  const APP_UPDATE_NOTE='A4出力（3枚様式）の記入欄をExcelの印刷と同じ形に：No.の行（通し番号）＋点線9行、文字を一回り大きく、写真の間の灰色の横線を廃止';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -2543,8 +2544,10 @@
 
   async function blobToDataURL(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
 
-  function noteLines(ph){
+  function noteLines(ph,no){
     const lines=[];
+    // いちばん上は「No.」の行（写真の通し番号。Excelの3枚様式と同じ並び）
+    lines.push(`<div class="note-line">No.${no}</div>`);
     // 自由記入欄は、入力した改行どおり最大11行をラベルなしで表示する。
     const freeLines=limitToElevenLines(ph.content||'').split('\n');
     for(const text of freeLines){
@@ -2553,8 +2556,8 @@
     const add=(label,val)=>{if(val)lines.push(`<div class="note-line"><strong>${escapeHtml(label)}：</strong>${escapeHtml(val)}</div>`)};
     // 区分と撮影日は印刷しない。その他の項目は入力した場合だけ表示する。
     add('工種',ph.workType); add('測点',ph.location); add('管種',ph.pipe); add('勾配',ph.slope); add('設計値',ph.design); add('実測値',ph.actual); add('備考',ph.remarks);
-    while(lines.length<11) lines.push('<div class="note-line">&nbsp;</div>');
-    return lines.slice(0,11).join('');
+    while(lines.length<10) lines.push('<div class="note-line">&nbsp;</div>');
+    return lines.slice(0,10).join('');
   }
 
   function printRules6(){
@@ -2630,7 +2633,7 @@
       html+=`<section class="sheet"><div class="ledger-head">${$('showHeader').checked?`<div>${escapeHtml(p.name)}</div><div class="title">工事写真帳</div><div class="page">${pi+1} / ${chunks.length}</div>`:'<div></div><div></div><div class="page">'+(pi+1)+' / '+chunks.length+'</div>'}</div>`;
       for(let r=0;r<3;r++){
         const ph=chunk[r];
-        if(ph){html+=`<div class="photo-row-print"><div class="print-photo-box"><img src="${ph.dataUrl}"></div><div class="print-note">${printRules()}<div class="note-text">${noteLines(ph)}</div></div></div>`}
+        if(ph){html+=`<div class="photo-row-print"><div class="print-photo-box"><img src="${ph.dataUrl}"></div><div class="print-note">${printRules()}<div class="note-text">${noteLines(ph,pi*3+r+1)}</div></div></div>`}
         else html+=`<div class="photo-row-print"><div class="print-photo-box blank-photo"></div><div class="print-note">${printRules()}</div></div>`;
       }
       html+=`<div class="ledger-footer"><span>${$('showCompany').checked?escapeHtml(p.company||''):''}</span><span>${escapeHtml(p.number||'')}</span></div></section>`;
@@ -2844,13 +2847,14 @@
   }
   // 記入欄の横線。元のExcelと同じ位置・同じ本数で引く。
   function printRules(){
-    // 元のExcelと同じ9行ぶん。枠(80mm)を9等分して線を引く。
-    const BOX_MM=80, LINES=9;
+    // Excelの3枚様式と同じ「No.の行＋点線9行」＝10行。枠(80mm)を10等分（8mm刻み）して線を引く。
+    // 1本目（No.の行の下）だけ実線、2本目以降は点線。いちばん上の線は引かない（1行目の文字のすぐ上に線が来るため）
+    // 枠は80.3mm（線の太さ分0.3mm広い）：最後の線が枠の縁で切り取られて薄く見えるのを防ぐ（6枚様式のv262と同じ考え方）
+    const BOX_MM=80, LINES=10;
     const step=BOX_MM/LINES;
     let out='';
-    // いちばん上の線は引かない（1行目の文字のすぐ上に線が来るため）
     for(let i=1;i<=LINES;i++){
-      out+=`<div class="rule" style="top:${(i*step).toFixed(2)}mm"></div>`;
+      out+=`<div class="rule${i===1?' solid':''}" style="top:${(i*step).toFixed(2)}mm"></div>`;
     }
     return out;
   }

@@ -283,7 +283,7 @@
     html[data-theme="dark"] .tip-box{background:#0c2320;border-color:#1f4d47}
     #boardDialog{width:min(96vw,900px)}
     /* 縦横比は renderBoardEditor が黒板に合わせて入れ直す。ここは初期値 */
-    #boardDialog .board-stage-viewport{aspect-ratio:3/2}
+    #boardDialog .board-stage-viewport{aspect-ratio:4/3}
     /* 黒板編集：横画面では左に黒板、右に操作。
        黒板は縦横比を保ったまま、収まる範囲でいちばん大きく表示する。 */
     @media(orientation:landscape) and (max-height:600px){
@@ -982,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v273';
-  const APP_UPDATE_NOTE='A4出力に「PDFを共有」ボタンを追加：押すだけでPDFを作り、保存せずにスマホの共有画面（LINE・Gmail・ドライブなど）へ渡せます';
+  const APP_VERSION='v274';
+  const APP_UPDATE_NOTE='黒板を実物の工事黒板と同じ形（4:3）に：工事件名・工事場所・施工者の行を高く、文字を大きく（実物の黒板を採寸して調整）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1569,7 +1569,7 @@
     const myId=camSettings.myBoardId;
     const cell=(sel,img,label,attr)=>`
       <button type="button" ${attr} style="padding:0;border:2px solid ${sel?'#f5a524':'rgba(255,255,255,.25)'};border-radius:10px;overflow:hidden;background:#111;text-align:left">
-        <img src="${img}" alt="" style="width:100%;display:block;aspect-ratio:3/2;background:#2a2f3a" />
+        <img src="${img}" alt="" style="width:100%;display:block;aspect-ratio:4/3;background:#2a2f3a" />
         <span style="display:block;padding:6px 7px;color:#fff;font-size:11.5px;line-height:1.4">${escapeHtml(label)}</span>
       </button>`;
     // MY黒板があれば先に出す（よく使うものなので探しやすい位置に）
@@ -4114,12 +4114,12 @@
     const ck=key+'_'+sk;
     if(_templateThumbCache[ck])return _templateThumbCache[ck];
     // 画面が高精細なので、表示より大きく描いてから縮めて表示する（ぼやけ防止）
-    const c=document.createElement('canvas');c.width=660;c.height=440;
+    const c=document.createElement('canvas');c.width=660;c.height=495;
     const ctx=c.getContext('2d');
     let sampleData;
     if(genericTemplate(key)) sampleData={template:key,fields:{},note:'',note2:'',surface:sk};
     else { const def=BOARD_TEMPLATES[key]||BOARD_TEMPLATES.tajima; sampleData={template:key,top:def.top.map(t=>({label:t.label,value:''})),bottom:{label:def.bottom.label,value:''},note:'',surface:sk}; }
-    drawBoardFace(ctx,660,440,sampleData);
+    drawBoardFace(ctx,660,495,sampleData);
     const url=c.toDataURL('image/jpeg',0.86);
     _templateThumbCache[ck]=url;
     return url;
@@ -4211,8 +4211,8 @@
     }
   }
   function myBoardThumbDataUrl(mb){
-    const c=document.createElement('canvas');c.width=660;c.height=440;const ctx=c.getContext('2d');
-    ctx.drawImage(makeBoardCanvas(mb.data,mb.strokes||[],660,440),0,0);
+    const c=document.createElement('canvas');c.width=660;c.height=495;const ctx=c.getContext('2d');
+    ctx.drawImage(makeBoardCanvas(mb.data,mb.strokes||[],660,495),0,0);
     return c.toDataURL('image/jpeg',0.86);
   }
   function updateMyBoardPickerActive(selId){
@@ -4384,7 +4384,8 @@
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     // 縦向きでも1行の高さが間延びしないよう、短辺を基準に決める
-    const rowH=Math.round(Math.min(innerH*0.088,innerW*0.075)),labelW=Math.round(innerW*0.20),bottomH=rowH;
+    // 実物の黒板（工事件名などの行＝板の高さの約12%、ラベル列＝幅の約24%）に合わせる（v274）
+    const rowH=Math.round(Math.min(innerH*0.12,innerW*0.095)),labelW=Math.round(innerW*0.24),bottomH=rowH;
     const count=3;
     const bodyY=innerY+count*rowH,bodyH=innerH-count*rowH-bottomH;
     const noteMaxLines=noteLinesFor(noteSize);
@@ -4395,9 +4396,9 @@
     const noteW=innerW-notePadX*2;
     const noteLineH=(bodyH-notePadY*2)/noteMaxLines;
     const noteFontSize=Math.max(14,Math.min(Math.floor(noteLineH*0.82),Math.floor(innerW*0.038*noteFontScale(noteSize))));
-    // 欄（工事名など）の文字の基準は、「記入欄の文字の大きさ」設定に左右されない標準で固定する
-    const noteLineHStd=(bodyH-notePadY*2)/noteLinesFor('m');
-    const rowFontBase=Math.max(14,Math.min(Math.floor(noteLineHStd*0.82),Math.floor(innerW*0.038)));
+    // 欄（工事件名など）の文字の基準：実物の黒板の字の大きさ（板の幅の約6%）に合わせる。
+    // 「記入欄の文字の大きさ」設定には連動しない。長い文字は今までどおり自動で縮めて収める（v274）
+    const rowFontBase=Math.max(14,Math.floor(innerW*0.062));
     const by=innerY+innerH-bottomH;
     return {pad,innerX,innerY,innerW,innerH,rowH,labelW,bottomH,count,bodyY,bodyH,noteX,noteY,noteW,noteLineH,noteFontSize,noteMaxLines,rowFontBase,by};
   }
@@ -4688,7 +4689,7 @@
     ctx.shadowColor=CHALK_GLOW_GET();ctx.shadowBlur=Math.max(1,w*0.0022);
     ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
     const rows=data.top||[];ctx.fillStyle=CHALK_WHITE_GET();
-    const baseRowFont=Math.min(m.rowFontBase,Math.floor(m.rowH*0.62));   // 欄の文字は設定に連動させない（長文時の自動縮小は従来どおり）
+    const baseRowFont=Math.min(m.rowFontBase,Math.floor(m.rowH*0.74));   // 欄の文字は設定に連動させない（長文時の自動縮小は従来どおり）
     const minRowFont=Math.max(9,Math.round(m.rowH*0.2));
     const labelMaxW=Math.max(10,m.labelW-14);
     const valueMaxW=Math.max(10,m.innerW-m.labelW-16);
@@ -4971,16 +4972,17 @@
     const base=document.createElement('canvas');base.width=width;base.height=height;const bctx=base.getContext('2d');drawBoardFace(bctx,width,height,board);
     const ink=document.createElement('canvas');ink.width=width;ink.height=height;drawStrokesOnCtx(ink.getContext('2d'),width,height,strokes);bctx.drawImage(ink,0,0);return base;
   }
-  const BOARD_RENDER_W=1200,BOARD_RENDER_H=800;
-  // 黒板の向き（横向き＝3:2／縦向き＝2:3）
+  const BOARD_RENDER_W=1200,BOARD_RENDER_H=900;
+  // 黒板の向き（横向き＝4:3／縦向き＝3:4。実物の工事黒板 60×45cm と同じ比率）（v274）
   function isPortraitBoard(board){return board&&board.orient==='port';}
   // 実際に貼る大きさに合わせて、黒板を作る大きさを決める。
   // 1200x800 で固定して作ると、小さく貼るときに無駄が大きい。
   function boardDrawSize(board,dstW,dstH){
     const base=boardRenderSize(board);
     const scale=Math.min(1,Math.max(dstW/base.w,dstH/base.h)*1.15);   // 少し余裕を持たせる
+    // 下限は幅だけに設け、高さは比率から決める（幅と高さを別々に下限にすると比率が崩れるため）（v274）
     const w=Math.max(360,Math.round(base.w*scale));
-    const h=Math.max(240,Math.round(base.h*scale));
+    const h=Math.round(w*base.h/base.w);
     return {w,h};
   }
   function boardRenderSize(board){

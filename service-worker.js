@@ -1,4 +1,4 @@
-const CACHE='nich-photo-ledger-camera-v284.0.0';
+const CACHE='nich-photo-ledger-camera-v285.0.0';
 const CORE=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./photo_album_template.xlsm','./privacy.html','./jspdf.umd.min.js','./jszip.min.js','./html2canvas.min.js'];
 self.addEventListener('install',e=>e.waitUntil(
   caches.open(CACHE)

@@ -272,7 +272,7 @@
     .board-quick .bq-l{font-size:10.5px;color:var(--muted);letter-spacing:.04em}
     .board-quick .bq-v{font-size:14px;font-weight:800;color:var(--brand-ink)}
     .tiny-btn{padding:7px 10px;font-size:12px}
-    .cover-edit-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:12px 10px;margin-bottom:12px}
+    .cover-edit-wrap{background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:12px 10px;margin-bottom:12px;position:relative}
     .cover-edit{background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:18px 14px 22px;font-size:13px;line-height:1.9;color:#111}
     .cover-edit .ce-title{text-align:center;font-size:19px;font-weight:700;letter-spacing:.45em;text-indent:.45em;border-bottom:1.5px solid #111;padding-bottom:4px;margin:4px auto 20px;width:78%}
     .cover-edit .ce-row{display:flex;align-items:flex-end;gap:6px;margin-bottom:14px}
@@ -285,6 +285,7 @@
     .cover-edit .ce-unit{font-size:12px}
     html[data-theme="dark"] .cover-edit-wrap{background:#1c212b;border-color:var(--line)}
     html[data-theme="dark"] .cover-edit{background:#f7f7f4;color:#111}
+    .cover-inline-ok{position:absolute;z-index:5;display:none;padding:5px 16px;font-size:13px;border-radius:8px;line-height:1.2;white-space:nowrap}
     .cf-dup{display:none}
     .inline-note{font-size:11px;color:#64748b;margin-top:4px}
     .tip-box{padding:10px;border:1px solid #a7d7cf;border-radius:10px;background:#f0fdfa}
@@ -991,8 +992,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v284';
-  const APP_UPDATE_NOTE='下のメニューの選択枠を控えめに：枠の色を薄く、中の色付けをやめました';
+  const APP_VERSION='v285';
+  const APP_UPDATE_NOTE='表紙の書き込みにも「OK 確定」ボタンを付けました（黒板の直接入力と同じ操作感）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -1200,14 +1201,17 @@
   }
   function syncCoverToForm(){
     const host=$('coverEdit'); if(!host)return;
-    const g=k=>{const el=host.querySelector(`[data-cf="${k}"]`);return el?el.textContent.trim():''};
-    $('projectName').value=g('name');
-    $('projectAddress').value=g('address');
-    $('projectCompany').value=g('company');
-    const num=g('number'); $('projectNumber').value=num?num:'';
-    $('projectNendo').value=g('nendo');
-    const s=reiwaToIso(g('sy'),g('sm'),g('sd')); $('projectStart').value=s;
-    const e=reiwaToIso(g('ey'),g('em'),g('ed')); $('projectEnd').value=e;
+    // 欄が表紙に無いときは null（＝保存用の欄を触らない）。シンプル表紙に切り替えたとき、
+    // 工事番号・工事箇所・工期が消えてしまう不具合（v284以前から）の修正（v285）
+    const g=k=>{const el=host.querySelector(`[data-cf="${k}"]`);return el?el.textContent.trim():null};
+    const set=(id,v)=>{if(v!==null)$(id).value=v;};
+    set('projectName',g('name'));
+    set('projectAddress',g('address'));
+    set('projectCompany',g('company'));
+    set('projectNumber',g('number'));
+    set('projectNendo',g('nendo'));
+    if(g('sy')!==null){const s=reiwaToIso(g('sy'),g('sm'),g('sd')); $('projectStart').value=s;}
+    if(g('ey')!==null){const e=reiwaToIso(g('ey'),g('em'),g('ed')); $('projectEnd').value=e;}
   }
   function openProjectDialog(p=null){
     if(resetPageZoomForProjectDialog(p))return;
@@ -5790,6 +5794,45 @@
     const t=(e.clipboardData||window.clipboardData).getData('text').replace(/[\r\n]+/g,' ');
     document.execCommand('insertText',false,t);
   });
+  // 表紙の書き込みにも「OK 確定」ボタン（v285）。黒板の直接入力（v283）と同じ操作感にそろえる。
+  // 表紙の欄は打ち込んだそばから保存用の欄へ写している（input→syncCoverToForm）ので、
+  // OK＝「この欄を書き終わる」合図。押すと欄の選択が外れてキーボードが閉じる。
+  (function(){
+    const wrap=document.querySelector('.cover-edit-wrap'); const host=$('coverEdit'); if(!wrap||!host)return;
+    const ok=document.createElement('button');
+    ok.type='button';                                   // 現場フォームの中に置くため、保存ボタン扱いにならないよう明示
+    ok.className='btn primary cover-inline-ok';
+    ok.textContent='OK 確定';
+    wrap.appendChild(ok);                               // 表紙を作り直しても消えないよう、外側の枠に置く
+    let cur=null,gapRow=null,gapPrev='';
+    const clearGap=()=>{if(gapRow){gapRow.style.marginBottom=gapPrev;gapRow=null;gapPrev='';}};
+    const hide=()=>{cur=null;ok.style.display='none';clearGap();};
+    const place=f=>{
+      cur=f;ok.style.display='block';
+      // 編集中の行の下に隙間を作り、その隙間にボタンを置く（下の欄にかぶってタップを邪魔しないため）
+      const row=f.closest('.ce-row')||f.parentElement;
+      if(row&&row!==gapRow){clearGap();gapRow=row;gapPrev=row.style.marginBottom||'';}
+      if(row)row.style.marginBottom='48px';
+      const fr=f.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+      const bw=ok.offsetWidth||74,bh=ok.offsetHeight||28;
+      let left=Math.round(fr.left-wr.left+(fr.width-bw)/2);              // 欄の真下の中央に置く
+      left=Math.max(4,Math.min(left,wrap.clientWidth-bw-4));             // 枠からはみ出さない
+      let top=Math.round(fr.bottom-wr.top+6);
+      if(top+bh>wrap.scrollHeight-2)top=Math.round(fr.top-wr.top-bh-6);  // 万一下にはみ出すときは欄の上へ
+      ok.style.left=left+'px';ok.style.top=top+'px';
+    };
+    host.addEventListener('focusin',e=>{const f=e.target.closest?e.target.closest('.ce-f'):null;if(f)requestAnimationFrame(()=>place(f));});
+    host.addEventListener('input',()=>{if(cur&&cur.isConnected)place(cur);});   // 打ち込みで欄が伸びても付いていく
+    host.addEventListener('focusout',e=>{
+      const rt=e.relatedTarget;
+      if(rt===ok)return;                                                 // OKに触れただけならclickの確定に任せる
+      if(rt&&rt.closest&&rt.closest('.ce-f'))return;                     // 隣の欄へ移っただけ→focusinが動かす
+      hide();
+    });
+    new MutationObserver(()=>{if(cur&&!cur.isConnected)hide();}).observe(host,{childList:true});  // 表紙の種類替えで欄が作り直されたら片づける
+    ok.addEventListener('pointerdown',e=>{e.preventDefault();});         // 押した瞬間に欄の選択が外れてボタンが消えるのを防ぐ（黒板と同じ）
+    ok.addEventListener('click',e=>{e.preventDefault();const f=cur;hide();if(f&&f.isConnected)f.blur();});
+  })();
   $('photoContent').addEventListener('input',e=>{
     const limited=limitToElevenLines(e.target.value);
     if(e.target.value!==limited)e.target.value=limited;

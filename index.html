@@ -982,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v279';
-  const APP_UPDATE_NOTE='長い文字の縦長の字を、行の枠いっぱいまで背を伸ばしてさらに見やすく（幅は変わらず、上下だけ大きく）';
+  const APP_VERSION='v280';
+  const APP_UPDATE_NOTE='Androidの「戻る」ボタン：写真・A4出力・設定ではまず現場に戻り、現場でもう一度押すとアプリ終了に（うっかり終了を防止）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -5682,8 +5682,32 @@
     dlg.close();
   };
   function activatePage(name){
-    ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();
+    ensureZoomAllowed();setTopbarArt(name);document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));$('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===name));if(name!=='projects')armBackGuard();   // 現場以外では「戻る」で現場に戻す（v280）window.scrollTo({top:0,behavior:'smooth'});if(name==='photos')renderPhotos();if(name==='settings')renderBackupStatus();
   }
+  // ---- Androidの「戻る」ボタン対応（v280）----
+  // ・カメラ・黒板などの子画面が開いているとき：その子画面を閉じるだけ
+  //   （新しいAndroidのChromeは自動で閉じるので、その場合ここは動かない。古い機種向けの保険）
+  // ・現場以外のページ（写真・A4出力・設定）のとき：現場に戻る
+  // ・現場のとき：そのままアプリ終了（従来どおり）
+  // 仕組み：現場以外のページにいる間は、ブラウザの履歴を1つ余分に積んでおく（pgBack）。
+  // 「戻る」でそれが減った瞬間に上の動きをする。うっかり終了を防ぐのが目的。
+  function armBackGuard(){
+    try{ if(!(history.state&&history.state.pgBack))history.pushState({pgBack:1},''); }catch(e){}
+  }
+  window.addEventListener('popstate',()=>{
+    try{
+      // 子画面が開いていれば、上に乗っている順に1つだけ閉じる
+      const ids=['boardBuilderDialog','imgAdjustDialog','cameraDialog','boardDialog','photoDialog','projectDialog','welcomeDialog'];
+      for(const id of ids){
+        const d=document.getElementById(id);
+        if(d&&d.open){ armBackGuard(); try{d.close();}catch(e){} return; }
+      }
+      const d2=document.querySelector('dialog[open]');
+      if(d2){ armBackGuard(); try{d2.close();}catch(e){} return; }
+      if(activePageName()!=='projects'){ showPage('projects'); return; }
+      // 現場のときは何もしない → 次の「戻る」でアプリ終了
+    }catch(e){}
+  });
   function showPage(name){
     if(resetPageZoomForNavigation(name))return;
     activatePage(name);

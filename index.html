@@ -922,11 +922,13 @@
         <button type="button" class="btn outline full" id="saveMyBoardBtn" style="margin-top:8px">＋ 今の黒板をMY黒板に保存</button>
         <button type="button" class="btn outline full" id="openBoardBuilderBtn" style="margin-top:6px">✏️ 黒板を自分で作る・直す</button>
         <select id="boardTemplate" style="display:none">
+          <option value="tajima2">工事件名・工事場所・施工者（細枠なし）</option>
           <option value="tajima">工事件名・工事場所・施工者</option>
           <option value="work">工事名・工種・測点</option>
           <option value="muji">無地</option>
-          <option value="sunpou">寸法・略図確認</option>
           <option value="kyusui_shinsei">給水装置 申請確認</option>
+          <option value="joukasou_secchi">浄化槽設置工事</option>
+          <option value="sunpou">寸法・略図確認</option>
           <option value="dekigata_keisoku">出来形計測</option>
           <option value="joukyou_setsumei">状況説明・現場記録</option>
           <option value="kenchiku_tou">棟別・撮影箇所確認</option>
@@ -992,8 +994,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v285';
-  const APP_UPDATE_NOTE='表紙の書き込みにも「OK 確定」ボタンを付けました（黒板の直接入力と同じ操作感）';
+  const APP_VERSION='v287';
+  const APP_UPDATE_NOTE='浄化槽設置工事の黒板を実物どおりに作り直しました（仕切り線・文字の間隔・書き込み欄の字の大きさ）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3391,6 +3393,7 @@
       projectName:project.name||'',
       projectAddress:project.address||'',
       company:project.company||settings.company||'',
+      engineer:project.engineer||'',
       workType:(ph&&ph.workType)||'',
       location:(ph&&ph.location)||'',
       shotDate:fmtDate(ph&&ph.date)
@@ -3398,6 +3401,7 @@
   }
   const BOARD_TEMPLATES={
     tajima:{top:[{label:'工事件名',field:'projectName'},{label:'工事場所',field:'projectAddress'},{label:'',field:null}],bottom:{label:'施工者',field:'company'}},
+    tajima2:{top:[{label:'工事件名',field:'projectName'},{label:'工事場所',field:'projectAddress'}],bottom:{label:'施工者',field:'company'}},   // 工事場所の下の細い枠なし（v286）
     work:{top:[{label:'工事名',field:'projectName'},{label:'工種',field:'workType'},{label:'測点',field:'location'}],bottom:{label:'施工者',field:'company'}},
     free:{top:[{label:'項目1',field:null},{label:'項目2',field:null},{label:'項目3',field:null}],bottom:{label:'',field:null}}
   };
@@ -3421,6 +3425,15 @@
       {weight:1,parts:[{label:'撮影部分',ctxField:null}]},
       {weight:1,parts:[{label:'撮影年月日',ctxField:'shotDate'}]},
       {weight:1,parts:[{label:'公認業者',ctxField:'company'}]}
+    ]},
+    joukasou_secchi:{label:'浄化槽設置工事',rows:[
+      {weight:1.05,title:'浄化槽設置工事',titleRight:'新設・変更'},
+      {weight:1,parts:[{label:'設置計画書又は\n設置届出書の交付番号',ctxField:null,pre:'建 ・ 浄 第',suf:'号',sep:true,flat:true}]},
+      {weight:1.05,parts:[{label:'設 置 場 所',ctxField:'projectAddress',sep:true,flat:true}]},
+      {weight:1.1,parts:[{label:'設 置 者 氏 名',ctxField:null,sep:true,flat:true}]},
+      {weight:1.2,parts:[{label:'工事名（箇所）',ctxField:'location',flat:true}]},
+      {weight:0.9,parts:[{label:'撮影年月日',ctxField:'shotDate',flat:true}]},
+      {weight:1.4,parts:[{label:'浄 化 槽\n工事業者名',ctxField:'company',sep:true,flat:true},{label:'浄 化 槽\n設 備 士 名',ctxField:'engineer',sep:true,flat:true}]}
     ]},
     dekigata_keisoku:{label:'出来形計測',sketch:{fromRow:0,toRow:2,colPct:0.55,label:'略図',noteKey:'sketchNote',maxLines:5},rows:[
       {weight:1,parts:[{label:'工種',ctxField:'workType'}]},
@@ -4112,11 +4125,13 @@
 
   function boardTemplateList(){
     return [
+      {key:'tajima2',label:'工事件名・工事場所・施工者（細枠なし）'},
       {key:'tajima',label:'工事件名・工事場所・施工者'},
       {key:'work',label:'工事名・工種・測点'},
       {key:'muji',label:GENERIC_TEMPLATES.muji.label},
-      {key:'sunpou',label:GENERIC_TEMPLATES.sunpou.label},
       {key:'kyusui_shinsei',label:GENERIC_TEMPLATES.kyusui_shinsei.label},
+      {key:'joukasou_secchi',label:GENERIC_TEMPLATES.joukasou_secchi.label},
+      {key:'sunpou',label:GENERIC_TEMPLATES.sunpou.label},
       {key:'dekigata_keisoku',label:GENERIC_TEMPLATES.dekigata_keisoku.label},
       {key:'joukyou_setsumei',label:GENERIC_TEMPLATES.joukyou_setsumei.label},
       {key:'kenchiku_tou',label:GENERIC_TEMPLATES.kenchiku_tou.label},
@@ -4400,13 +4415,13 @@
   function noteFontScale(noteSize){return noteSize==='l'?2.2:noteSize==='s'?1.5:1.8;}
   function noteLinesScaled(base,noteSize){return Math.max(1,Math.round(base*(noteSize==='l'?0.45:noteSize==='s'?0.66:0.55)));}
   function noteLinesFor(noteSize){return noteSize==='l'?4:noteSize==='s'?6:5;}   // 小=6行（v275以前の「大」と同じ）／中=5行／大=4行（v276の中と同じ。v277で一段小さく調整）
-  function getBoardLayout(w,h,noteSize){
+  function getBoardLayout(w,h,noteSize,topCount){
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
     // 縦向きでも1行の高さが間延びしないよう、短辺を基準に決める
     // 実物の黒板（工事件名などの行＝板の高さの約12%、ラベル列＝幅の約24%）に合わせる（v274）
     const rowH=Math.round(Math.min(innerH*0.12,innerW*0.095)),labelW=Math.round(innerW*0.24),bottomH=rowH;
-    const count=3;
+    const count=topCount||3;
     const bodyY=innerY+count*rowH,bodyH=innerH-count*rowH-bottomH;
     const noteMaxLines=noteLinesFor(noteSize);
     const notePadX=Math.max(8,Math.round(innerW*0.008));
@@ -4462,9 +4477,10 @@
       : `行数の目安: ${total} / ${max} 行`;
     el.classList.toggle('over',over);
   }
+  function legacyTopCount(data){const d=BOARD_TEMPLATES[data&&data.template];return d?d.top.length:3;}
   function renderBoardNoteGuide(data,w,h){
     const el=$('boardNoteGuide'); if(!el)return;
-    const m=getBoardLayout(w,h,data&&data.noteSize);
+    const m=getBoardLayout(w,h,data&&data.noteSize,legacyTopCount(data));
     el.style.left=m.noteX+'px';
     el.style.top=m.noteY+'px';
     el.style.width=m.noteW+'px';
@@ -4472,7 +4488,7 @@
     el.style.backgroundImage='none';
     el.textContent='';
     el.style.display=data&&data.enabled!==false?'block':'none';
-    const rs=boardRenderSize(data);const rm=getBoardLayout(rs.w,rs.h,data&&data.noteSize);
+    const rs=boardRenderSize(data);const rm=getBoardLayout(rs.w,rs.h,data&&data.noteSize,legacyTopCount(data));
     const mctx=noteMeasureCtx();
     const fit=fitNoteFont(mctx,data&&data.note||'',rm.noteW,rm.noteMaxLines,rm.noteFontSize,10);
     updateBoardNoteStatusText(fit,rm.noteFontSize,rm.noteMaxLines);
@@ -4719,8 +4735,32 @@
     _chalkTextureCache[key]=c;
     return c;
   }
+  // 項目名（ラベル）は、値と違って行いっぱいの縦長の字にはせず「少し小さくして収める」（v286）。
+  // 「給水装置の場所」などの長い項目名が大きくなりすぎるのを直す。改行(\n)入りの2行の項目名にも対応。
+  function drawFitLabel(ctx,text,x,cy,maxW,rowH,baseSize,minSize,floorRatio){
+    const t=String(text||''); if(!t)return;
+    const lines=t.split('\n');
+    const squeezeOrDraw=(s,yy)=>{const w2=ctx.measureText(s).width;
+      if(w2>maxW){ctx.save();ctx.translate(x,yy);ctx.scale(maxW/w2,1);ctx.fillText(s,0,0);ctx.restore();}
+      else ctx.fillText(s,x,yy);};
+    if(lines.length<=1){
+      // 縮めるのは下限（floorRatio、省略時は元の6割）まで。それでも入らない長さは、幅だけ細くして収める
+      const floor=Math.max(minSize,Math.round(baseSize*(floorRatio||0.6)));
+      let size=Math.max(floor,Math.min(Math.round(baseSize),Math.floor(rowH*0.74)));
+      ctx.font=CHALK_FONT_BOLD(size);
+      while(size>floor&&ctx.measureText(t).width>maxW){size--;ctx.font=CHALK_FONT_BOLD(size);}
+      squeezeOrDraw(t,cy);
+      return;
+    }
+    const n=Math.min(2,lines.length);
+    const size=Math.max(minSize,Math.min(Math.round(baseSize*0.78),Math.floor(rowH/(n+0.6))));
+    ctx.font=CHALK_FONT_BOLD(size);
+    const gap=Math.round(size*0.16),totalH=n*size+(n-1)*gap;
+    let yy=cy-totalH/2+size/2;
+    for(let i=0;i<n;i++){squeezeOrDraw(lines[i],yy);yy+=size+gap;}
+  }
   function drawLegacyBoardFace(ctx,w,h,data){
-    const m=getBoardLayout(w,h,data&&data.noteSize);
+    const m=getBoardLayout(w,h,data&&data.noteSize,legacyTopCount(data));
     ctx.save();ctx.drawImage(getChalkTexture(w,h),0,0);
     ctx.shadowColor=CHALK_GLOW_GET();ctx.shadowBlur=Math.max(1,w*0.0022);
     ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(2,w/300);ctx.strokeRect(m.pad,m.pad,w-m.pad*2,h-m.pad*2);
@@ -4826,9 +4866,15 @@
         const key=g.row.note.key;
         const text=data[key]||'';
         const padX=8,padY=6;
-        const lblSize=Math.max(11,Math.round(baseFont*0.85));
+        const lblSize=Math.max(13,Math.min(Math.round(innerW*0.052),Math.round(g.h*0.32)));   // 見出しは板の幅基準で大きく（v286）
         ctx.font=CHALK_FONT_BOLD(lblSize);ctx.textBaseline='top';
-        if(g.row.note.label)ctx.fillText(g.row.note.label,innerX+padX,g.y+padY);
+        if(g.row.note.label){
+          // 見出しが枠（略図の仕切りなど）からはみ出すときは、幅だけ細くして収める（v286）
+          const lbAvail=Math.max(10,(rowRightX-innerX)-padX*2);
+          const lbW=ctx.measureText(g.row.note.label).width;
+          if(lbW>lbAvail){ctx.save();ctx.translate(innerX+padX,g.y+padY);ctx.scale(lbAvail/lbW,1);ctx.fillText(g.row.note.label,0,0);ctx.restore();}
+          else ctx.fillText(g.row.note.label,innerX+padX,g.y+padY);
+        }
         const maxLines=noteLinesScaled(g.row.note.maxLines||4,data.noteSize);
         const textTop=g.y+padY+(g.row.note.label?lblSize+4:0);
         const textH=Math.max(10,g.y+g.h-textTop-padY);
@@ -4844,7 +4890,7 @@
         const src=(data.images||{})[key];
         const label=(data.imageLabels&&typeof data.imageLabels[key]==='string')
           ? data.imageLabels[key] : (g.row.image.label||'');
-        const lblSize=Math.max(11,Math.round(baseFont*0.85));
+        const lblSize=Math.max(13,Math.min(Math.round(innerW*0.052),Math.round(g.h*0.32)));   // 見出しは板の幅基準で大きく（v286）
         // 絵を貼っているときは枠いっぱいまで使い、見出しは絵の上に重ねる
         const top=src?(g.y+1):(g.y+padY+(label?lblSize+4:0));
         const ih=src?Math.max(4,g.h-2):Math.max(4,g.y+g.h-top-padY);
@@ -4885,9 +4931,23 @@
           for(let i=0;i<nf.lines.length&&i<nMax;i++)ctx.fillText(nf.lines[i],innerX+padX,nTop+i*nLine);
           ctx.restore();
         }
+      }else if(g.row.title){
+        // 題名の行（浄化槽設置工事 など）。左に大きく、右端に添え書き（新設・変更 など）（v286）
+        ctx.textBaseline='middle';
+        const tSize=Math.max(16,Math.min(Math.round(g.h*0.66),Math.round(innerW*0.075)));
+        ctx.font=CHALK_FONT_BOLD(tSize);
+        ctx.fillText(g.row.title,innerX+10,g.y+g.h/2);
+        if(g.row.titleRight){
+          const rSize=Math.max(13,Math.round(tSize*0.62));
+          ctx.font=CHALK_FONT_BOLD(rSize);
+          const rw=ctx.measureText(g.row.titleRight).width;
+          ctx.fillText(g.row.titleRight,rowRightX-10-rw,g.y+g.h/2);
+        }
       }else if(g.row.parts){
         const parts=g.row.parts;
         const partW=(rowRightX-innerX)/parts.length;
+        // 項目の文字は「その行の高さ」を基準に。行数の多い黒板でも小さくなりすぎない（v286）
+        const rowFont=Math.max(16,Math.min(Math.round(g.h*0.74),Math.round(innerW*0.062)));
         let x=innerX;
         parts.forEach((p,pi)=>{
           if(pi>0){ctx.beginPath();ctx.moveTo(x,g.y);ctx.lineTo(x,g.y+g.h);ctx.stroke();}
@@ -4895,12 +4955,29 @@
           ctx.textBaseline='middle';
           let valX=x+8;
           if(p.label){
-            drawFitText(ctx,p.label,x+8,g.y+g.h/2,partW*0.4,baseFont,minFont,Math.floor(g.h*0.8));
+            const lblMaxW=p.sep?(partW*0.42-16):(partW*0.4);
+            drawFitLabel(ctx,p.label,x+8,g.y+g.h/2,lblMaxW,g.h,rowFont,minFont);
             valX=x+partW*0.42;
+            if(p.sep){ctx.beginPath();ctx.moveTo(x+partW*0.42,g.y);ctx.lineTo(x+partW*0.42,g.y+g.h);ctx.stroke();valX=x+partW*0.42+8;}
+          }
+          let valRight=x+partW-8;
+          if(p.suf){
+            const sSize=Math.max(12,Math.round(rowFont*0.8));
+            ctx.font=CHALK_FONT_BOLD(sSize);
+            const sw=ctx.measureText(p.suf).width;
+            ctx.fillText(p.suf,x+partW-8-sw,g.y+g.h/2);
+            valRight=x+partW-8-sw-6;
+          }
+          if(p.pre){
+            const pSize=Math.max(12,Math.round(rowFont*0.8));
+            ctx.font=CHALK_FONT_BOLD(pSize);
+            ctx.fillText(p.pre,valX,g.y+g.h/2);
+            valX+=ctx.measureText(p.pre).width+8;
           }
           if(val){
-            const valMaxW=Math.max(10,x+partW-valX-8);
-            drawFitText(ctx,val,valX,g.y+g.h/2,valMaxW,baseFont,minFont,Math.floor(g.h*0.8));
+            const valMaxW=Math.max(10,valRight-valX);
+            if(p.flat)drawFitLabel(ctx,val,valX,g.y+g.h/2,valMaxW,g.h,rowFont,minFont,0.85);   // 伸ばさない欄の値：縮みは8.5割までにして大きめを保つ（v286）
+            else drawFitText(ctx,val,valX,g.y+g.h/2,valMaxW,rowFont,minFont,Math.floor(g.h*0.8));
           }
           x+=partW;
         });
@@ -5378,10 +5455,11 @@
   }
   function endDraw(){boardState.drawing=false;boardState.currentStroke=null}
 
-  function legacyFieldRects(w,h,noteSize){
-    const m=getBoardLayout(w,h,noteSize);
+  function legacyFieldRects(w,h,noteSize,template){
+    const count=(BOARD_TEMPLATES[template]||BOARD_TEMPLATES.tajima).top.length;
+    const m=getBoardLayout(w,h,noteSize,count);
     const rects=[];
-    for(let i=0;i<3;i++){
+    for(let i=0;i<count;i++){
       const yy=m.innerY+i*m.rowH;
       rects.push({kind:'text',targetId:'boardLabel'+(i+1),x:m.innerX,y:yy,w:m.labelW,h:m.rowH});
       rects.push({kind:'text',targetId:'boardValue'+(i+1),x:m.innerX+m.labelW,y:yy,w:m.innerW-m.labelW,h:m.rowH});
@@ -5421,7 +5499,7 @@
     const board=readBoardControls();
     const w=boardState.displayW||760,h=boardState.displayH||Math.round(w*2/3);
     if(genericTemplate(board.template))return genericFieldRects(w,h,board.template);
-    return legacyFieldRects(w,h,board.noteSize);
+    return legacyFieldRects(w,h,board.noteSize,board.template);
   }
   // 黒板に直接入力するときの吹き出し。
   // 開いたまま画面を閉じると次の写真に残ってしまうため、必ずここで片づける。

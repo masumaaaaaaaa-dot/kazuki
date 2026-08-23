@@ -982,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v278';
-  const APP_UPDATE_NOTE='工事場所などが長いときは、字を丸ごと小さくせず「背の高さそのまま・幅だけ細い縦長の字」で書くように（実物の黒板と同じ書き方）';
+  const APP_VERSION='v279';
+  const APP_UPDATE_NOTE='長い文字の縦長の字を、行の枠いっぱいまで背を伸ばしてさらに見やすく（幅は変わらず、上下だけ大きく）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -4475,15 +4475,20 @@
     }
   }
   // 長い文字は「縦横とも小さく」ではなく、実物の黒板で長い住所を書くときのように
-  // 背の高さはそのまま・幅だけ細く（縦長の字）で描く（v278）。
-  // 幅を6割まで細めても入りきらないときだけ、そこから文字全体を小さくする（読めない細さを防ぐ）。
-  function drawFitText(ctx,text,x,y,maxW,baseSize,minSize){
+  // 幅だけ細い縦長の字で描く（v278）。さらに、細くするときは行の枠に当たらない高さ（tallSize）まで
+  // 背を伸ばす（v279）。字の横幅は「枠の幅÷文字数」で決まっていて変わらないため、背を伸ばしても
+  // 幅は犠牲にならず、読みやすくなるだけ。
+  // 細さが4割を切るほど長い文字だけ、そこから文字全体を小さくする（読めない細さを防ぐ）。
+  function drawFitText(ctx,text,x,y,maxW,baseSize,minSize,tallSize){
     const t=String(text||''); if(!t)return;
     let size=Math.max(minSize,Math.round(baseSize));
     ctx.font=CHALK_FONT_BOLD(size);
     let tw=ctx.measureText(t).width;
     if(tw<=maxW){ ctx.fillText(t,x,y); return; }
-    const MIN_SCALE=0.6;
+    size=Math.max(size,Math.round(tallSize||size));   // 背を行いっぱいまで
+    ctx.font=CHALK_FONT_BOLD(size);
+    tw=ctx.measureText(t).width;
+    const MIN_SCALE=0.4;
     let scale=maxW/tw;
     if(scale<MIN_SCALE){
       size=Math.max(minSize,Math.floor(size*scale/MIN_SCALE));
@@ -4714,8 +4719,8 @@
     for(let i=0;i<m.count;i++){
       const yy=m.innerY+i*m.rowH;ctx.strokeRect(m.innerX,yy,m.innerW,m.rowH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,yy);ctx.lineTo(m.innerX+m.labelW,yy+m.rowH);ctx.stroke();
       const row=rows[i]||{label:'',value:''};ctx.textBaseline='middle';
-      drawFitText(ctx,row.label,m.innerX+10,yy+m.rowH/2,labelMaxW,baseRowFont,minRowFont);
-      drawFitText(ctx,row.value,m.innerX+m.labelW+10,yy+m.rowH/2,valueMaxW,baseRowFont,minRowFont);
+      drawFitText(ctx,row.label,m.innerX+10,yy+m.rowH/2,labelMaxW,baseRowFont,minRowFont,Math.floor(m.rowH*0.86));
+      drawFitText(ctx,row.value,m.innerX+m.labelW+10,yy+m.rowH/2,valueMaxW,baseRowFont,minRowFont,Math.floor(m.rowH*0.86));
     }
     ctx.strokeRect(m.innerX,m.bodyY,m.innerW,m.bodyH);
     ctx.textBaseline='top';
@@ -4723,8 +4728,8 @@
     ctx.font=CHALK_FONT_BOLD(noteFit.size);
     for(let i=0;i<noteFit.lines.length&&i<m.noteMaxLines;i++)ctx.fillText(noteFit.lines[i],m.noteX,m.noteY+i*m.noteLineH);
     ctx.strokeRect(m.innerX,m.by,m.innerW,m.bottomH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,m.by);ctx.lineTo(m.innerX+m.labelW,m.by+m.bottomH);ctx.stroke();ctx.textBaseline='middle';
-    drawFitText(ctx,data.bottom&&data.bottom.label,m.innerX+10,m.by+m.bottomH/2,labelMaxW,baseRowFont,minRowFont);
-    drawFitText(ctx,data.bottom&&data.bottom.value,m.innerX+m.labelW+10,m.by+m.bottomH/2,valueMaxW,baseRowFont,minRowFont);ctx.restore();
+    drawFitText(ctx,data.bottom&&data.bottom.label,m.innerX+10,m.by+m.bottomH/2,labelMaxW,baseRowFont,minRowFont,Math.floor(m.bottomH*0.86));
+    drawFitText(ctx,data.bottom&&data.bottom.value,m.innerX+m.labelW+10,m.by+m.bottomH/2,valueMaxW,baseRowFont,minRowFont,Math.floor(m.bottomH*0.86));ctx.restore();
   }
   // ---- 豆図（黒板に貼る図の画像）----
   // 黒板の描画は同期処理なので、貼る前に画像を読み込み済みにしておく必要がある。
@@ -4877,12 +4882,12 @@
           ctx.textBaseline='middle';
           let valX=x+8;
           if(p.label){
-            drawFitText(ctx,p.label,x+8,g.y+g.h/2,partW*0.4,baseFont,minFont);
+            drawFitText(ctx,p.label,x+8,g.y+g.h/2,partW*0.4,baseFont,minFont,Math.floor(g.h*0.8));
             valX=x+partW*0.42;
           }
           if(val){
             const valMaxW=Math.max(10,x+partW-valX-8);
-            drawFitText(ctx,val,valX,g.y+g.h/2,valMaxW,baseFont,minFont);
+            drawFitText(ctx,val,valX,g.y+g.h/2,valMaxW,baseFont,minFont,Math.floor(g.h*0.8));
           }
           x+=partW;
         });

@@ -982,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v274';
-  const APP_UPDATE_NOTE='黒板を実物の工事黒板と同じ形（4:3）に：工事件名・工事場所・施工者の行を高く、文字を大きく（実物の黒板を採寸して調整）';
+  const APP_VERSION='v275';
+  const APP_UPDATE_NOTE='「黒板を自分で作る・直す」で作った黒板が選べない・直せない・消せない不具合を修正';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3544,12 +3544,17 @@
   // 自作の黒板もここへ足しておかないと、値をセットしても無視されて選べない。
   function syncBoardTemplateOptions(){
     const sel=$('boardTemplate'); if(!sel)return;
+    // 選択肢を入れ替えると、選択中の自作黒板が選択から外れて先頭（工事件名…）に戻ってしまう。
+    // そのせいで自作黒板が「選べない・直せない・消せない」状態だった。
+    // 今の値を覚えておき、入れ替えた後も残っていれば選び直す（v275）
+    const keep=sel.value;
     Array.from(sel.querySelectorAll('option[data-custom="1"]')).forEach(o=>o.remove());
     boardDefs().forEach(b=>{
       const o=document.createElement('option');
       o.value='custom:'+b.id; o.textContent=b.name; o.dataset.custom='1';
       sel.appendChild(o);
     });
+    if(keep&&Array.from(sel.options).some(o=>o.value===keep))sel.value=keep;
   }
   // テンプレートの実体を返す。組み込みの13種類と、自分で作った黒板の両方を扱う。
   function genericTemplate(key){

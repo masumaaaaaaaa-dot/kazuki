@@ -982,8 +982,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v275';
-  const APP_UPDATE_NOTE='「黒板を自分で作る・直す」で作った黒板が選べない・直せない・消せない不具合を修正';
+  const APP_VERSION='v278';
+  const APP_UPDATE_NOTE='工事場所などが長いときは、字を丸ごと小さくせず「背の高さそのまま・幅だけ細い縦長の字」で書くように（実物の黒板と同じ書き方）';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
@@ -3890,7 +3890,7 @@
       const hasImg=!!((boardState.images||{})['sketch']);
       if(hasImg)return {x:sketchColX+1, y:sy+1,
               w:Math.max(4,(innerX+innerW)-sketchColX-2), h:Math.max(4,ey-sy-2)};
-      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
+      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.06),Math.round(innerW*0.05)));
       const top=sy+padY+lblSize+4;
       return {x:sketchColX+padX, y:top,
               w:Math.max(4,(innerX+innerW)-sketchColX-padX*2),
@@ -4382,9 +4382,11 @@
     }
     return{x,y,w:bw,h:bh};
   }
-  function noteFontScale(noteSize){return noteSize==='l'?1.5:noteSize==='s'?0.75:1;}
-  function noteLinesScaled(base,noteSize){return Math.max(1,Math.round(base*(noteSize==='l'?0.66:noteSize==='s'?1.34:1)));}
-  function noteLinesFor(noteSize){return noteSize==='l'?6:noteSize==='s'?12:9;}
+  // 記入欄の文字の大きさ（v276で一段引き上げ：新しい「小」＝以前の「大」。中・大はさらに大きい）
+  // この倍率はテンプレ黒板の幅の上限を緩めるためのもの。実際の大きさは行数（noteLinesFor／noteLinesScaled）で決まる
+  function noteFontScale(noteSize){return noteSize==='l'?2.2:noteSize==='s'?1.5:1.8;}
+  function noteLinesScaled(base,noteSize){return Math.max(1,Math.round(base*(noteSize==='l'?0.45:noteSize==='s'?0.66:0.55)));}
+  function noteLinesFor(noteSize){return noteSize==='l'?4:noteSize==='s'?6:5;}   // 小=6行（v275以前の「大」と同じ）／中=5行／大=4行（v276の中と同じ。v277で一段小さく調整）
   function getBoardLayout(w,h,noteSize){
     const pad=Math.max(8,Math.round(Math.max(w,h)*0.025));
     const innerX=pad,innerY=pad,innerW=w-pad*2,innerH=h-pad*2;
@@ -4400,7 +4402,7 @@
     const noteY=bodyY+notePadY;
     const noteW=innerW-notePadX*2;
     const noteLineH=(bodyH-notePadY*2)/noteMaxLines;
-    const noteFontSize=Math.max(14,Math.min(Math.floor(noteLineH*0.82),Math.floor(innerW*0.038*noteFontScale(noteSize))));
+    const noteFontSize=Math.max(14,Math.floor(noteLineH*0.82));   // 行の高さから決める。長文は自動で縮む（v276）
     // 欄（工事件名など）の文字の基準：実物の黒板の字の大きさ（板の幅の約6%）に合わせる。
     // 「記入欄の文字の大きさ」設定には連動しない。長い文字は今までどおり自動で縮めて収める（v274）
     const rowFontBase=Math.max(14,Math.floor(innerW*0.062));
@@ -4472,13 +4474,24 @@
       }
     }
   }
-  function fitFontSizePx(ctx,text,maxW,baseSize,minSize){
+  // 長い文字は「縦横とも小さく」ではなく、実物の黒板で長い住所を書くときのように
+  // 背の高さはそのまま・幅だけ細く（縦長の字）で描く（v278）。
+  // 幅を6割まで細めても入りきらないときだけ、そこから文字全体を小さくする（読めない細さを防ぐ）。
+  function drawFitText(ctx,text,x,y,maxW,baseSize,minSize){
+    const t=String(text||''); if(!t)return;
     let size=Math.max(minSize,Math.round(baseSize));
     ctx.font=CHALK_FONT_BOLD(size);
-    while(size>minSize && ctx.measureText(String(text||'')).width>maxW){
-      size--; ctx.font=CHALK_FONT_BOLD(size);
+    let tw=ctx.measureText(t).width;
+    if(tw<=maxW){ ctx.fillText(t,x,y); return; }
+    const MIN_SCALE=0.6;
+    let scale=maxW/tw;
+    if(scale<MIN_SCALE){
+      size=Math.max(minSize,Math.floor(size*scale/MIN_SCALE));
+      ctx.font=CHALK_FONT_BOLD(size);
+      tw=ctx.measureText(t).width;
+      scale=Math.min(1,maxW/tw);
     }
-    return size;
+    ctx.save();ctx.translate(x,y);ctx.scale(scale,1);ctx.fillText(t,0,0);ctx.restore();
   }
   // 板の種類（黒板／ホワイトボード）で色を切り替える
   let boardSurface='chalk';   // 'chalk' または 'white'
@@ -4701,10 +4714,8 @@
     for(let i=0;i<m.count;i++){
       const yy=m.innerY+i*m.rowH;ctx.strokeRect(m.innerX,yy,m.innerW,m.rowH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,yy);ctx.lineTo(m.innerX+m.labelW,yy+m.rowH);ctx.stroke();
       const row=rows[i]||{label:'',value:''};ctx.textBaseline='middle';
-      const labelSize=fitFontSizePx(ctx,row.label,labelMaxW,baseRowFont,minRowFont);
-      ctx.font=CHALK_FONT_BOLD(labelSize);ctx.fillText(row.label||'',m.innerX+10,yy+m.rowH/2);
-      const valueSize=fitFontSizePx(ctx,row.value,valueMaxW,baseRowFont,minRowFont);
-      ctx.font=CHALK_FONT_BOLD(valueSize);ctx.fillText(row.value||'',m.innerX+m.labelW+10,yy+m.rowH/2);
+      drawFitText(ctx,row.label,m.innerX+10,yy+m.rowH/2,labelMaxW,baseRowFont,minRowFont);
+      drawFitText(ctx,row.value,m.innerX+m.labelW+10,yy+m.rowH/2,valueMaxW,baseRowFont,minRowFont);
     }
     ctx.strokeRect(m.innerX,m.bodyY,m.innerW,m.bodyH);
     ctx.textBaseline='top';
@@ -4712,10 +4723,8 @@
     ctx.font=CHALK_FONT_BOLD(noteFit.size);
     for(let i=0;i<noteFit.lines.length&&i<m.noteMaxLines;i++)ctx.fillText(noteFit.lines[i],m.noteX,m.noteY+i*m.noteLineH);
     ctx.strokeRect(m.innerX,m.by,m.innerW,m.bottomH);ctx.beginPath();ctx.moveTo(m.innerX+m.labelW,m.by);ctx.lineTo(m.innerX+m.labelW,m.by+m.bottomH);ctx.stroke();ctx.textBaseline='middle';
-    const bLabelSize=fitFontSizePx(ctx,data.bottom&&data.bottom.label,labelMaxW,baseRowFont,minRowFont);
-    ctx.font=CHALK_FONT_BOLD(bLabelSize);ctx.fillText(data.bottom&&data.bottom.label||'',m.innerX+10,m.by+m.bottomH/2);
-    const bValueSize=fitFontSizePx(ctx,data.bottom&&data.bottom.value,valueMaxW,baseRowFont,minRowFont);
-    ctx.font=CHALK_FONT_BOLD(bValueSize);ctx.fillText(data.bottom&&data.bottom.value||'',m.innerX+m.labelW+10,m.by+m.bottomH/2);ctx.restore();
+    drawFitText(ctx,data.bottom&&data.bottom.label,m.innerX+10,m.by+m.bottomH/2,labelMaxW,baseRowFont,minRowFont);
+    drawFitText(ctx,data.bottom&&data.bottom.value,m.innerX+m.labelW+10,m.by+m.bottomH/2,valueMaxW,baseRowFont,minRowFont);ctx.restore();
   }
   // ---- 豆図（黒板に貼る図の画像）----
   // 黒板の描画は同期処理なので、貼る前に画像を読み込み済みにしておく必要がある。
@@ -4787,7 +4796,8 @@
     const sketch=t.sketch;
     const sketchColX=sketch?innerX+innerW*sketch.colPct:null;
     const unitH=innerH/totalWeight;
-    const baseFont=Math.max(16,Math.min(Math.round(unitH*0.42),Math.round(innerW*0.051)));
+    // 行の高さの6割・板の幅の6.2%を上限に（標準黒板の欄と同じ基準。長い文字は自動で縮む）（v276）
+    const baseFont=Math.max(16,Math.min(Math.round(unitH*0.6),Math.round(innerW*0.062)));
     const minFont=Math.max(10,Math.min(Math.round(unitH*0.16),Math.round(innerW*0.02)));
     rowsGeom.forEach((g,ri)=>{
       const inSketchRange=sketch&&ri>=sketch.fromRow&&ri<=sketch.toRow;
@@ -4867,16 +4877,12 @@
           ctx.textBaseline='middle';
           let valX=x+8;
           if(p.label){
-            const labelSize=fitFontSizePx(ctx,p.label,partW*0.4,baseFont,minFont);
-            ctx.font=CHALK_FONT_BOLD(labelSize);
-            ctx.fillText(p.label,x+8,g.y+g.h/2);
+            drawFitText(ctx,p.label,x+8,g.y+g.h/2,partW*0.4,baseFont,minFont);
             valX=x+partW*0.42;
           }
           if(val){
             const valMaxW=Math.max(10,x+partW-valX-8);
-            const valSize=fitFontSizePx(ctx,val,valMaxW,baseFont,minFont);
-            ctx.font=CHALK_FONT_BOLD(valSize);
-            ctx.fillText(val,valX,g.y+g.h/2);
+            drawFitText(ctx,val,valX,g.y+g.h/2,valMaxW,baseFont,minFont);
           }
           x+=partW;
         });
@@ -4886,7 +4892,7 @@
       const sy=rowsGeom[sketch.fromRow].y,ey=rowsGeom[sketch.toRow].y+rowsGeom[sketch.toRow].h;
       ctx.strokeStyle=CHALK_LINE_GET();ctx.lineWidth=Math.max(1,w/500);ctx.strokeRect(sketchColX,sy,(innerX+innerW)-sketchColX,ey-sy);
       const padX=8,padY=6;
-      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.052),Math.round(innerW*0.045)));
+      const lblSize=Math.max(13,Math.min(Math.round(innerH*0.06),Math.round(innerW*0.05)));
       ctx.textBaseline='top';ctx.fillStyle=CHALK_WHITE_GET();
       const sketchImg=(data.images||{})['sketch'];
       // 見出し（略図など）は、自分で書き換えられる。空にすれば見出しなしになる。

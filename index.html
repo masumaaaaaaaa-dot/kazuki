@@ -94,7 +94,7 @@
     .nav-btn{border:2px solid transparent;border-radius:12px;margin:4px 4px 3px;background:#fff;padding:6px 2px 3px;color:#64748b;font-size:11px}.nav-btn span{display:block;font-size:21px;line-height:1.1;margin-bottom:3px}
     /* いま開いているページが分かるように、選択中はテーマ色の枠で囲む（v282） */
     /* 枠は薄め（テーマ色を白で薄めた色）。中の色付けはしない（v284） */
-    .nav-btn.active{color:var(--brand-ink);font-weight:800;border-color:color-mix(in srgb,var(--brand) 40%,#fff)}
+    .nav-btn.active{color:var(--brand-ink);font-weight:800;border-color:var(--brand)}   /* 選択枠はテーマカラーそのまま（v289） */
     dialog{border:0;border-radius:15px;padding:0;width:min(94vw,620px);max-height:90vh;box-shadow:0 24px 70px rgba(0,0,0,.28)}dialog::backdrop{background:rgba(15,23,42,.55)}
     .dialog-head{display:flex;align-items:center;padding:14px;border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff;z-index:1}.dialog-head h3{margin:0;flex:1}.dialog-body{padding:14px;overflow:auto}.dialog-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid #e5e7eb;background:#fff;position:sticky;bottom:0}.dialog-foot .btn{flex:1}
     .preview-wrap{overflow:auto;background:#d1d5db;padding:10px;border-radius:10px}.preview-mini{width:210mm;min-height:297mm;background:#fff;transform-origin:top left;box-shadow:0 3px 10px rgba(0,0,0,.25)}
@@ -384,7 +384,7 @@
     html[data-theme="dark"] .photo-meta strong{color:var(--text)}
     html[data-theme="dark"] .bottom-nav{background:var(--card);border-top-color:var(--line)}
     html[data-theme="dark"] .nav-btn{background:var(--card);color:#8a93a3}
-    html[data-theme="dark"] .nav-btn.active{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 45%,var(--card))}
+    html[data-theme="dark"] .nav-btn.active{color:var(--brand);border-color:var(--brand)}   /* 選択枠はテーマカラーそのまま（v289） */
     html[data-theme="dark"] dialog{background:var(--card);color:var(--text)}
     html[data-theme="dark"] dialog::backdrop{background:rgba(0,0,0,.7)}
     /* 黒板編集だけは、両脇に透ける後ろの画面を見せず、白（ダーク時は画面色）でスッキリ見せる */
@@ -994,8 +994,8 @@
   document.documentElement.dataset.theme=(localStorage.getItem('photoLedgerTheme')||'light');
   {const _c=localStorage.getItem('photoLedgerColor'); if(_c&&_c!=='default')document.documentElement.dataset.color=_c;}
   // ▼ アプリを更新したら、この2行を書き替えてください
-  const APP_VERSION='v288';
-  const APP_UPDATE_NOTE='アプリのアイコンを新しくしました（紺色×水色のカメラ）';
+  const APP_VERSION='v289';
+  const APP_UPDATE_NOTE='下のメニューの選択枠を、テーマカラーと同じ色にしました';
   const DB_NAME = 'nich_kouji_photo_ledger';
   const DB_VERSION = 2;
   let db;
